@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Scenario } from "@/lib/types";
-import { parseScenario } from "@/lib/scenarioUtil";
+import { getScenarioFromLocalStorage, parseScenario } from "@/lib/scenarioUtil";
 import { Button } from "@/components/ui/button";
 
 const defaultScores = [
@@ -60,13 +60,7 @@ export default function ReportPage() {
   const [nextScenario, setNextScenario] = useState<Scenario>();
 
   useEffect(() => {
-    const raw = localStorage.getItem("scenarioData");
-    if (!raw) {
-      return;
-    }
-    const data = JSON.parse(raw);
-    const scenario = parseScenario(data.scenario, data.prompts, data.report);
-    setNextScenario(scenario);
+    setNextScenario(getScenarioFromLocalStorage());
   }, []);
 
   return (

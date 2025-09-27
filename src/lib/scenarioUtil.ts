@@ -50,6 +50,16 @@ export function contextForAnalysis(scenario: Scenario): string {
   return context;
 }
 
+export function getScenarioFromLocalStorage(): Scenario | undefined {
+  const raw = localStorage.getItem("scenarioData");
+  if (!raw) {
+    return;
+  }
+  const data = JSON.parse(raw);
+  const scenario = parseScenario(data.scenario, data.prompts, data.report);
+  return scenario;
+}
+
 export function parseScenario(
   scenarioCreateAgentOutput: string,
   promptCreateAgentOutput: string,

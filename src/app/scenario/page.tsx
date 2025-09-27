@@ -8,13 +8,28 @@ import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelC
 import { useState, useEffect } from "react";
 import MenuBar from "@/components/MenuBar";
 import { mastraClient } from "@/lib/mastra-client";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getScenarioFromLocalStorage } from "@/lib/scenarioUtil";
+import { Scenario } from "@/lib/types";
 
 const scenario = Scenarios.demandingClient;
 
 export default function ScenarioPage() {
-  const [currentScenario, setCurrentScenario] = useState(scenario);
+  const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);
   const [scenarioCompleted, setScenarioCompleted] = useState(false);
   const [isLoadingNewScenario, setIsLoadingNewScenario] = useState(false);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const nextScenarioFlag = searchParams.get("next");
+    if (nextScenarioFlag === "true") {
+      const newScenario = getScenarioFromLocalStorage();
+      if (newScenario) {
+        setCurrentScenario(newScenario);
+      }
+    }
+  }, [searchParams]);
 
   // Check if user has completed a scenario on component mount
   useEffect(() => {
@@ -129,7 +144,7 @@ Success Criteria:
             </div>
           ) : (
             <div className="w-full p-2 text-center bg-white">
-              {scenario.title}
+              {currentScenario.title}
             </div>
           )}
           {/*<div className="w-full p-2 text-center bg-white">

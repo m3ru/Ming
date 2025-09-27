@@ -75,6 +75,8 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
 function NpcOverview({ npc }: { npc: Npc }) {
   const [isOpen, setIsOpen] = useState(false);
 
+  const title = npc.role.includes(".") ? npc.role.split(".")[0] : npc.role;
+
   return (
     <Card>
       <Collapsible
@@ -91,7 +93,7 @@ function NpcOverview({ npc }: { npc: Npc }) {
               </Avatar>
               <div className="flex flex-col items-start">
                 <h3 className="font-bold">{npc.name}</h3>
-                <p className="text-sm">{npc.role}</p>
+                <p className="text-sm">{title}</p>
               </div>
             </div>
             {isOpen ? <ChevronDown /> : <ChevronUp />}
