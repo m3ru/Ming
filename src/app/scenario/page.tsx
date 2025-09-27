@@ -6,6 +6,7 @@ import { Scenarios } from "@/backend/src/lib/scenarios";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import { useState, useEffect } from "react";
+import MenuBar from "@/components/MenuBar";
 import { mastraClient } from "@/lib/mastra-client";
 
 const scenario = Scenarios.demandingClient;
@@ -107,6 +108,8 @@ Success Criteria:
     `.trim();
   };
   return (
+    <div>
+      <MenuBar />
     <div className="flex w-screen h-screen">
       <ScenarioOverview scenario={currentScenario} />
       <div className="flex flex-col flex-grow">
@@ -130,5 +133,7 @@ Success Criteria:
         </div>
       </div>
     </div>
+        </div>
+
   );
 }
