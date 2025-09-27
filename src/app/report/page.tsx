@@ -13,6 +13,17 @@ export default function ReportPage() {
       .then((res) => res.text())
       .then((text) => setMd(text))
       .catch(() => setMd("Error: Could not load markdown file."));
+
+    // Load analyzer response from localStorage
+    const stored = localStorage.getItem("reportData");
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        if (data.summary) setSummary(data.summary);
+        if (data.feedback) setFeedback(data.feedback);
+        if (data.scoring) setScores(data.scoring);
+      } catch {}
+    }
   }, []);
 
   const parseInlineMarkdown = (text: string) => {
