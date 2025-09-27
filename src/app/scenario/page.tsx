@@ -6,6 +6,7 @@ import { Scenarios } from "@/backend/src/lib/scenarios";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import { useState, useEffect } from "react";
+import MenuBar from "@/components/MenuBar";
 
 const scenario = Scenarios.demandingClient;
 
@@ -107,7 +108,9 @@ Success Criteria:
     `.trim();
   };
   return (
-    <div className="h-screen w-screen flex">
+    <div className="h-screen w-screen flex flex-col">
+      <MenuBar />
+      <div className = "flex">
       <ScenarioOverview scenario={currentScenario} />
       <div className="flex-grow flex flex-col">
         {isLoadingNewScenario && (
@@ -128,6 +131,7 @@ Success Criteria:
           {/* <SimpleChatPanel /> */}
           <SidePanelCedarChat documents={currentScenario.documents} />
         </div>
+      </div>
       </div>
     </div>
   );
