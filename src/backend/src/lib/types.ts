@@ -16,6 +16,9 @@ export type Npc = {
   pfp: string;
   personality: string;
   scenarioSpecificInfo: string;
+  role_llm: string;
+  personality_llm?: string;
+  scenarioSpecificInfo_llm?: string;
 };
 
 export type ScenarioDocument = {
