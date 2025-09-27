@@ -1,9 +1,10 @@
 import { google } from "@ai-sdk/google";
 import { Agent } from "@mastra/core/agent";
 import { ALL_TOOLS } from "../tools/toolDefinitions";
-import { memory } from "../memory";
 import { Scenarios } from "../../../../lib/scenarios";
 import { documentToString } from "../../../../lib/scenarioUtil";
+import { Memory } from "@mastra/memory";
+import { LibSQLStore } from "@mastra/libsql";
 
 const scenario = Scenarios.demandingClient;
 const npc = scenario.npcs[0]; // Bill
@@ -67,5 +68,18 @@ When responding:
   `,
   model: google("gemini-2.5-flash-lite"),
   tools: Object.fromEntries(ALL_TOOLS.map((tool) => [tool.id, tool])),
-  memory,
+  //   memory_bill,
+  memory: new Memory({
+    storage: new LibSQLStore({
+      url: "file:bill-memory.db",
+    }),
+    options: {
+      workingMemory: {
+        enabled: true,
+      },
+      threads: {
+        generateTitle: true,
+      },
+    },
+  }),
 });
