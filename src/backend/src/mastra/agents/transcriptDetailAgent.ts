@@ -65,7 +65,7 @@ For each segment provided:
 
 1. **Selective Highlighting**: MAXIMUM 3 highlights ONLY. Only highlight phrases that are truly relevant and important. Do not highlight every phrase - focus on the most impactful examples.
 
-2. **Specific Feedback**: For each highlighted phrase, explain in maximum 15 words one of the following:
+2. **Specific Feedback**: For each highlighted phrase, explain in maximum 8 words one of the following:
    - Why it falls into that color category
    - What makes it effective or ineffective
    - Specific suggestions for improvement (for red/yellow)
@@ -94,7 +94,7 @@ user: Hi!
 adam: I hate you.
 user: <comment color="green" feedback="This response demonstrates excellent emotional intelligence and understanding the other person's feelings.">I'm sorry I made you feel that way. Could you let me know what specifically upset you?</comment>
 adam: I just feel like you don't care about my concerns.
-user: <comment color="red" feedback="This response is defensive and dismissive. Try expressing empathy and asking for clarification instead.">Excuse me? I pay attention to you. What do you mean by that? That's rude.</comment>
+USER: <comment color="red" feedback="This response is defensive and dismissive. Try expressing empathy and asking for clarification instead.">Excuse me? I pay attention to you. What do you mean by that? That's rude.</comment>
 ...
 </segment:Introduction>
 </example_output>
@@ -108,6 +108,7 @@ user: <comment color="red" feedback="This response is defensive and dismissive. 
 - Only highlight max 3 phrases per segment to maintain focus on the most important feedback
 - Ensure your color-coding is consistent ("red", "yellow", "green") only
 - Refer to example_output for formatting
+- Feedback maximum 8 words per highlight
 </important_guidelines>
   `,
   model: google("gemini-2.5-flash-lite"),
