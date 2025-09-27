@@ -1,11 +1,21 @@
 'use client';
 import { useState, useEffect } from "react";
+//import { ScoreBar } from "@/components/ScoreBar";
+
+const defaultScores = [
+  { category: "Empathy", score: 85 },
+  { category: "Clarity", score: 90 },
+  { category: "Open-mindedness", score: 80 },
+  { category: "Assertiveness", score: 75 },
+  { category: "Active Listening", score: 88 },
+  { category: "Conflict Management", score: 82 },
+];
 
 export default function ReportPage() {
   const [md, setMd] = useState<string>("Loading...");
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
-  const [scoring, setScores] = useState<string>("Loading AI Scoring...");
+  const [scoring, setScores] = useState<typeof defaultScores>(defaultScores);
 
   // Load markdown and localStorage data
   useEffect(() => {
@@ -113,7 +123,7 @@ export default function ReportPage() {
         {/* Scoring */}
         <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
           <h2 className="text-2xl font-bold text-center">Scoring</h2>
-          <div>{scoring}</div>
+          <div>{}</div>
         </div>
 
         {/* Transcript */}
