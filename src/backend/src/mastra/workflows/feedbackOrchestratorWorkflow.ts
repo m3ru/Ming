@@ -160,6 +160,7 @@ const analyzeDetails = createStep({
 
     const result = await transcriptDetailAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
+	  temperature: 0.1,
       ...(threadId && resourceId
         ? {
             memory: {
