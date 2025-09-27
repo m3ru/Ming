@@ -34,14 +34,6 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-async function streamToArrayBuffer(stream: Readable): Promise<ArrayBuffer> {
-  const buffer = await streamToBuffer(stream);
-  return buffer.buffer.slice(
-    buffer.byteOffset,
-    buffer.byteOffset + buffer.byteLength
-  ) as ArrayBuffer;
-}
-
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
   // console.log("Transcription Object:", transcriptionObj);
   let transcription: string;
