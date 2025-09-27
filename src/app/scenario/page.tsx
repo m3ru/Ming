@@ -20,7 +20,7 @@ export default function ScenarioPage() {
         <ScenarioVideo scenario={scenario} />
       </div>
       <div className="w-[350px] flex flex-col items-end">
-        <div className="h-[60vh] p-4 bg-white rounded shadow w-full">
+        <div className="h-full p-4 bg-white rounded shadow w-full">
           <SimpleChatPanel />
         </div>
       </div>
