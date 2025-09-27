@@ -215,10 +215,19 @@ const handleStop = async () => {
 				participants: ['user', 'bill'],
 				meetingType: 'project_review'
 			},
+			memory: {
+				thread: currentThreadId,
+				resource: resourceId
+			}
 		}
 		});
 		console.log("summaryAnalysis", result.result.summaryAnalysis);
-		// console.log("Result");
+		localStorage.setItem('reportData', JSON.stringify({
+			summary: result.result.summaryAnalysis,
+			detail: result.result.detailedFeedback
+		}));
+		console.log(localStorage.getItem('reportData'));
+		router.push('/report');
 	} catch (e) {
 		console.error('Failed to send transcript to analyzer:', e);
 	} finally {
