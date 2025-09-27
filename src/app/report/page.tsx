@@ -46,12 +46,12 @@ export default function ReportPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-gray-50">
+    <div className="min-h-screen flex flex-col items-center font-sans bg-gray-50">
       <MenuBar />
       <div ref = {reportRef} id="report-content" className="flex flex-col w-full max-w-5xl p-6 space-y-5">
 
         {/* Summary */}
-        <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="bg-white p-5 rounded-lg shadow-md">
+        <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="bg-white p-3 rounded-md shadow-md">
           <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
             <h2 className="text-2xl font-bold text-center flex-grow">Conversation Summary</h2>
             {isSummaryOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
@@ -62,7 +62,7 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Scoring */}
-        <Collapsible open={isEvaluationOpen} onOpenChange={setIsEvaluationOpen} className="bg-white p-5 rounded-lg shadow-md">
+        <Collapsible open={isEvaluationOpen} onOpenChange={setIsEvaluationOpen} className="bg-white p-3 rounded-md shadow-md">
           <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
             <h2 className="text-2xl font-bold text-center flex-grow">Evaluation</h2>
             {isEvaluationOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
@@ -86,7 +86,7 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Suggestions */}
-        <Collapsible open={isSuggestionsOpen} onOpenChange={setIsSuggestionsOpen} className="bg-white p-5 rounded-lg shadow-md">
+        <Collapsible open={isSuggestionsOpen} onOpenChange={setIsSuggestionsOpen} className="bg-white p-3 rounded-md shadow-md">
           <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
             <h2 className="text-2xl font-bold text-center flex-grow">Suggested Improvements</h2>
             {isSuggestionsOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
@@ -97,7 +97,7 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Annotated Transcript */}
-        <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen} className="bg-white p-5 rounded-lg shadow-md">
+        <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen} className="bg-white p-3 rounded-md shadow-md">
           <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
             <h2 className="text-2xl font-bold text-center flex-grow">Annotated Transcript</h2>
             {isTranscriptOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
