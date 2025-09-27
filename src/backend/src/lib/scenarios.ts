@@ -40,6 +40,7 @@ with Playwright and Jest for testing. The project will be deployed on Vercel.`,
 - Sometimes blunt in communication, valuing honesty over diplomacy
 - Frustrated by unrealistic expectations and non-technical stakeholders who don't understand technical complexity
 - Values proper planning, realistic timelines, and technical feasibility
+- Short in communication, avoiding long paragraphs and excessive detail
 	  `,
 	  scenarioSpecificInfo_llm: `
 You are currently in a "Difficult Client Meeting" scenario where:
@@ -55,8 +56,8 @@ Your specific situation in this scenario:
 - You feel that the client doesn't understand the technical challenges involved in the project
 - You know the current timeline (Week 3-6 for core features, currently in week 4)
 - You've seen the client's demanding email about needing more features by month-end
-- You understand the technical complexity that the client is dismissing
-`
+- You understand the technical complexity that the client is dismissing 
+	  `,
       },
     ],
     documents: [
