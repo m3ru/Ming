@@ -25,7 +25,6 @@ export default function ReportPage() {
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(true);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
 
-  const [md, setMd] = useState<string>("Loading...");
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
   const [scoring, setScores] = useState<typeof defaultScores>(defaultScores);
@@ -49,7 +48,6 @@ export default function ReportPage() {
     <div className="min-h-screen flex flex-col items-center font-sans bg-gray-50">
       <MenuBar />
       <div ref = {reportRef} id="report-content" className="flex flex-col w-full max-w-5xl p-6 space-y-5">
-
         {/* Summary */}
         <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="bg-white p-3 rounded-md shadow-md">
           <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">

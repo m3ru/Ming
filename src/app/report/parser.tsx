@@ -8,13 +8,22 @@ type ParsedResult = {
   scores: { category: string; score: number }[];
 };
 
+const defaultScores = [
+  { category: "Empathy", score: 0 },
+  { category: "Clarity", score: 0 },
+  { category: "Open-mindedness", score: 0 },
+  { category: "Assertiveness", score: 0 },
+  { category: "Active Listening", score: 0 },
+  { category: "Conflict Management", score: 0 },
+];
+
 export default function Parser(rawText: string): ParsedResult {
   const result: ParsedResult = {
     summary: null,
     feedback: null,
     suggestions: null,
     segments: [],
-    scores: [],
+    scores: defaultScores,
   };
 
   let parsed: any;
