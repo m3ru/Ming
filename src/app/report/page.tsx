@@ -1,5 +1,5 @@
- 'use client';
-import React, { useState, useEffect } from "react";
+'use client';
+import { useState, useEffect } from "react";
 import ScoreBar from "@/components/ScoreBar";
 
 const defaultScores = [
@@ -27,11 +27,19 @@ export default function ReportPage() {
 
     // Load analyzer response from localStorage
     const stored = localStorage.getItem("reportData");
-    if (stored) {
+    console.log("reportData from localStorage:", stored);
+    if (stored != null) {
       try {
         const data = JSON.parse(stored);
-        if (data.summary) setSummary(data.summary);
-        if (data.feedback) setFeedback(data.feedback);
+        const text = data.text;
+
+        const summaryMatch = text.match(/## CONVERSATION OVERVIEW\s*([\s\S]*?)\n## USER PERFORMANCE ANALYSIS/);
+        const extractedSummary = summaryMatch ? summaryMatch[1].trim() : "";
+        const analysisMatch = text.match(/## USER PERFORMANCE ANALYSIS\s*([\s\S]*)/);
+        const extractedAnalysis = analysisMatch ? analysisMatch[1].trim() : "";
+        
+        if (extractedSummary) setSummary(extractedSummary);
+        if (extractedAnalysis) setFeedback(extractedAnalysis);
         if (data.scoring) setScores(data.scoring);
       } catch (err) {
         console.error("Failed to parse reportData from localStorage", err);
@@ -107,7 +115,7 @@ export default function ReportPage() {
 
   return (
     <div className="min-h-screen flex justify-center font-sans bg-gray-50 p-6">
-      <div className="flex flex-col w-full max-w-3xl space-y-8">
+      <div className="flex flex-col w-full max-w-5xl space-y-8">
         {/* Summary */}
         <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
           <h2 className="text-2xl font-bold text-center">Conversation Summary</h2>
