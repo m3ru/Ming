@@ -13,6 +13,8 @@ import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaption
 import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
 import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import ScenarioCard from '@/components/ScenarioCard';
 
 type ChatMode = 'floating' | 'sidepanel' | 'caption';
 
@@ -94,6 +96,25 @@ export default function HomePage() {
             This text can be changed by Cedar using state setters
           </p>
         </div>
+
+        <div className="flex space-x-4 w-full items-stretch">
+          <ScenarioCard
+            title="Performance Review"
+            imageUrl="/performanceReview.webp"
+            description="An employee performance review meeting."
+          />
+          <ScenarioCard
+            title="Workplace Conflict"
+            imageUrl="/workplaceConflict.jpg"
+            description="A tense discussion between coworkers."
+          />
+          <ScenarioCard
+            title="Employee Layoff"
+            imageUrl="/employeeLayoff.jpg"
+            description="A manager informing an employee about layoffs."
+          />
+        </div>
+
 
         {/* Instructions for adding new text */}
         <div className="text-center">
