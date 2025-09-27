@@ -66,6 +66,7 @@ export default function Parser(rawText: string): ParsedResult {
   const ratingBlock = summaryText.match(/\*\*RATING\*\*([\s\S]*?)(?=##|$)/i);
   if (ratingBlock) {
     const lines = ratingBlock[1].split("\n").map((l: string) => l.trim()).filter(Boolean);
+    result.scores = [];
     for (const line of lines) {
       const m = line.match(/-\s*([^:]+):\s*(\d+)/);
       if (m) {
