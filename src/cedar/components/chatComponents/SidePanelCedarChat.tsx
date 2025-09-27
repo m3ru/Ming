@@ -108,6 +108,10 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
   // Generate transcript string in the format: user: .../bill: ...
   const transcript = messages
     .map((m) => {
+      // Skip messages with undefined/empty content or tool-related messages
+      if (!m.content || m.content.trim() === '' || m.type === 'tool-call' || m.type === 'tool-result') {
+        return null;
+      }
       if (m.role === "user") return `user: ${m.content}`;
       if (m.role === "assistant" || m.role === "bot")
         return `bill: ${m.content}`;
@@ -221,13 +225,25 @@ const handleStop = async () => {
 			}
 		}
 		});
-		console.log("summaryAnalysis", result.result.summaryAnalysis);
-		localStorage.setItem('reportData', JSON.stringify({
-			summary: result.result.summaryAnalysis,
-			detail: result.result.detailedFeedback
-		}));
-		console.log(localStorage.getItem('reportData'));
-		router.push('/report');
+		
+		console.log("Full workflow result:", result);
+		
+		// Check if the workflow succeeded before accessing the data
+		if (result.status === 'success') {
+			const workflowOutput = result.result;
+			console.log("Workflow output:", workflowOutput);
+			localStorage.setItem('reportData', JSON.stringify({
+				summary: workflowOutput?.summaryAnalysis,
+				detail: workflowOutput?.detailedFeedback
+			}));
+			console.log(localStorage.getItem('reportData'));
+			router.push('/report');
+		} else if (result.status === 'failed') {
+			console.error('Workflow failed:', (result as any).error);
+			// Handle the failure case appropriately
+		} else {
+			console.error('Workflow in unexpected state:', result.status);
+		}
 	} catch (e) {
 		console.error('Failed to send transcript to analyzer:', e);
 	} finally {
