@@ -1,10 +1,15 @@
 "use client";
 
+type Segment = {
+  title: string;
+  content: string; // Markdown with bolded speaker labels and comment/highlight tags
+};
+
 type ParsedResult = {
   summary: string | null;
   feedback: string | null;
   suggestions: string | null;
-  segments: { title: string; content: string }[];
+  segments: Segment[];
   scores: { category: string; score: number }[];
 };
 
@@ -17,7 +22,6 @@ const defaultScores: ParsedResult["scores"] = [
   { category: "Conflict Management", score: 99 },
 ];
 
-// Mapping of possible AI variants to canonical categories
 const CATEGORY_ALIASES: Record<string, string> = {
   empathy: "Empathy",
   clarity: "Clarity",
@@ -52,35 +56,33 @@ export default function Parser(rawText: string): ParsedResult {
   const summaryText = parsed.summary || "";
   const detailText = parsed.detail || "";
 
-  // --- Conversation Overview ---
+  // --- Summary ---
   const summaryMatch = summaryText.match(
     /##\s*CONVERSATION OVERVIEW\s*([\s\S]*?)(?=##|$)/i
   );
   if (summaryMatch) result.summary = summaryMatch[1].trim();
 
   // --- Feedback ---
-  let perfMatch = summaryText.match(
-    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=(?:\*\*RATING\*\*|##|$))/i
+  const feedbackMatch = summaryText.match(
+    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=(?:##|$))/i
   );
-  if (perfMatch) perfMatch[1] = perfMatch[1].trim();
-  result.feedback = perfMatch ? perfMatch[1].trim() : null;
+  result.feedback = feedbackMatch ? feedbackMatch[1].trim() : null;
 
   // --- Suggestions ---
-  const improvementMatch = summaryText.match(
+  const suggestionsMatch = summaryText.match(
     /##\s*IMPROVEMENT RECOMMENDATIONS\s*([\s\S]*?)(?=##|$)/i
   );
-  result.suggestions = improvementMatch ? improvementMatch[1].trim() : null;
+  result.suggestions = suggestionsMatch ? suggestionsMatch[1].trim() : null;
 
   // --- Scores ---
-  const ratingBlock = summaryText.match(/\*\*RATING\*\*([\s\S]*?)(?=##|$)/i);
-  if (ratingBlock) {
-    const lines = ratingBlock[1]
+  const ratingMatch = summaryText.match(/##\s*RATING\s*([\s\S]*?)(?=##|$)/i);
+  if (ratingMatch) {
+    const lines = ratingMatch[1]
       .split("\n")
-      .map((l: string) => l.replace(/^\*+/g, "").trim()) // Remove leading asterisks
+      .map((l: string) => l.replace(/^\*+/g, "").trim())
       .filter(Boolean);
 
     const parsedScores: { category: string; score: number }[] = [];
-
     for (const line of lines) {
       const m = line.match(/-?\s*([^:]+):\s*(\d+)/i);
       if (m) {
@@ -90,7 +92,6 @@ export default function Parser(rawText: string): ParsedResult {
       }
     }
 
-    // Merge parsed scores with default scores
     const defaultMap = new Map<string, number>();
     result.scores.forEach((s, i) => defaultMap.set(s.category, i));
 
@@ -99,7 +100,6 @@ export default function Parser(rawText: string): ParsedResult {
       if (idx !== undefined) {
         result.scores[idx] = { category: ps.category, score: ps.score };
       } else {
-        // Append any unknown/new categories
         result.scores.push(ps);
       }
     }
@@ -109,19 +109,18 @@ export default function Parser(rawText: string): ParsedResult {
   const segRegex = /<segment:\s*([^>]+)>([\s\S]*?)<\/segment:\s*\1>/gi;
   let segMatch;
   while ((segMatch = segRegex.exec(detailText)) !== null) {
+    const title = segMatch[1].trim();
     let content = segMatch[2].trim();
 
-    // Make speaker labels bold in Markdown with first letter capitalized
+    // --- Keep <comment> and <highlight> tags intact ---
+    // Bold speaker labels (first letter capitalized)
     content = content.replace(
       /^(\s*)(\w+):/gim,
       (_, ws, speaker) =>
         `${ws}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`
     );
 
-    result.segments.push({
-      title: segMatch[1].trim(),
-      content,
-    });
+    result.segments.push({ title, content });
   }
 
   return result;
