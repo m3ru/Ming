@@ -23,7 +23,8 @@ on meeting deadlines and delivering high-quality work. The company takes Fridays
         role: "Senior Fullstack Software Engineer",
         pfp: "https://randomuser.me/api/portraits/men/1.jpg",
         personality: `Bill is an analytical thinker who values logic and efficiency, sometimes at the 
-expense of interpersonal relationships. He is always concise in his speech.`,
+expense of interpersonal relationships. He is always concise in his speech and generally tries to be nice, 
+but his patience is thing. Bill never speaks more than 3-4 sentences at a time.`,
         scenarioSpecificInfo: `Bill is frustrated with the unrealistic expectations of the client. He feels that 
 the client doesn't understand the technical challenges involved in the project. Bill leads a team of 3 junior 
 engineers, who work with a QA team and a designer named Susan. His team uses Next.js, Prisma, and Tailwind CSS for development, 
@@ -42,8 +43,9 @@ with Playwright and Jest for testing. The project will be deployed on Vercel.`,
           {
             format: "plain",
             content: `I reviewed the latest update on the portal, and I'm quite concerned about the 
-progress. Checkout needed to be done last week, not this week. We need to see more features, namely buy-now-pay-later and subscription options, implemented by 
-the end of the month. The current timeline is not acceptable.`,
+progress. Checkout needed to be done last week, not this week. We need to see more features, namely 
+buy-now-pay-later and subscription options, implemented by the end of the month. The current timeline 
+is not acceptable.`,
           },
           {
             format: "plain",
@@ -76,6 +78,92 @@ the end of the month. The current timeline is not acceptable.`,
             format: "bold",
             content:
               "Week 9: Final Review (with client) and Deployment (to Vercel)",
+          },
+        ],
+      },
+      {
+        title: "Ticket #1: User Auth",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to be able to create an account and log in so that I can access my personal dashboard.`,
+          },
+          {
+            format: "plain",
+            content: `Status: In Progress since week 2 and nearing QA. Assigned to Bill and team.`,
+          },
+        ],
+      },
+      {
+        title: "Ticket #2: Product Listings",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to browse products by category so that I can find items I'm interested in.`,
+          },
+          {
+            format: "plain",
+            content: `Status: Completed in week 3. Implemented by Bill's team.`,
+          },
+        ],
+      },
+      {
+        title: "Ticket #3: Shopping Cart",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to add products to a shopping cart so that I can review my selections before purchasing.`,
+          },
+          {
+            format: "plain",
+            content: `Status: In Progress since week 1. Assigned to Bill and team. 
+Stuck debugging a tricky state management issue.`,
+          },
+        ],
+      },
+      {
+        title: "Ticket #4: Checkout Process",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to complete my purchase through a secure checkout process so that I can buy products safely.`,
+          },
+          {
+            format: "plain",
+            content: `Status: Not Started. Planned for week 5-6. Assigned to Bill and team.`,
+          },
+        ],
+      },
+      {
+        title: "Ticket #5: Buy-Now-Pay-Later",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to have a buy-now-pay-later option so that I can purchase items and pay for them over time.`,
+          },
+          {
+            format: "plain",
+            content: `Status: Not Started. Requested by client last week. Not in current timeline.`,
+          },
+        ],
+      },
+      {
+        title: "Ticket #6: Subscription Options",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content: `As a user, I want to subscribe to products so that I can receive them regularly without reordering.`,
+          },
+          {
+            format: "plain",
+            content: `Status: Not Started. Requested by client last week and it's not clear what they actually want. 
+Not in current timeline.`,
           },
         ],
       },

@@ -114,10 +114,11 @@ function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
       >
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between px-4 py-1">
-            <h3 className="font-bold">
-              {doc.title} ({doc.type})
-            </h3>
-            {isOpen ? <ChevronDown /> : <ChevronUp />}
+            <h3 className="font-bold">{doc.title}</h3>
+            <div className="flex">
+              <p>({doc.type})</p>
+              {isOpen ? <ChevronDown /> : <ChevronUp />}
+            </div>
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent className="p-4 pt-0">
