@@ -54,7 +54,7 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
     transcription = transcriptionObj as string;
   } catch (error) {
     console.error("Error during transcription:", error);
-    transcription = "Sorry, I couldn't understand the audio.";
+    transcription = "Hi Bill!";
   }
 
   // 2. Add context to the conversation
@@ -67,8 +67,20 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
     { role: "user", content: transcription },
   ]);
 
-  // 4. Convert to speech
-  const speech = await billAgent.voice.speak(response.text);
+  // 4. Convert response to speech
+  const speech = await textToSpeech(response.text);
+
+  return {
+    transcription: transcription,
+    text: response.text,
+    audioData: speech.audioData,
+    audioFormat: "mp3",
+  };
+}
+
+export async function textToSpeech(text: string) {
+  // 1. Convert to speech
+  const speech = await billAgent.voice.speak(text);
 
   const stream = speech as Readable;
 
@@ -76,8 +88,6 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
   // saveAudioToFile(stream, "./output.mp3");
 
   return {
-    transcription: transcription,
-    text: response.text,
     audioData: (await streamToBuffer(stream)).toString("base64"),
     audioFormat: "mp3",
   };

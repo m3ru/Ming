@@ -39,9 +39,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <p>{scenario.companyDetails.split('\n').map((line, i) => (
+          <div>{scenario.companyDetails.split('\n').map((line, i) => (
             <p key={i}>{line}</p>
-          ))}</p>
+          ))}</div>
         </CollapsibleContent>
       </Collapsible>
 
