@@ -149,10 +149,16 @@ function parseDocument(element: Element): ScenarioDocument | undefined {
     .filter((line) => line !== "");
 
   if (lines.length === 0) {
+    console.warn("Empty document element, skipping.", element);
     return;
   }
 
   doc.title = lines[0];
+
+  if (doc.title.toLowerCase().includes("error")) {
+    console.warn("Document title indicates an error (skipping):", doc.title);
+    return;
+  }
 
   doc.type = "other";
   if (doc.title.toLowerCase().includes("email")) {
