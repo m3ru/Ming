@@ -1,7 +1,7 @@
 import { Mastra } from '@mastra/core/mastra';
 import { chatWorkflow } from './workflows/chatWorkflow';
 import { apiRoutes } from './apiRegistry';
-import { starterAgent } from './agents/starterAgent';
+import { helloWorldAgent } from './agents/helloWorldAgent';
 import { storage } from './memory';
 
 /**
@@ -16,7 +16,7 @@ import { storage } from './memory';
  */
 
 export const mastra = new Mastra({
-  agents: { starterAgent },
+  agents: { helloWorldAgent },
   workflows: { chatWorkflow },
   storage,
   telemetry: {
