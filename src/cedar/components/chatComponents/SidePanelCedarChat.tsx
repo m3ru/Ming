@@ -2,6 +2,12 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCedarStore } from 'cedar-os';
+import "dotenv/config";
+ 
+import { mastra } from "../../../backend/src/mastra";
+import { contextForAnalysis } from "../../../backend/src/lib/scenarioUtil";
+import { Scenarios } from "../../../backend/src/lib/scenarios";
+
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
@@ -158,25 +164,38 @@ const handleStop = async () => {
 	setShowChat(false); // Hide the chat panel so spinner is fully visible
 	setHideCompletely(true); // Hide the collapsed button as well
 	try {
-		const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				messages: [
-					{
-						role: 'user',
-						content: transcript,
-					},
-				],
-				memory: {
-					thread: currentThreadId,
-					resource: resourceId,
-				},
-			}),
+		// const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
+		// 	method: 'POST',
+		// 	headers: { 'Content-Type': 'application/json' },
+		// 	body: JSON.stringify({
+		// 		messages: [
+		// 			{
+		// 				role: 'user',
+		// 				content: transcript,
+		// 			},
+		// 		],
+		// 		memory: {
+		// 			thread: currentThreadId,
+		// 			resource: resourceId,
+		// 		},
+		// 	}),
+		// });
+		// const data = await response.json();
+		// localStorage.setItem('reportData', JSON.stringify(data));
+		// router.push('/report');
+		const run = await mastra.getWorkflow("feedbackOrchestratorWorkflow").createRunAsync();
+
+		const result = await run.start({
+		inputData: {
+			transcript: transcript,
+			additionalContext: {
+				scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
+				participants: ['user', 'bill'],
+				meetingType: 'project_review'
+			},
+		}
 		});
-		const data = await response.json();
-		localStorage.setItem('reportData', JSON.stringify(data));
-		router.push('/report');
+		console.log("Result", result);
 	} catch (e) {
 		console.error('Failed to send transcript to analyzer:', e);
 	} finally {
@@ -198,7 +217,7 @@ const handleStop = async () => {
 											height={120}
 											className="rounded-md shadow"
 										/>
-										<div className="mt-2 text-base text-gray-600 text-center">
+										<div className="mt-2 text-base text-center text-gray-600">
 											Bill is walking back to his office
 										</div>
 									</div>
@@ -228,22 +247,22 @@ const handleStop = async () => {
 				panelContent={
 					<Container3D className='flex flex-col h-full'>
 						{/* Header */}
-						<div className='flex-shrink-0 z-20 flex flex-row items-center justify-between px-4 py-2 min-w-0 border-b border-gray-200 dark:border-gray-700'>
-							<div className='flex items-center min-w-0 flex-1'>
+						<div className='z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 px-4 py-2 border-b border-gray-200 dark:border-gray-700'>
+							<div className='flex items-center flex-1 min-w-0'>
 								{companyLogo && (
 									<div className='flex-shrink-0 w-6 h-6 mr-2'>
 										{companyLogo}
 									</div>
 								)}
-								<span className='font-bold text-lg truncate'>{title}</span>
+								<span className='text-lg font-bold truncate'>{title}</span>
 							</div>
-							<div className='flex items-center gap-2 flex-shrink-0'>
+							<div className='flex items-center flex-shrink-0 gap-2'>
 								<Button variant="destructive" onClick={handleStop} className="mr-2">Stop</Button>
 								<button
 									className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors'
 									onClick={() => setShowChat(false)}
 									aria-label='Close chat'>
-									<X className='h-4 w-4' strokeWidth={2.5} />
+									<X className='w-4 h-4' strokeWidth={2.5} />
 								</button>
 							</div>
 						</div>
