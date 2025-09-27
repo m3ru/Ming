@@ -6,7 +6,7 @@
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { RuntimeContext } from '@mastra/core/di';
 import { z } from 'zod';
-import { starterAgent } from '../agents/starterAgent';
+import { helloWorldAgent } from '../agents/helloWorldAgent';
 import { handleTextStream, streamJSONEvent } from '../../utils/streamUtils';
 import { ActionSchema } from './chatWorkflowTypes';
 
@@ -69,7 +69,7 @@ const callAgent = createStep({
      * streamVNext returns a stream result that we can iterate over to get chunks
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
-    const streamResult = await starterAgent.streamVNext(messages, {
+    const streamResult = await helloWorldAgent.streamVNext(messages, {
       // If system prompt is provided, overwrite the default system prompt for this agent
       ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
       modelSettings: {

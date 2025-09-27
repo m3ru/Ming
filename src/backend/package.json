@@ -12,11 +12,13 @@
     "node": ">=20.9.0"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.17",
     "@ai-sdk/openai": "^2.0.32",
     "@cedar-os/backend": "^0.0.12",
     "@mastra/core": "^0.18.0",
     "@mastra/libsql": "^0.14.3",
     "@mastra/loggers": "^0.10.13",
+    "@mastra/mcp-docs-server": "^0.13.24",
     "@mastra/memory": "^0.15.3",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"

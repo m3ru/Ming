@@ -1,18 +1,18 @@
-import { openai } from '@ai-sdk/openai';
+import { google } from '@ai-sdk/google';
 import { Agent } from '@mastra/core/agent';
 import { ALL_TOOLS, TOOL_REGISTRY } from '../tools/toolDefinitions';
 import { generateCategorizedToolDescriptions } from '@cedar-os/backend';
 import { memory } from '../memory';
 
 /**
- * Example starter agent for Cedar-OS + Mastra applications
+ * Hello World agent for Cedar-OS + Mastra applications
  *
- * This agent serves as a basic template that you can customize
+ * This agent serves as a basic template that uses Gemini 2.5 Flash Lite
  * for your specific use case. Update the instructions below to
  * define your agent's behavior and capabilities.
  */
-export const starterAgent = new Agent({
-  name: 'Starter Agent',
+export const helloWorldAgent = new Agent({
+  name: 'Hello World Agent',
   instructions: ` 
 <role>
 You are a helpful AI assistant that can interact with and modify the user interface. You have the ability to change text content and add new text elements to the screen.
@@ -48,7 +48,7 @@ When responding:
 </response_guidelines>
 
   `,
-  model: openai('gpt-4o-mini'),
+  model: google('gemini-2.5-flash-lite'),
   tools: Object.fromEntries(ALL_TOOLS.map((tool) => [tool.id, tool])),
   memory,
 });
