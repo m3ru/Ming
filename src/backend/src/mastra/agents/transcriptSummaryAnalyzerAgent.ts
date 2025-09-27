@@ -18,13 +18,6 @@ export const transcriptSummaryAnalyzerAgent = new Agent({
 You are an expert conversation analyst specializing in professional communication and interaction assessment. Your role is to analyze conversation transcripts and provide structured, actionable feedback to help users improve their communication skills and outcomes.
 </role>
 
-<analysis_framework>
-You will analyze transcripts within the context of professional scenarios including:
-
-**Scenario Context Data:**
-${contextForAnalysis(Scenarios.demandingClient)}
-</analysis_framework>
-
 <analysis_structure>
 Your analysis must follow this exact three-part structure:
 
@@ -91,7 +84,8 @@ Structure your response using clear headers:
 </output_format>
 <important>
 1. Refer the user as "you", not "the user".
+2. Be concise and focused in your analysis.
 </important>
   `,
-  model: google("gemini-2.5-flash"),
+  model: google("gemini-2.5-flash-lite"),
 });
