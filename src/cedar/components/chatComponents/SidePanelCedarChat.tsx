@@ -2,6 +2,12 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCedarStore } from 'cedar-os';
+import "dotenv/config";
+ 
+import { mastra } from "../../../backend/src/mastra";
+import { contextForAnalysis } from "../../../backend/src/lib/scenarioUtil";
+import { Scenarios } from "../../../backend/src/lib/scenarios";
+
 import { SidePanelContainer } from '@/cedar/components/structural/SidePanelContainer';
 import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
 import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
@@ -262,7 +268,7 @@ const handleStop = async () => {
 											height={120}
 											className="rounded-md shadow"
 										/>
-										<div className="mt-2 text-base text-gray-600 text-center">
+										<div className="mt-2 text-base text-center text-gray-600">
 											Bill is walking back to his office
 										</div>
 									</div>
@@ -282,55 +288,44 @@ const handleStop = async () => {
 						</AnimatePresence>
 					)}
 
-			<SidePanelContainer
-				isActive={showChat}
-				side={side}
-				dimensions={dimensions}
-				resizable={resizable}
-				topOffset={topOffset}
-				panelClassName={`dark:bg-gray-900 ${className}`}
-				panelContent={
-					<Container3D className='flex flex-col h-full'>
-						{/* Header */}
-						<div className='flex-shrink-0 z-20 flex flex-row items-center justify-between px-4 py-2 min-w-0 border-b border-gray-200 dark:border-gray-700'>
-							<div className='flex items-center min-w-0 flex-1'>
-								{companyLogo && (
-									<div className='flex-shrink-0 w-6 h-6 mr-2'>
-										{companyLogo}
-									</div>
-								)}
-								<span className='font-bold text-lg truncate'>{title}</span>
-							</div>
-							<div className='flex items-center gap-2 flex-shrink-0'>
-								<Button variant="destructive" onClick={handleStop} className="mr-2">Stop</Button>
-								<button
-									className='p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors'
-									onClick={() => setShowChat(false)}
-									aria-label='Close chat'>
-									<X className='h-4 w-4' strokeWidth={2.5} />
-								</button>
-							</div>
-						</div>
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div className="flex-shrink-0 z-20 flex flex-row items-center justify-between px-4 py-2 min-w-0 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center min-w-0 flex-1">
+            {companyLogo && (
+              <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
+            )}
+            <span className="font-bold text-lg truncate">{title}</span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="destructive" onClick={handleStop} className="mr-2">
+              End Scenario
+            </Button>
+            {/* <button
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+                  onClick={() => setShowChat(false)}
+                  aria-label="Close chat"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.5} />
+                </button> */}
+          </div>
+        </div>
 
-						{/* Chat messages - takes up remaining space */}
-						<div className='flex-1 min-h-0 overflow-hidden'>
-							<ChatBubbles />
-						</div>
+        {/* Chat messages - takes up remaining space */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ChatBubbles />
+        </div>
 
-						{/* Chat input - fixed at bottom */}
-						<div className='flex-shrink-0 p-3'>
-							<ChatInput
-								handleFocus={() => {}}
-								handleBlur={() => {}}
-								isInputFocused={false}
-								stream={stream}
-							/>
-						</div>
-					</Container3D>
-				}>
-				{/* Page content that gets squished when panel opens */}
-				{children}
-			</SidePanelContainer>
-		</>
-	);
+        {/* Chat input - fixed at bottom */}
+        <div className="flex-shrink-0 p-3">
+          <ChatInput
+            handleFocus={() => {}}
+            handleBlur={() => {}}
+            isInputFocused={false}
+            stream={stream}
+          />
+        </div>
+      </div>
+    </>
+  );
 };
