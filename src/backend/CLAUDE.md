@@ -19,7 +19,7 @@ This is a Mastra-based backend application for a Cedar-OS integration project. T
 
 ### Agent System
 - **Primary Agent**: `starterAgent` in `src/mastra/agents/starterAgent.ts`
-  - Uses OpenAI GPT-4o-mini model
+  - Uses `gemini-2.5-flash-lite` model
   - Configured with Cedar-OS frontend tools for UI manipulation
   - Has access to text manipulation tools (changeText, addNewTextLine)
   - Includes memory for conversation continuity
