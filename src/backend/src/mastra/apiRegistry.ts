@@ -106,10 +106,12 @@ export const apiRoutes = [
       try {
         const formData = await c.req.formData();
 
-        console.log("Received form data:", formData);
+        // console.log("Received form data:", formData);
 
         const audioFile = formData.get("audio") as File | null;
         const context = formData.get("context") as string | null;
+
+        // console.log("Audio file:", audioFile);
 
         const audioBlob = audioFile
           ? audioFile.slice(0, audioFile.size, audioFile.type)
@@ -122,7 +124,7 @@ export const apiRoutes = [
           );
         }
 
-        console.log("Audio blob:", audioBlob);
+        // console.log("Audio blob:", audioBlob);
 
         const result = await handleVoiceRequest(audioBlob, context);
         return c.json(result);
