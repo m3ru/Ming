@@ -3,22 +3,6 @@ import { billAgent, billVoice } from "../mastra/agents/billAgent";
 import { createWriteStream } from "node:fs";
 import { StorageThreadType } from "@mastra/core";
 
-class AudioReadableStream extends Readable {
-  constructor(private buffer: ArrayBuffer) {
-    super();
-    this.init();
-  }
-
-  private init() {
-    this.push(Buffer.from(this.buffer));
-    this.push(null); // Signal the end of the stream
-  }
-
-  _read(size: number) {
-    // No-op since we push all data in init
-  }
-}
-
 function saveAudioToFile(audioData: Readable, filename: string) {
   const writeStream = createWriteStream(filename);
   audioData.pipe(writeStream);
@@ -98,7 +82,9 @@ export async function speechToText(audioBlob: Blob) {
 
 export async function textToSpeech(text: string) {
   // 1. Convert to speech
-  const speech = await billAgent.voice.speak(text);
+  const speech = await billAgent.voice.speak(text, {
+    speed: 1.15,
+  });
 
   const stream = speech as Readable;
 
