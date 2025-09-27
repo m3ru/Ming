@@ -11,6 +11,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { Scenario } from "@/lib/types";
+import { parseScenario } from "@/lib/scenarioUtil";
+import { Button } from "@/components/ui/button";
 
 const defaultScores = [
   { category: "Empathy", score: 85 },
@@ -28,6 +31,7 @@ export default function ReportPage() {
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(true);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
+  const [isNextScenarioOpen, setIsNextScenarioOpen] = useState(false);
 
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
@@ -51,6 +55,18 @@ export default function ReportPage() {
     setSegments(data.segments || []);
     setSuggestions(data.suggestions || "No suggestions found.");
     setScores(data.scores || defaultScores);
+  }, []);
+
+  const [nextScenario, setNextScenario] = useState<Scenario>();
+
+  useEffect(() => {
+    const raw = localStorage.getItem("scenarioData");
+    if (!raw) {
+      return;
+    }
+    const data = JSON.parse(raw);
+    const scenario = parseScenario(data.scenario, data.prompts, data.report);
+    setNextScenario(scenario);
   }, []);
 
   return (
@@ -180,6 +196,40 @@ export default function ReportPage() {
             <AnnotatedTranscript segments={segments} />
           </CollapsibleContent>
         </Collapsible>
+
+        {/* Next Scenario */}
+        {nextScenario && (
+          <Collapsible
+            open={isNextScenarioOpen}
+            onOpenChange={setIsNextScenarioOpen}
+            className="p-3 bg-white rounded-md shadow-md"
+          >
+            <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
+              <h2 className="flex-grow text-2xl font-bold text-center">
+                Next Scenario: {nextScenario.title}
+              </h2>
+              {isNextScenarioOpen ? (
+                <ChevronUp className="w-6 h-6" />
+              ) : (
+                <ChevronDown className="w-6 h-6" />
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 flex flex-col gap-2">
+              <div>{nextScenario.situation}</div>
+              <div>
+                <strong>Goal:</strong> {nextScenario.goal}
+              </div>
+              <div>
+                <strong>Your Role:</strong> {nextScenario.userRole}
+              </div>
+              <Button
+                onClick={() => (window.location.href = `/scenario?next=true`)}
+              >
+                Start Next Scenario
+              </Button>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
       </div>
       <button
         onClick={() => {
