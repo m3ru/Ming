@@ -1,6 +1,6 @@
-'use client';
-import { useState, useEffect } from "react";
-//import { ScoreBar } from "@/components/ScoreBar";
+ 'use client';
+import React, { useState, useEffect } from "react";
+import ScoreBar from "@/components/ScoreBar";
 
 const defaultScores = [
   { category: "Empathy", score: 85 },
@@ -123,7 +123,18 @@ export default function ReportPage() {
         {/* Scoring */}
         <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
           <h2 className="text-2xl font-bold text-center">Scoring</h2>
-          <div>{}</div>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <ScoreBar category={scoring[0].category} score={scoring[0].score} />
+              <ScoreBar category={scoring[2].category} score={scoring[2].score} />
+              <ScoreBar category={scoring[4].category} score={scoring[4].score} />
+            </div>
+            <div className="flex-1">
+              <ScoreBar category={scoring[1].category} score={scoring[1].score} />
+              <ScoreBar category={scoring[3].category} score={scoring[3].score} />
+              <ScoreBar category={scoring[5].category} score={scoring[5].score} />
+            </div>
+          </div>
         </div>
 
         {/* Transcript */}
