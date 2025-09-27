@@ -121,11 +121,15 @@ Success Criteria:
       <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
-          {isLoadingNewScenario && (
+          {isLoadingNewScenario ? (
             <div className="w-full p-3 text-center bg-blue-100 border-b">
               <p className="font-medium text-blue-800">
                 🔄 Generating new scenario based on your performance...
               </p>
+            </div>
+          ) : (
+            <div className="w-full p-2 text-center bg-white">
+              {scenario.title}
             </div>
           )}
           {/*<div className="w-full p-2 text-center bg-white">
