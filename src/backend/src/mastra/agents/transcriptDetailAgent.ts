@@ -74,15 +74,17 @@ For each segment provided:
 3. **Context Awareness**: Consider the workplace context and professional relationships when evaluating phrases.
 
 4. **User Focus**: Only analyze and highlight the user's phrases, not their co-workers' responses.
+
+5. DO NOT generate highlights with your own transcript. Highlights MUST be based on transcript given to you.
 </analysis_guidelines>
 
 <output_format>
 For each segment provided, structure your response as:
 
 <segment:segment_title>
-[Transcript prior to highlighting]
+[EXACT COPY OF Transcript before highlighting...]
 user: <comment color="[red|yellow|green]" feedback="[Why this phrase needs improvement/how to improve]">[exact phrase from user]</comment>
-[Transcript after highlighting]
+[EXACT COPY OF Transcript continues...]
 </segment:segment_title>
 [Repeat this format for each segment provided]
 
@@ -100,15 +102,15 @@ user: <comment color="red" feedback="This response is defensive and dismissive. 
 </example_output>
 
 <important_guidelines>
-- Be precise in your phrase extractio
-- Focus on actionable feedback that can improve future conversations
 - Balance constructive criticism with recognition of strengths
 - Consider the professional context and appropriate workplace communication
-- Provide specific, practical suggestions for improvement
 - Only highlight max 3 phrases per segment to maintain focus on the most important feedback
 - Ensure your color-coding is consistent ("red", "yellow", "green") only
 - Refer to example_output for formatting
 - Feedback maximum 8 words per highlight
+- DO NOT generate highlights with your own transcript. Highlights MUST be based on transcript given to you.
+- The '[]' brackets in the output format are placeholders and should not be included in the final output.
+- Generate the exact transcript with highlights as specified, do not ignore any part of the transcript provided.
 </important_guidelines>
   `,
   model: google("gemini-2.5-flash-lite"),

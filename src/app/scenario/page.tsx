@@ -58,11 +58,12 @@ export default function ScenarioPage() {
 		}
 	  });
       console.log("result", result);
-      
-      // TODO: In the future, this is where you'd:
-      // 1. Parse the prompt to create a new Scenario object
-      // 2. setCurrentScenario(newScenarioObject)
-      // 3. Update the scenario in your backend/state management
+	  localStorage.removeItem('scenarioCompleted');
+	  localStorage.setItem('scenarioData', JSON.stringify({
+		prompts: result.result.prompts,
+		reports: result.result.reports,
+		scenario: result.result.scenario,
+      }));
       
     } catch (error) {
       console.error('Failed to generate new scenario prompt:', error);
