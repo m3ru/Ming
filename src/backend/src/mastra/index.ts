@@ -1,6 +1,7 @@
 import { Mastra } from '@mastra/core/mastra';
 import { chatWorkflow } from './workflows/chatWorkflow';
 import { feedbackOrchestratorWorkflow } from './workflows/feedbackOrchestratorWorkflow';
+import { scenarioPipelineWorkflow } from './workflows/scenarioPipelineWorkflow';
 import { apiRoutes } from './apiRegistry';
 import { helloWorldAgent } from './agents/helloWorldAgent';
 import { storage } from './memory';
@@ -9,6 +10,9 @@ import { workingMemoryAgent } from './agents/workingMemoryAgent';
 import { transcriptSummaryAnalyzerAgent } from './agents/transcriptSummaryAnalyzerAgent';
 import { transcriptAnalyzerAgent } from './agents/transcriptAnalyzerAgent';
 import { transcriptDetailAgent } from './agents/transcriptDetailAgent';
+import { scenarioCreateAgent } from './agents/scenarioCreateAgent';
+import { promptCreateAgent } from './agents/promptCreateAgent';
+import { reportCreateAgent } from './agents/reportCreateAgent';
 
 /**
  * Main Mastra configuration
@@ -28,9 +32,12 @@ export const mastra = new Mastra({
     workingMemoryAgent,
     transcriptSummaryAnalyzerAgent,
     transcriptAnalyzerAgent,
-    transcriptDetailAgent
+    transcriptDetailAgent,
+    scenarioCreateAgent,
+    promptCreateAgent,
+    reportCreateAgent
   },
-  workflows: { chatWorkflow, feedbackOrchestratorWorkflow },
+  workflows: { chatWorkflow, feedbackOrchestratorWorkflow, scenarioPipelineWorkflow },
   storage,
   telemetry: {
     enabled: true,

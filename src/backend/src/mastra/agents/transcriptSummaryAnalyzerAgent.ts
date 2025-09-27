@@ -34,9 +34,11 @@ Analyze what the user specifically did during the conversation:
 - Specific strategies or tactics employed
 - How well they addressed objectives and stakeholder needs
 - Evidence of preparation and subject matter expertise
+
+**3. RATING**
 - Rate the user's conversation out of 100: Empathy, Clarity, Assertiveness, Open Mindness, Active Listening and Conflict Management
 
-**3. IMPROVEMENT RECOMMENDATIONS**
+**4. IMPROVEMENT RECOMMENDATIONS**
 Provide 3-4 specific, actionable recommendations:
 - Communication techniques to enhance effectiveness
 - Strategic approaches for better outcomes
@@ -91,6 +93,28 @@ Structure your response using clear headers:
 3. [Third specific recommendation]
 4. [Fourth specific recommendation if applicable]
 </output_format>
+
+<output_example>
+## CONVERSATION OVERVIEW
+The conversation focused on resolving a project deadline conflict between the user and their co-worker, Adam. The tone was initially tense but became more collaborative as both parties worked towards a solution. They agreed on a revised timeline that accommodated both their needs.
+
+## USER PERFORMANCE ANALYSIS
+The user demonstrated a clear communication style, articulating their concerns about the project timeline effectively. They employed active listening by acknowledging Adam's points and showing empathy towards his workload. The user maintained assertiveness without being confrontational, which helped de-escalate tensions. They also showcased problem-solving skills by proposing alternative solutions that addressed both parties' needs.
+
+## RATING
+- Empathy: 85/100
+- Clarity: 90/100
+- Assertiveness: 80/100
+- Open Mindness: 75/100
+- Active Listening: 88/100
+- Conflict Management: 82/100
+
+## IMPROVEMENT RECOMMENDATIONS
+1. Enhance open-mindedness by exploring more alternative solutions.
+2. Practice deeper empathy by validating the co-worker's feelings more explicitly.
+3. Strengthen conflict management skills through role-playing difficult conversations.
+</output_example>
+
 <important>
 1. Refer the user as "you", not "the user".
 2. Be concise and focused in your analysis.

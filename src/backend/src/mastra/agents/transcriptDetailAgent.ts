@@ -94,7 +94,7 @@ user: Hi!
 adam: I hate you.
 user: <comment color="green" feedback="This response demonstrates excellent emotional intelligence and understanding the other person's feelings.">I'm sorry I made you feel that way. Could you let me know what specifically upset you?</comment>
 adam: I just feel like you don't care about my concerns.
-USER: <comment color="red" feedback="This response is defensive and dismissive. Try expressing empathy and asking for clarification instead.">Excuse me? I pay attention to you. What do you mean by that? That's rude.</comment>
+user: <comment color="red" feedback="This response is defensive and dismissive. Try expressing empathy and asking for clarification instead.">Excuse me? I pay attention to you. What do you mean by that? That's rude.</comment>
 ...
 </segment:Introduction>
 </example_output>
