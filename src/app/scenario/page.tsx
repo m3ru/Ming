@@ -21,7 +21,7 @@ export default function ScenarioPage() {
       </div>
       <div className="w-[350px] flex flex-col items-end">
         <div className="h-full p-4 bg-white rounded shadow w-full">
-          <SimpleChatPanel />
+          {/* <SimpleChatPanel /> */}
           <SidePanelCedarChat />
         </div>
       </div>
