@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import Image from "next/image";
 import "dotenv/config";
 
 import { mastra } from "../backend/src/mastra";
@@ -95,16 +96,27 @@ export default function SimpleChatPanel() {
     <Card className="flex flex-col h-full max-w-md mx-auto">
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={
-              msg.role === "user"
-                ? "bg-blue-100 text-blue-900 rounded px-3 py-2 w-fit max-w-full self-end"
-                : "bg-gray-100 text-gray-900 rounded px-3 py-2 w-fit max-w-full self-start"
-            }
-          >
-            {msg.text}
-          </div>
+          msg.role === "assistant" ? (
+            <div key={msg.id} className="flex items-start gap-2 self-start">
+              <Image
+                src="https://randomuser.me/api/portraits/men/1.jpg"
+                alt="Assistant profile"
+                width={32}
+                height={32}
+                className="rounded-full border"
+              />
+              <div className="bg-gray-100 text-gray-900 rounded px-3 py-2 w-fit max-w-full">
+                {msg.text}
+              </div>
+            </div>
+          ) : (
+            <div
+              key={msg.id}
+              className="bg-blue-100 text-blue-900 rounded px-3 py-2 w-fit max-w-full self-end"
+            >
+              {msg.text}
+            </div>
+          )
         ))}
         <div ref={messagesEndRef} />
       </div>
