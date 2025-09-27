@@ -2,6 +2,35 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCedarStore } from 'cedar-os';
+// Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
+const cedarStoreGlobal = useCedarStore.getState();
+// Use type assertion to allow custom property
+const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & { _sendMessagePatched?: boolean };
+if (!storeWithPatchFlag._sendMessagePatched) {
+	const origSend = cedarStoreGlobal.sendMessage;
+	storeWithPatchFlag.sendMessage = (msg, ...args) => {
+		// Always get the latest contextDocs and documents from the store
+		const state = useCedarStore.getState();
+		const contextDocsVal: number[] = ((state as any)["contextDocs"] as number[]) || [];
+		const documentsVal = ((state as any)["documents"] as Array<{ title: string }>) || [];
+		if (
+			typeof msg === 'string' &&
+			contextDocsVal &&
+			contextDocsVal.length > 0 &&
+			documentsVal.length > 0
+		) {
+			const docNames = contextDocsVal
+				.map((idx: number) => documentsVal[idx]?.title)
+				.filter(Boolean)
+				.join(', ');
+					if (docNames && !(msg as string).startsWith('re: (')) {
+						msg = `re: (${docNames}) ${msg}` as any;
+					}
+		}
+		return origSend(msg as any, ...args);
+	};
+	storeWithPatchFlag._sendMessagePatched = true;
+}
 import { SidePanelContainer } from '@/cedar/components/structural/SidePanelContainer';
 import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
 import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
@@ -9,7 +38,7 @@ import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import Container3D from '@/cedar/components/containers/Container3D';
 import { useThreadMessages } from 'cedar-os';
 import { useState } from 'react';
-import { useRegisterState, useStateBasedMentionProvider } from 'cedar-os';
+import { useRegisterState, useStateBasedMentionProvider, useCedarState } from 'cedar-os';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
@@ -103,6 +132,10 @@ useRegisterState({
 	setValue: setCedarDocuments,
 });
 
+// Get contextDocs (indices of docs in context) from Cedar state
+const [contextDocs] = useCedarState({ key: 'contextDocs', initialValue: [] });
+
+
 // Register mention provider for scenario documents
 useStateBasedMentionProvider({
 	stateKey: 'documents',
@@ -114,6 +147,8 @@ useStateBasedMentionProvider({
 	color: '#8b5cf6',
 	order: 5,
 });
+
+// Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
 
 const [showSpinner, setShowSpinner] = useState(false);
 const [hideCompletely, setHideCompletely] = useState(false);
