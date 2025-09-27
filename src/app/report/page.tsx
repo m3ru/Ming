@@ -3,6 +3,9 @@ import { useState, useEffect, useRef } from "react";
 import ScoreBar from "@/components/ScoreBar";
 import {marked} from 'marked';
 import MenuBar from "@/components/MenuBar";
+import Parser from './parser';
+import AnnotatedTranscript from "@/components/AnnotatedTranscript";
+import { parseFallbackField } from "next/dist/lib/fallback";
 
 const defaultScores = [
   { category: "Empathy", score: 85 },
@@ -20,15 +23,37 @@ export default function ReportPage() {
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
   const [scoring, setScores] = useState<typeof defaultScores>(defaultScores);
+  const [segments, setSegments] = useState<{ title: string; content: string }[]>([]);
+
+  // Run Parser once on mount and populate report fields
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        // fetch the public output file (output.txt) which contains the segmented transcript
+        const parsed = await Parser("/output.txt");
+        console.log("Parsed data from Parser():", parsed);
+        if (!mounted) return;
+        setSummary(parsed.summary || "No summary found.");
+        setFeedback(parsed.feedback || "No feedback found.");
+        setSegments(parsed.segments || []);
+
+        //setScores(parsed.scoring || defaultScores);
+        console.log("CONFIG:", parsed.config);
+        console.log("SEGMENTS:", parsed.segments);
+        console.log("STRENGTH:", parsed.strength);
+        console.log("WEAKNESS:", parsed.weakness);
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Load markdown and localStorage data
   useEffect(() => {
-    // Load transcript markdown
-    fetch("/sample.md")
-      .then(res => res.text())
-      .then(text => setMd(text))
-      .catch(() => setMd("Error: Could not load markdown file."));
-
     // Load analyzer response from localStorage
     const stored = localStorage.getItem("reportData");
     console.log("reportData from localStorage:", stored);
@@ -36,87 +61,38 @@ export default function ReportPage() {
       try {
         const data = JSON.parse(stored);
         const text = data.text;
+        const storedSegments = data.segments || [];
 
         const summaryMatch = text.match(/## CONVERSATION OVERVIEW\s*([\s\S]*?)\n## USER PERFORMANCE ANALYSIS/);
         const extractedSummary = summaryMatch ? summaryMatch[1].trim() : "";
         const analysisMatch = text.match(/## USER PERFORMANCE ANALYSIS\s*([\s\S]*)/);
         const extractedAnalysis = analysisMatch ? analysisMatch[1].trim() : "";
-        
+
         if (extractedSummary) setSummary(extractedSummary);
         if (extractedAnalysis) setFeedback(extractedAnalysis);
         if (data.scoring) setScores(data.scoring);
+        if (storedSegments && storedSegments.length > 0) {
+          setSegments(storedSegments);
+        } else if (text) {
+          // try to extract <segment: ...> blocks from the returned text if segments weren't provided
+          try {
+            const segRegex = /<segment:\s*([^>]+)>\s*([\s\S]*?)\s*<\/segment:[^>]*>/gi;
+            const parsed: { title: string; content: string }[] = [];
+            let m: RegExpExecArray | null;
+            while ((m = segRegex.exec(text)) !== null) {
+              parsed.push({ title: m[1].trim(), content: m[2].trim() });
+            }
+            if (parsed.length > 0) setSegments(parsed);
+          } catch (e) {
+            console.error('Failed to parse segments from reportData.text', e);
+          }
+        }
       } catch (err) {
         console.error("Failed to parse reportData from localStorage", err);
       }
     }
   }, []);
-
-  const parseInlineMarkdown = (text: string) => {
-    const elements: React.ReactNode[] = [];
-    const regex = /(\*\*.*?\*\*|\*.*?\*)/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(text)) !== null) {
-      if (match.index > lastIndex) elements.push(text.slice(lastIndex, match.index));
-
-      const part = match[0];
-      if (part.startsWith("**") && part.endsWith("**")) {
-        elements.push(<strong key={lastIndex}>{part.slice(2, -2)}</strong>);
-      } else if (part.startsWith("*") && part.endsWith("*")) {
-        elements.push(<em key={lastIndex}>{part.slice(1, -1)}</em>);
-      }
-
-      lastIndex = match.index + part.length;
-    }
-
-    if (lastIndex < text.length) elements.push(text.slice(lastIndex));
-    return elements;
-  };
-
-  const renderMarkdownBlocks = (text: string) => {
-    const blocks: { transcript: React.ReactNode; comment?: string; index?: number }[] = [];
-    let commentCounter = 1;
-
-    text.split("\n\n").forEach((block) => {
-      let remaining = block.trim();
-      let elements: React.ReactNode[] = [];
-      let commentText: string | undefined = undefined;
-      let highlightIndex: number | undefined;
-
-      while (remaining.includes("<highlight>") && remaining.includes("</highlight>")) {
-        const pre = remaining.split("<highlight>")[0];
-        const highlightPart = remaining.split("<highlight>")[1].split("</highlight>")[0];
-        const afterHighlight = remaining.split("</highlight>")[1];
-
-        if (afterHighlight.includes("<comment>") && afterHighlight.includes("</comment>")) {
-          commentText = afterHighlight.split("<comment>")[1].split("</comment>")[0];
-          highlightIndex = commentCounter++;
-          remaining = afterHighlight.split("</comment>")[1];
-        } else {
-          remaining = afterHighlight;
-        }
-
-        if (pre) elements.push(parseInlineMarkdown(pre));
-
-        elements.push(
-          <span key={blocks.length + elements.length} className="bg-yellow-200 px-1 rounded">
-            {parseInlineMarkdown(highlightPart)}
-            {highlightIndex && <sup className="text-xs text-gray-600 ml-0.5">{highlightIndex}</sup>}
-          </span>
-        );
-      }
-
-      if (remaining) elements.push(parseInlineMarkdown(remaining));
-
-      blocks.push({ transcript: <p className="break-words m-0">{elements}</p>, comment: commentText, index: highlightIndex });
-    });
-
-    return blocks;
-  };
-
-  const blocks = renderMarkdownBlocks(md);
-
+  
   return (
     <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-gray-50">
       <MenuBar />
@@ -148,26 +124,7 @@ export default function ReportPage() {
           <h2 className="text-2xl mt-0 pt-0 font-bold text-center">Feedback</h2>
           <div dangerouslySetInnerHTML={{ __html: marked.parse(feedback) }} />
         </div>
-
-        {/* Transcript */}
-        <div className="bg-white p-5 rounded-lg shadow-md overflow-auto">
-          <h2 className="text-2xl font-bold text-center">Annotated Transcript</h2>
-          <div>
-            {blocks.map((block, i) => (
-              <div key={i} className="flex items-start">
-                <div className="flex-1 py-1 mr-4 whitespace-pre-wrap">{block.transcript}</div>
-                <div className="w-56 py-1">
-                  {block.comment && (
-                    <div className="bg-gray-100 rounded px-2 py-1 text-sm text-gray-800 break-words">
-                      <sup className="text-xs text-gray-600 mr-1">{block.index}</sup>
-                      {block.comment}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <AnnotatedTranscript segments={segments} />
       </div>
       <button
         onClick={()=>window.print()}
