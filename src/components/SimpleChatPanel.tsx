@@ -41,7 +41,7 @@ export default function SimpleChatPanel() {
     }));
 
     try {
-      const response = await fetch('http://localhost:4111/api/agents/helloWorldAgent/generate/vnext', {
+      const response = await fetch('http://localhost:4111/api/agents/billAgent/generate/vnext', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: backendMessages }),
