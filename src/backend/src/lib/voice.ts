@@ -31,16 +31,10 @@ class AudioReadableStream extends Readable {
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
   // 1. Transcribe audio
 
-  const filePath = "./audioBlob.mp3";
+  audioBlob.stream()
+  const arrayBuffer = await audioBlob.arrayBuffer();
+  const stream = new AudioReadableStream(arrayBuffer);
 
-  const buffer = Buffer.from(await audioBlob.arrayBuffer());
-  console.log("Audio blob bytes:", buffer);
-
-  writeFileSync(filePath, buffer);
-
-  const stream = createReadStream(filePath);
-
-  console.log("Converted audio blob to Node.js stream. Stream:", stream);
   const transcription = (await billAgent.voice.listen(stream)) as string;
 
   // unlink(filePath, (err) => {
