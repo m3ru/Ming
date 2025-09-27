@@ -4,9 +4,20 @@ import { Scenarios } from "../../lib/scenarios";
 import { documentToString } from "../../lib/scenarioUtil";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
+import { GoogleVoice } from "@mastra/voice-google";
 
 const scenario = Scenarios.demandingClient;
 const npc = scenario.npcs[0]; // Bill
+
+export const billVoice = new GoogleVoice({
+  speechModel: {
+    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  },
+  listeningModel: {
+    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  },
+  speaker: "en-US-Casual-K",
+});
 
 /**
  * Bill Agent - Developer focused on logic and efficiency
@@ -17,6 +28,7 @@ const npc = scenario.npcs[0]; // Bill
  */
 export const billAgent = new Agent({
   name: npc.name,
+  voice: billVoice,
   instructions: `
 <role>
 ${npc.role_llm}

@@ -1,7 +1,12 @@
-import { registerApiRoute } from '@mastra/core/server';
-import { ChatInputSchema, ChatOutput, chatWorkflow } from './workflows/chatWorkflow';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { createSSEStream } from '../utils/streamUtils';
+import { registerApiRoute } from "@mastra/core/server";
+import {
+  ChatInputSchema,
+  ChatOutput,
+  chatWorkflow,
+} from "./workflows/chatWorkflow";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { createSSEStream } from "../utils/streamUtils";
+import { handleVoiceRequest } from "../lib/voice";
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
@@ -18,12 +23,12 @@ function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
  * - /chat/stream: Server-sent events (SSE) endpoint for streaming responses
  */
 export const apiRoutes = [
-  registerApiRoute('/chat/stream', {
-    method: 'POST',
+  registerApiRoute("/chat/stream", {
+    method: "POST",
     openapi: {
       requestBody: {
         content: {
-          'application/json': {
+          "application/json": {
             schema: toOpenApiSchema(ChatInputSchema),
           },
         },
@@ -57,14 +62,68 @@ export const apiRoutes = [
             },
           });
 
-          if (result.status !== 'success') {
+          if (result.status !== "success") {
             // TODO: Handle workflow errors appropriately
             throw new Error(`Workflow failed: ${result.status}`);
           }
         });
       } catch (error) {
         console.error(error);
-        return c.json({ error: error instanceof Error ? error.message : 'Internal error' }, 500);
+        return c.json(
+          { error: error instanceof Error ? error.message : "Internal error" },
+          500
+        );
+      }
+    },
+  }),
+  registerApiRoute("/chat/voice", {
+    method: "POST",
+    openapi: {
+      requestBody: {
+        content: {
+          "application/form-data": {
+            schema: {
+              type: "object",
+              properties: {
+                audio: {
+                  type: "string",
+                  format: "binary",
+                  description: "Audio file (WAV or MP3 format)",
+                },
+                context: {
+                  type: "string",
+                  description:
+                    "JSON string with additional context for the conversation",
+                },
+              },
+              required: ["audio", "context"],
+            },
+          },
+        },
+      },
+    },
+    handler: async (c) => {
+      try {
+        const formData = await c.req.formData();
+
+        const audioFile = formData.get("audio") as Blob | null;
+        const context = formData.get("context") as string | null;
+
+        if (!audioFile || !context) {
+          return c.json(
+            { error: "Missing 'audio' file or 'context' in form data" },
+            400
+          );
+        }
+
+        const result = await handleVoiceRequest(audioFile, context);
+        return c.json(result);
+      } catch (error) {
+        console.error(error);
+        return c.json(
+          { error: error instanceof Error ? error.message : "Internal error" },
+          500
+        );
       }
     },
   }),

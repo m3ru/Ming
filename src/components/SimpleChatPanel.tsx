@@ -52,6 +52,9 @@ export default function SimpleChatPanel() {
       );
       if (!response.ok) throw new Error("Failed to export chat");
       const data = await response.json();
+
+      console.log("Response data:", data);
+
       // Try to extract the assistant's reply from the response
       let assistantText = "";
       if (data.text) {
@@ -95,7 +98,7 @@ export default function SimpleChatPanel() {
   return (
     <Card className="flex flex-col h-full max-w-md mx-auto">
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
+        {messages.map((msg) =>
           msg.role === "assistant" ? (
             <div key={msg.id} className="flex items-start gap-2 self-start">
               <Image
@@ -117,7 +120,7 @@ export default function SimpleChatPanel() {
               {msg.text}
             </div>
           )
-        ))}
+        )}
         <div ref={messagesEndRef} />
       </div>
       <form

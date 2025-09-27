@@ -3,7 +3,6 @@
 import ScenarioOverview from "@/components/ScenarioOverview";
 import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/backend/src/lib/scenarios";
-import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 
 const scenario = Scenarios.demandingClient;
