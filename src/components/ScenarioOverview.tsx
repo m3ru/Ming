@@ -1,6 +1,11 @@
 "use client";
 
-import { Npc, Scenario } from "@/lib/types";
+import {
+  Npc,
+  Scenario,
+  ScenarioDocument,
+  ScenarioDocumentBlock,
+} from "@/lib/types";
 import { Collapsible, CollapsibleContent } from "./ui/collapsible";
 import { useState } from "react";
 import { CollapsibleTrigger } from "@radix-ui/react-collapsible";
@@ -8,6 +13,56 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { Card } from "./ui/card";
 import { Avatar } from "@radix-ui/react-avatar";
 import { AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Separator } from "./ui/separator";
+
+export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
+  const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(true);
+
+  return (
+    <div className="flex flex-col p-5 w-1/4 gap-2 overflow-y-scroll border-r">
+      <h1 className="text-2xl font-bold">Scenario</h1>
+      <p>{scenario.situation}</p>
+
+      <Separator />
+
+      <Collapsible
+        open={isCompanyCultureOpen}
+        onOpenChange={setIsCompanyCultureOpen}
+        className="flex flex-col"
+      >
+        <CollapsibleTrigger className="cursor-pointer">
+          <div className="flex w-full justify-between">
+            <h2 className="text-lg font-bold">Company Culture</h2>
+            {isCompanyCultureOpen ? <ChevronDown /> : <ChevronUp />}
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <p>{scenario.companyCulture}</p>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Separator />
+
+      <h2 className="text-lg font-bold">Coworkers</h2>
+      {scenario.npcs.length === 0 ? (
+        <p>No coworkers in this scenario.</p>
+      ) : (
+        scenario.npcs.map((npc, index) => <NpcOverview key={index} npc={npc} />)
+      )}
+
+      <Separator className="mt-2" />
+
+      <h2 className="text-lg font-bold">Documents</h2>
+      {scenario.documents.length === 0 ? (
+        <p>No documents in this scenario.</p>
+      ) : (
+        scenario.documents.map((doc, index) => (
+          <DocumentOverview key={index} doc={doc} />
+        ))
+      )}
+    </div>
+  );
+}
 
 const pfpUrl =
   "https://lh3.googleusercontent.com/a/ACg8ocKJekIDEXvk6_sZFABBLKojvPCwQVqspj9kkjo1oLRBNpreHXrk=s83-c-mo";
@@ -50,34 +105,48 @@ function NpcOverview({ npc }: { npc: Npc }) {
   );
 }
 
-export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
-  const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(false);
+function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="flex flex-col p-5 w-1/5 gap-2 overflow-y-scroll border-r">
-      <h1 className="text-2xl font-bold">Scenario</h1>
-      <p>{scenario.situation}</p>
+    <Card>
       <Collapsible
-        open={isCompanyCultureOpen}
-        onOpenChange={setIsCompanyCultureOpen}
+        open={isOpen}
+        onOpenChange={setIsOpen}
         className="flex flex-col"
       >
         <CollapsibleTrigger className="cursor-pointer">
-          <div className="flex w-full justify-between">
-            <h2 className="text-lg font-bold">Company Culture</h2>
-            {isCompanyCultureOpen ? <ChevronDown /> : <ChevronUp />}
+          <div className="flex w-full justify-between px-4 py-1">
+            <h3 className="font-bold">
+              {doc.title} ({doc.type})
+            </h3>
+            {isOpen ? <ChevronDown /> : <ChevronUp />}
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent>
-          <p>{scenario.companyCulture}</p>
+        <CollapsibleContent className="p-4 pt-0">
+          {doc.content.map((block, index) => (
+            <DocumentContentBlock key={index} block={block} />
+          ))}
         </CollapsibleContent>
       </Collapsible>
-      <h2 className="text-lg font-bold">Coworkers</h2>
-      {scenario.npcs.length === 0 ? (
-        <p>No coworkers in this scenario.</p>
-      ) : (
-        scenario.npcs.map((npc, index) => <NpcOverview key={index} npc={npc} />)
-      )}
+    </Card>
+  );
+}
+
+function DocumentContentBlock({ block }: { block: ScenarioDocumentBlock }) {
+  let className = "";
+  if (block.format === "bold") className = "font-bold";
+  else if (block.format === "italic") className = "italic";
+  else if (block.format === "code")
+    className = "font-mono bg-gray-100 p-1 rounded";
+
+  const lines = block.content.split("\n");
+
+  return (
+    <div className={className}>
+      {lines.map((line, index) => (
+        <p key={index}>{line}</p>
+      ))}
     </div>
   );
 }
