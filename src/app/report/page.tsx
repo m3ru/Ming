@@ -1,35 +1,18 @@
 'use client';
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
-export default function reportPage() {
+export default function ReportPage() {
   const [md, setMd] = useState<string>("Loading...");
-  const [activeComment, setActiveComment] = useState<string | null>(null);
-  const [commentTop, setCommentTop] = useState<number>(0);
-
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
   const [scoring, setScores] = useState<string>("Loading AI Scoring...");
 
-
-  const transcriptRef = useRef<HTMLDivElement>(null);
-
+  // Load markdown file
   useEffect(() => {
     fetch("/sample.md")
       .then((res) => res.text())
       .then((text) => setMd(text))
       .catch(() => setMd("Error: Could not load markdown file."));
-  }, []);
-
-  // Hide comment when clicking outside highlight
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.classList.contains("highlighted-text")) {
-        setActiveComment(null);
-      }
-    };
-    document.addEventListener("click", handleClick);
-    return () => document.removeEventListener("click", handleClick);
   }, []);
 
   const parseInlineMarkdown = (text: string) => {
@@ -64,11 +47,15 @@ export default function reportPage() {
     return elements;
   };
 
-  const renderMarkdown = (text: string) => {
-    return text.split("\n\n").map((block, i) => {
-      block = block.trim();
-      const elements: React.ReactNode[] = [];
-      let remaining = block;
+  const renderMarkdownBlocks = (text: string) => {
+    const blocks: { transcript: React.ReactNode; comment?: string; index?: number }[] = [];
+    let commentCounter = 1; // global counter for numbering
+
+    text.split("\n\n").forEach((block) => {
+      let remaining = block.trim();
+      let elements: React.ReactNode[] = [];
+      let commentText: string | undefined = undefined;
+      let highlightIndex: number | undefined;
 
       while (remaining.includes("<highlight>") && remaining.includes("</highlight>")) {
         const pre = remaining.split("<highlight>")[0];
@@ -76,9 +63,9 @@ export default function reportPage() {
         const afterHighlight = remaining.split("</highlight>")[1];
 
         // Check for comment
-        let commentText: string | null = null;
         if (afterHighlight.includes("<comment>") && afterHighlight.includes("</comment>")) {
           commentText = afterHighlight.split("<comment>")[1].split("</comment>")[0];
+          highlightIndex = commentCounter++; // assign number and increment
           remaining = afterHighlight.split("</comment>")[1];
         } else {
           remaining = afterHighlight;
@@ -88,76 +75,84 @@ export default function reportPage() {
 
         elements.push(
           <span
-            key={i + elements.length}
-            className="highlighted-text bg-yellow-200 cursor-pointer px-1 rounded"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (transcriptRef.current) {
-                const rect = (e.target as HTMLSpanElement).getBoundingClientRect();
-                const parentRect = transcriptRef.current.getBoundingClientRect();
-                setCommentTop(rect.top - parentRect.top);
-                setActiveComment(commentText);
-              }
-            }}
+            key={blocks.length + elements.length}
+            className="bg-yellow-200 px-1 rounded"
           >
             {parseInlineMarkdown(highlightPart)}
+            {highlightIndex && (
+              <sup className="text-xs text-gray-600 ml-0.5">{highlightIndex}</sup>
+            )}
           </span>
         );
       }
 
       if (remaining) elements.push(parseInlineMarkdown(remaining));
 
-      return (
-        <p key={i} className="mb-4 text-gray-800 break-words whitespace-pre-wrap">
-          {elements}
-        </p>
-      );
+      blocks.push({
+        transcript: <p className="break-words m-0">{elements}</p>,
+        comment: commentText,
+        index: highlightIndex
+      });
     });
+
+    return blocks;
   };
 
+  const blocks = renderMarkdownBlocks(md);
+
   return (
-    <div className="min-h-screen flex flex-col items-center font-sans space-y-8 p-6 bg-gray-50">
-        <div>
-            <h2 className="text-2xl p-2 m-0 font-bold text-center">Conversation Summary</h2>
-            <div className="flex-1 bg-white p-6 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-                {summary}
-            </div>
-        </div>
-        <div>
-            <h2 className="text-2xl p-2 m-0 font-bold text-center">Feedback</h2>
-            <div className="flex-1 bg-white p-6 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-                {feedback}
-            </div>
-        </div>
-        <div>
-            <h2 className="text-2xl p-2 m-0 font-bold text-center">Scoring</h2>
-            <div className="flex-1 bg-white p-6 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-                {scoring}
-            </div>
-        </div>
-    <div>
-      <h2 className="text-2xl p-2 m-0 font-bold text-center">Annotated Transcript</h2>
-
-      <div className="flex w-full max-w-3xl relative gap-4">
-        {/* Transcript box */}
-        <div
-          ref={transcriptRef}
-          className="flex-1 bg-white p-6 rounded-lg shadow-md max-h-[500px] overflow-auto break-words"
-        >
-          {renderMarkdown(md)}
-        </div>
-
-        {/* Comment box */}
-        {activeComment && (
-          <div
-            className="w-80 bg-gray-100 border border-gray-300 rounded p-3 shadow break-words"
-            style={{ position: "absolute", left: "calc(100% + 16px)", top: commentTop }}
-          >
-            {activeComment}
+    <div className="min-h-screen flex justify-center font-sans bg-gray-50 p-6">
+      {/* Main container */}
+      <div className="flex flex-col w-full max-w-3xl space-y-8">
+        {/* Summary */}
+        <div  className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
+          <h2 className="text-2xl p-0 m-0 font-bold text-center">Conversation Summary</h2>
+          <div>
+            {summary}
           </div>
-        )}
+        </div>
+
+        {/* Feedback */}
+        <div  className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
+          <h2 className="text-2xl p-0 m-0 font-bold text-center">Feedback</h2>
+          <div>
+            {feedback}
+          </div>
+        </div>
+
+        {/* Scoring */}
+        <div  className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
+          <h2 className="text-2xl p-0 m-0 font-bold text-center">Scoring</h2>
+          <div>
+            {scoring}
+          </div>
+        </div>
+
+        {/* Transcript with comments */}
+        <div  className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto">
+          <h2 className="text-2xl p-2 m-0 font-bold text-center">Annotated Transcript</h2>
+          <div>
+            {blocks.map((block, i) => (
+              <div key={i} className="flex items-start">
+                {/* Transcript column */}
+                <div className="flex-1 py-1 mr-4 whitespace-pre-wrap">
+                  {block.transcript}
+                </div>
+
+                {/* Comments column */}
+                <div className="w-56 py-1">
+                  {block.comment && (
+                    <div className="bg-gray-100 rounded px-2 py-1 text-sm text-gray-800 break-words">
+                      <sup className="text-xs text-gray-600 mr-1">{block.index}</sup>
+                      {block.comment}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
     </div>
   );
 }
