@@ -1,7 +1,7 @@
 import { google } from "@ai-sdk/google";
 import { Agent } from "@mastra/core/agent";
-import { Scenarios } from "../../../../lib/scenarios";
-import { documentToString } from "../../../../lib/scenarioUtil";
+import { Scenarios } from "../../lib/scenarios";
+import { documentToString } from "../../lib/scenarioUtil";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
 
