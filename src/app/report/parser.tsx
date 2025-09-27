@@ -69,8 +69,13 @@ function parseTextToJSON(text: string) {
   // -----------------------
   result.segments = [];
   const segRegex = /<segment:\s*([^>]+)>\s*([\s\S]*?)\s*<\/segment:[^>]*>/gi;
+  // only consider segments that appear after the "## DETAILED ANALYSIS" heading
+  const detailedHeadingRegex = /##\s*DETAILED ANALYSIS/i;
+  const dhMatch = detailedHeadingRegex.exec(text);
+  const segmentSource = dhMatch ? text.slice(dhMatch.index) : text;
+
   let segMatch;
-  while ((segMatch = segRegex.exec(text)) !== null) {
+  while ((segMatch = segRegex.exec(segmentSource)) !== null) {
     result.segments.push({
       title: segMatch[1].trim(),
       content: segMatch[2].trim(),
