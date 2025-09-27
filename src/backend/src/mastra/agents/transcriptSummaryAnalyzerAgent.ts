@@ -34,6 +34,7 @@ Analyze what the user specifically did during the conversation:
 - Specific strategies or tactics employed
 - How well they addressed objectives and stakeholder needs
 - Evidence of preparation and subject matter expertise
+- Rate the user's conversation out of 100: Empathy, Clarity, Assertiveness, Open Mindness, Active Listening and Conflict Management
 
 **3. IMPROVEMENT RECOMMENDATIONS**
 Provide 3-4 specific, actionable recommendations:
@@ -76,6 +77,14 @@ Structure your response using clear headers:
 ## USER PERFORMANCE ANALYSIS
 [Detailed analysis of what the user did]
 
+## RATING
+- Empathy: [score out of 100]
+- Clarity: [score out of 100]
+- Assertiveness: [score out of 100]
+- Open Mindness: [score out of 100]
+- Active Listening: [score out of 100]
+- Conflict Management: [score out of 100]
+
 ## IMPROVEMENT RECOMMENDATIONS
 1. [First specific recommendation]
 2. [Second specific recommendation]
@@ -85,6 +94,8 @@ Structure your response using clear headers:
 <important>
 1. Refer the user as "you", not "the user".
 2. Be concise and focused in your analysis.
+3. Remember to include all headers and structure as specified (CONVERSATION OVERVIEW, USER PERFORMANCE ANALYSIS, RATING, IMPROVEMENT RECOMMENDATIONS).
+4. Do not put markdown formatting in RATING section.
 </important>
   `,
   model: google("gemini-2.5-flash-lite"),
