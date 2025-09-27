@@ -107,9 +107,23 @@ export default function ReportPage() {
 
       </div>
       <button
+<<<<<<< HEAD
+        onClick={()=>{
+          setIsEvaluationOpen(true);
+          setIsTranscriptOpen(true);
+          setIsSuggestionsOpen(true);
+          setIsSummaryOpen(true);
+          setTimeout(() => {
+            window.print();
+          }, 100);
+        }}
+        className = "px-3 py-1 mb-6 bg-gray-100 font-medium border shadow border-gray-300 text-black rounded-md"
+      >Print/Export Report</button>
+=======
         onClick={()=>window.print()}
         className = "px-3 py-1 mb-6 text-white bg-blue-600 rounded"
       >Print Report</button>
+>>>>>>> a787d13b1a41f023f1a0db31c0dd01a614bea41d
     </div>
   );
 }
