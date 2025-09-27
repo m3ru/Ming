@@ -90,5 +90,5 @@ Structure your response using clear headers:
 4. [Fourth specific recommendation if applicable]
 </output_format>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: google("gemini-2.5-flash"),
 });

@@ -68,7 +68,7 @@ When responding:
 </response_guidelines>
 
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: google("gemini-2.5-flash"),
   //   memory_bill,
   memory: new Memory({
     storage: new LibSQLStore({
