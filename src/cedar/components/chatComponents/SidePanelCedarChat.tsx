@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import Image from 'next/image';
 
 interface SidePanelCedarChatProps {
 	children?: React.ReactNode; // Page content to wrap
@@ -34,14 +35,14 @@ interface SidePanelCedarChatProps {
 export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 	children, // Page content
 	side = 'right',
-	title = 'Cedar Chat',
-	collapsedLabel = 'How can I help you today?',
+	title = 'Chat',
+	collapsedLabel = 'Start with Hello.',
 	showCollapsedButton = true,
 	companyLogo,
 		dimensions = {
 			width: 350,
 			minWidth: 300,
-			maxWidth: 320,
+			maxWidth: 340,
 		},
 	resizable = true,
 	className = '',
@@ -113,10 +114,22 @@ const handleStop = async () => {
 	return (
 		<>	
 			{showSpinner && (
-				<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
-					<Spinner size={48} />
-					<div className="mt-4 text-lg font-medium text-gray-700">Generating report...</div>
-				</div>
+							<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
+									<Spinner size={48} />
+									<div className="mt-4 text-lg font-medium text-gray-700">Generating report...</div>
+									<div className="flex flex-col items-center mt-6">
+										<Image
+											src="/bill.png.jpeg"
+											alt="Bill walking back to his office"
+											width={120}
+											height={120}
+											className="rounded-md shadow"
+										/>
+										<div className="mt-2 text-base text-gray-600 text-center">
+											Bill is walking back to his office
+										</div>
+									</div>
+							</div>
 			)}
 					{showCollapsedButton && !hideCompletely && (
 						<AnimatePresence mode='wait'>
