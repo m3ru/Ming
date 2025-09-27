@@ -236,6 +236,8 @@ const handleStop = async () => {
 				summary: workflowOutput?.summaryAnalysis,
 				detail: workflowOutput?.detailedFeedback
 			}));
+			// Mark scenario as completed for new prompt generation
+			localStorage.setItem('scenarioCompleted', 'true');
 			console.log(localStorage.getItem('reportData'));
 			router.push('/report');
 		} else if (result.status === 'failed') {
