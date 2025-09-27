@@ -5,18 +5,30 @@ import { documentToString } from "../../lib/scenarioUtil";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
 import { GoogleVoice } from "@mastra/voice-google";
+import { OpenAIVoice } from "@mastra/voice-openai";
 
 const scenario = Scenarios.demandingClient;
 const npc = scenario.npcs[0]; // Bill
 
-export const billVoice = new GoogleVoice({
-  speechModel: {
-    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-  },
+// export const billVoice = new GoogleVoice({
+//   speechModel: {
+//     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+//   },
+//   listeningModel: {
+//     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+//   },
+//   speaker: "en-US-Chirp3-HD-Rasalgethi",
+// });
+
+export const billVoice = new OpenAIVoice({
   listeningModel: {
-    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY!,
+    // model: "whisper-1",
   },
-  speaker: "en-US-Chirp3-HD-Rasalgethi",
+  speechModel: {
+    apiKey: process.env.OPENAI_API_KEY!,
+    // model: "tts-1",
+  },
 });
 
 /**

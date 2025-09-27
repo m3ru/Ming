@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { billAgent } from "../mastra/agents/billAgent";
+import { billAgent, billVoice } from "../mastra/agents/billAgent";
 import { createWriteStream } from "node:fs";
 
 class AudioReadableStream extends Readable {
@@ -65,15 +65,10 @@ export async function speechToText(audioBlob: Blob) {
   try {
     // 1. Transcribe audio
 
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const stream = new AudioReadableStream(arrayBuffer);
+    const arrayBuffer = Buffer.from(await audioBlob.arrayBuffer());
 
     // console.log("Starting transcription... Stream:", stream);
-    const transcriptionObj = await billAgent.voice.listen(stream, {
-      fileType: "webm",
-      language: "en-US",
-      encoding: "LINEAR16",
-    });
+    const transcriptionObj = await billVoice.listen(Readable.from(arrayBuffer));
 
     return transcriptionObj as string;
   } catch (error) {
