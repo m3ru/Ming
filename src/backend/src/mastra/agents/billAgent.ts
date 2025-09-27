@@ -67,7 +67,6 @@ When responding:
 
   `,
   model: google("gemini-2.5-flash-lite"),
-  tools: Object.fromEntries(ALL_TOOLS.map((tool) => [tool.id, tool])),
   //   memory_bill,
   memory: new Memory({
     storage: new LibSQLStore({
