@@ -11,7 +11,6 @@ export namespace Scenarios {
       {
         name: "Bill",
         role: "Developer",
-        pfp: "https://randomuser.me/api/portraits/men/1.jpg",
         personality:
           "Bill is an analytical thinker who values logic and efficiency, sometimes at the expense of interpersonal relationships.",
         scenarioSpecificInfo:
@@ -20,7 +19,6 @@ export namespace Scenarios {
       {
         name: "Susan",
         role: "Designer",
-        pfp: "https://randomuser.me/api/portraits/women/2.jpg",
         personality:
           "Susan is a creative and empathetic individual who prioritizes user experience and aesthetics, often advocating for the end-user's perspective.",
         scenarioSpecificInfo:

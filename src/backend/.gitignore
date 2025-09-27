@@ -1,4 +1,8 @@
-node_modules/
-.mastra/
-.next/
-.env*
+output.txt
+node_modules
+dist
+.mastra
+.env.development
+.env
+*.db
+*.db-*

@@ -81,7 +81,7 @@ function NpcOverview({ npc }: { npc: Npc }) {
           <div className="flex w-full justify-between items-center px-4 py-1">
             <div className="flex items-center gap-1">
               <Avatar className="rounded-lg w-8 h-8">
-                <AvatarImage src={pfpUrl} className="rounded-full" />
+                <AvatarImage src={npc.pfp} className="rounded-full" />
                 <AvatarFallback>{npc.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start">

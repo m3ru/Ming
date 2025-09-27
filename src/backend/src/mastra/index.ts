@@ -3,6 +3,7 @@ import { chatWorkflow } from './workflows/chatWorkflow';
 import { apiRoutes } from './apiRegistry';
 import { helloWorldAgent } from './agents/helloWorldAgent';
 import { storage } from './memory';
+import { billAgent } from './agents/billAgent';
 
 /**
  * Main Mastra configuration
@@ -16,7 +17,7 @@ import { storage } from './memory';
  */
 
 export const mastra = new Mastra({
-  agents: { helloWorldAgent },
+  agents: { helloWorldAgent, billAgent },
   workflows: { chatWorkflow },
   storage,
   telemetry: {

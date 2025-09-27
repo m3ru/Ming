@@ -9,7 +9,6 @@ export type Scenario = {
 export type Npc = {
   name: string;
   role: string;
-  pfp: string;
   personality: string;
   scenarioSpecificInfo: string;
 };
