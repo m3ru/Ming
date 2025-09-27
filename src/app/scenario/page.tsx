@@ -15,7 +15,7 @@ export default function ScenarioPage() {
       <div className="flex-grow flex flex-col">
         <div className="w-full p-2 text-center bg-white">
           <h1 className="text-2xl font-bold">Scenario: {scenario.title}</h1>
-          <p>{scenario.description}</p>
+          <p>{scenario.goal}</p>
         </div>
         <ScenarioVideo scenario={scenario} />
       </div>

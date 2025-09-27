@@ -1,7 +1,7 @@
 export type Scenario = {
   title: string;
-  description: string;
-  descriptionForAnalyzer: string;
+  goal: string;
+  goalForAnalyzer: string;
   situation: string;
   situationForAnalyzer: string;
   companyDetails: string;

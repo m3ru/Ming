@@ -28,7 +28,7 @@ export function contextForAnalysis(scenario: Scenario): string {
   let context = "";
 
   context += `Scenario Title: ${scenario.title}\n`;
-  context += `Description: ${scenario.descriptionForAnalyzer}\n\n`;
+  context += `Goal: ${scenario.goalForAnalyzer}\n\n`;
   context += `Situation: ${scenario.situationForAnalyzer}\n\n`;
   context += `Company Details: ${scenario.companyDetails}\n\n`;
   context += `User: ${scenario.userRole}\n\n`;

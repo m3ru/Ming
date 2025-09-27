@@ -2,9 +2,9 @@ import { Scenario } from "./types";
 
 export namespace Scenarios {
   export const demandingClient: Scenario = {
-    title: "Difficult Client Meeting",
-    description: "You must work with Bill to handle a demanding client.",
-    descriptionForAnalyzer: `This scenario involved the user talking with Bill about a difficult client.`,
+    title: "Meeting with Bill about a Demanding Client",
+    goal: "You must work with Bill to handle a demanding client.",
+    goalForAnalyzer: `This scenario involved the user talking with Bill about a difficult client.`,
     situation: `You are a project manager at a tech company who is leading a project to build an 
 e-commerce portal for a client. You have a meeting with a client who is unhappy with the progress 
 of the project. The client is demanding more features and a faster timeline, but your team is 
@@ -23,8 +23,12 @@ on meeting deadlines and delivering high-quality work. The company takes Fridays
         role: "Senior Fullstack Software Engineer",
         pfp: "https://randomuser.me/api/portraits/men/1.jpg",
         personality: `Bill is an analytical thinker who values logic and efficiency, sometimes at the 
-expense of interpersonal relationships. He is always concise in his speech and generally tries to be nice, 
-but his patience is thing. Bill never speaks more than 3-4 sentences at a time.`,
+expense of interpersonal relationships, and his patience is thin. He is always concise in his speech. 
+Bill never speaks more than 3-4 sentences at a time, avoiding long paragraphs, and getting straight to 
+the point. Bill is willing to speak his mind, even if it risks conflict, especially when he feels that 
+others are being unreasonable. He is frustrated with the unrealistic expectations of the client. He avoids
+repeating himself whenever possible. Outside work, Bill enjoys hiking with his family and playing chess 
+(though he's not very good).`,
         scenarioSpecificInfo: `Bill is frustrated with the unrealistic expectations of the client. He feels that 
 the client doesn't understand the technical challenges involved in the project. Bill leads a team of 3 junior 
 engineers, who work with a QA team and a designer named Susan. His team uses Next.js, Prisma, and Tailwind CSS for development, 
@@ -93,6 +97,10 @@ is not acceptable.`,
             format: "plain",
             content: `Status: In Progress since week 2 and nearing QA. Assigned to Bill and team.`,
           },
+          {
+            format: "plain",
+            content: `Technical Details: Implemented using NextAuth.js with MongoDB.`,
+          },
         ],
       },
       {
@@ -106,6 +114,10 @@ is not acceptable.`,
           {
             format: "plain",
             content: `Status: Completed in week 3. Implemented by Bill's team.`,
+          },
+          {
+            format: "plain",
+            content: `Technical Details: Based off MongoDB. Categories include Electronics, Clothing, and Home Goods.`,
           },
         ],
       },
@@ -122,6 +134,10 @@ is not acceptable.`,
             content: `Status: In Progress since week 1. Assigned to Bill and team. 
 Stuck debugging a tricky state management issue.`,
           },
+          {
+            format: "plain",
+            content: `Technical Details: Using React Context for state management and localStorage for persistence.`,
+          },
         ],
       },
       {
@@ -136,10 +152,14 @@ Stuck debugging a tricky state management issue.`,
             format: "plain",
             content: `Status: Not Started. Planned for week 5-6. Assigned to Bill and team.`,
           },
+          {
+            format: "plain",
+            content: `Technical Details: Will integrate Stripe for payment processing.`,
+          },
         ],
       },
       {
-        title: "Ticket #5: Buy-Now-Pay-Later",
+        title: "Ticket #5: BNPL",
         type: "ticket",
         content: [
           {
@@ -150,20 +170,28 @@ Stuck debugging a tricky state management issue.`,
             format: "plain",
             content: `Status: Not Started. Requested by client last week. Not in current timeline.`,
           },
+          {
+            format: "plain",
+            content: `Technical Details: No one has any clue how to implement this.`,
+          },
         ],
       },
       {
-        title: "Ticket #6: Subscription Options",
+        title: "Ticket #6: Subscriptions",
         type: "ticket",
         content: [
           {
             format: "plain",
-            content: `As a user, I want to subscribe to products so that I can receive them regularly without reordering.`,
+            content: `As a user, I want to subscribe? Not sure what's being subscribed to.`,
           },
           {
             format: "plain",
             content: `Status: Not Started. Requested by client last week and it's not clear what they actually want. 
 Not in current timeline.`,
+          },
+          {
+            format: "plain",
+            content: `Technical Details: Not started since it's unclear what the client wants.`,
           },
         ],
       },
