@@ -20,8 +20,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import Image from 'next/image';
-import { contextForAnalysis } from '@/backend/src/lib/scenarioUtil';
-import { Scenarios } from '@/backend/src/lib/scenarios';
+
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
