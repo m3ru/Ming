@@ -8,4 +8,5 @@ dist
 .env.development
 .env
 *.db
+pnpm-lock.yaml
 *.db-*
