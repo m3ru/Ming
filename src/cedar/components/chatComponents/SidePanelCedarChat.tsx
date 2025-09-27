@@ -1,163 +1,183 @@
-import React from 'react';
-import { X } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
-import { useCedarStore } from 'cedar-os';
+import React from "react";
+import { X } from "lucide-react";
+import { AnimatePresence } from "motion/react";
+import { useCedarStore } from "cedar-os";
 import "dotenv/config";
- 
 import { mastraClient } from '@/lib/mastra-client';
+import { SidePanelContainer } from "@/cedar/components/structural/SidePanelContainer";
+import { CollapsedButton } from "@/cedar/components/chatMessages/structural/CollapsedChatButton";
+import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
+import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
+import Container3D from "@/cedar/components/containers/Container3D";
+import { useThreadMessages } from "cedar-os";
+import { useState } from "react";
+import {
+  useRegisterState,
+  useStateBasedMentionProvider,
+  useCedarState,
+} from "cedar-os";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
+import Image from "next/image";
+import { contextForAnalysis } from '@/lib/scenarioUtil';
+import { Scenarios } from '@/backend/src/lib/scenarios';
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
-const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & { _sendMessagePatched?: boolean };
+const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & {
+  _sendMessagePatched?: boolean;
+};
 if (!storeWithPatchFlag._sendMessagePatched) {
-	const origSend = cedarStoreGlobal.sendMessage;
-	storeWithPatchFlag.sendMessage = (msg, ...args) => {
-		// Always get the latest contextDocs and documents from the store
-		const state = useCedarStore.getState();
-		const contextDocsVal: number[] = ((state as any)["contextDocs"] as number[]) || [];
-		const documentsVal = ((state as any)["documents"] as Array<{ title: string }>) || [];
-		if (
-			typeof msg === 'string' &&
-			contextDocsVal &&
-			contextDocsVal.length > 0 &&
-			documentsVal.length > 0
-		) {
-			const docNames = contextDocsVal
-				.map((idx: number) => documentsVal[idx]?.title)
-				.filter(Boolean)
-				.join(', ');
-					if (docNames && !(msg as string).startsWith('re: (')) {
-						msg = `re: (${docNames}) ${msg}` as any;
-					}
-		}
-		return origSend(msg as any, ...args);
-	};
-	storeWithPatchFlag._sendMessagePatched = true;
+  const origSend = cedarStoreGlobal.sendMessage;
+  storeWithPatchFlag.sendMessage = (msg, ...args) => {
+    // Always get the latest contextDocs and documents from the store
+    const state = useCedarStore.getState();
+    const contextDocsVal: number[] =
+      ((state as any)["contextDocs"] as number[]) || [];
+    const documentsVal =
+      ((state as any)["documents"] as Array<{ title: string }>) || [];
+    if (
+      typeof msg === "string" &&
+      contextDocsVal &&
+      contextDocsVal.length > 0 &&
+      documentsVal.length > 0
+    ) {
+      const docNames = contextDocsVal
+        .map((idx: number) => documentsVal[idx]?.title)
+        .filter(Boolean)
+        .join(", ");
+      if (docNames && !(msg as string).startsWith("re: (")) {
+        msg = `re: (${docNames}) ${msg}` as any;
+      }
+    }
+    return origSend(msg as any, ...args);
+  };
+  storeWithPatchFlag._sendMessagePatched = true;
 }
-import { SidePanelContainer } from '@/cedar/components/structural/SidePanelContainer';
-import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
-import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
-import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
-import Container3D from '@/cedar/components/containers/Container3D';
-import { useThreadMessages } from 'cedar-os';
-import { useState } from 'react';
-import { useRegisterState, useStateBasedMentionProvider, useCedarState } from 'cedar-os';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import Image from 'next/image';
-import { contextForAnalysis } from '@/lib/scenarioUtil';
-import { Scenarios } from '@/backend/src/lib/scenarios';
 
 interface SidePanelCedarChatProps {
-	children?: React.ReactNode; // Page content to wrap
-	side?: 'left' | 'right';
-	title?: string;
-	collapsedLabel?: string;
-	showCollapsedButton?: boolean; // Control whether to show the collapsed button
-	companyLogo?: React.ReactNode;
-	dimensions?: {
-		width?: number;
-		minWidth?: number;
-		maxWidth?: number;
-	};
-	resizable?: boolean;
-	className?: string; // Additional CSS classes for positioning
-	topOffset?: number; // Top offset in pixels (e.g., for navbar height)
-	stream?: boolean; // Whether to use streaming for responses
-	documents?: Array<{
-		title: string;
-		type: string;
-		content: Array<{ format: string; content: string }>;
-	}>;
+  children?: React.ReactNode; // Page content to wrap
+  side?: "left" | "right";
+  title?: string;
+  collapsedLabel?: string;
+  showCollapsedButton?: boolean; // Control whether to show the collapsed button
+  companyLogo?: React.ReactNode;
+  dimensions?: {
+    width?: number;
+    minWidth?: number;
+    maxWidth?: number;
+  };
+  resizable?: boolean;
+  className?: string; // Additional CSS classes for positioning
+  topOffset?: number; // Top offset in pixels (e.g., for navbar height)
+  stream?: boolean; // Whether to use streaming for responses
+  documents?: Array<{
+    title: string;
+    type: string;
+    content: Array<{ format: string; content: string }>;
+  }>;
 }
 
 export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
-	children, // Page content
-	side = 'right',
-	title = 'Chat',
-	collapsedLabel = 'Start with Hello.',
-	showCollapsedButton = true,
-	companyLogo,
-	dimensions = {
-		width: 350,
-		minWidth: 300,
-		maxWidth: 340,
-	},
-	resizable = true,
-	className = '',
-	topOffset = 0,
-	stream = true,
-	documents = [],
+  children, // Page content
+  side = "right",
+  title = "Chat",
+  collapsedLabel = "Start with Hello.",
+  showCollapsedButton = true,
+  companyLogo,
+  dimensions = {
+    width: 350,
+    minWidth: 300,
+    maxWidth: 340,
+  },
+  resizable = true,
+  className = "",
+  topOffset = 0,
+  stream = true,
+  documents = [],
 }) => {
-	// Get showChat state and setShowChat from store
-	const showChat = useCedarStore((state) => state.showChat);
-	const setShowChat = useCedarStore((state) => state.setShowChat);
-	const router = useRouter();
-const currentThreadId = useCedarStore((state) => state.getCurrentThreadId);
-const { messages } = useThreadMessages();
+  // Get showChat state and setShowChat from store
+  const showChat = useCedarStore((state) => state.showChat);
+  const setShowChat = useCedarStore((state) => state.setShowChat);
+  const router = useRouter();
+  const currentThreadId = useCedarStore((state) => state.getCurrentThreadId);
+  const { messages } = useThreadMessages();
 
-// Generate transcript string in the format: user: .../bill: ...
-const transcript = messages
-  .map((m) => {
-    if (m.role === 'user') return `user: ${m.content}`;
-    if (m.role === 'assistant' || m.role === 'bot') return `bill: ${m.content}`;
-    return null;
-  })
-  .filter(Boolean)
-  .join('\n');
+  // Generate transcript string in the format: user: .../bill: ...
+  const transcript = messages
+    .map((m) => {
+      if (m.role === "user") return `user: ${m.content}`;
+      if (m.role === "assistant" || m.role === "bot")
+        return `bill: ${m.content}`;
+      return null;
+    })
+    .filter(Boolean)
+    .join("\n");
 
+  // Persistent resourceId per session (like SimpleChatPanel)
+  const [resourceId, setResourceId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    let id = localStorage.getItem("cedar_resourceId");
+    if (!id) {
+      id = Array.from({ length: 20 }, () =>
+        Math.floor(Math.random() * 36).toString(36)
+      ).join("");
+      localStorage.setItem("cedar_resourceId", id);
+    }
+    return id;
+  });
 
-// Persistent resourceId per session (like SimpleChatPanel)
-const [resourceId, setResourceId] = useState(() => {
-	if (typeof window === 'undefined') return '';
-	let id = localStorage.getItem('cedar_resourceId');
-	if (!id) {
-		id = Array.from({ length: 20 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
-		localStorage.setItem('cedar_resourceId', id);
-	}
-	return id;
-});
+  // Register resourceId with Cedar
+  useRegisterState({
+    key: "resourceId",
+    description: "A persistent resource/session ID for the chat session",
+    value: resourceId,
+    setValue: setResourceId,
+  });
 
-// Register resourceId with Cedar
-useRegisterState({
-	key: 'resourceId',
-	description: 'A persistent resource/session ID for the chat session',
-	value: resourceId,
-	setValue: setResourceId,
-});
+  // Register scenario documents as state for Cedar
+  const [cedarDocuments, setCedarDocuments] = useState(documents);
+  useRegisterState({
+    key: "documents",
+    description: "Scenario documents available for mention in chat",
+    value: cedarDocuments,
+    setValue: setCedarDocuments,
+  });
 
+  // Get contextDocs (indices of docs in context) from Cedar state
+  const [contextDocs] = useCedarState({ key: "contextDocs", initialValue: [] });
 
-// Register scenario documents as state for Cedar
-const [cedarDocuments, setCedarDocuments] = useState(documents);
-useRegisterState({
-	key: 'documents',
-	description: 'Scenario documents available for mention in chat',
-	value: cedarDocuments,
-	setValue: setCedarDocuments,
-});
+  // Register mention provider for scenario documents
+  useStateBasedMentionProvider({
+    stateKey: "documents",
+    trigger: "@",
+    labelField: "title",
+    searchFields: ["title", "type"],
+    description: "Documents",
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="2" width="13" height="14" rx="2" />
+        <path d="M8 2v14" />
+      </svg>
+    ),
+    color: "#8b5cf6",
+    order: 5,
+  });
 
-// Get contextDocs (indices of docs in context) from Cedar state
-const [contextDocs] = useCedarState({ key: 'contextDocs', initialValue: [] });
+  // Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
 
-
-// Register mention provider for scenario documents
-useStateBasedMentionProvider({
-	stateKey: 'documents',
-	trigger: '@',
-	labelField: 'title',
-	searchFields: ['title', 'type'],
-	description: 'Documents',
-	icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="2" width="13" height="14" rx="2"/><path d="M8 2v14"/></svg>,
-	color: '#8b5cf6',
-	order: 5,
-});
-
-// Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
-
-const [showSpinner, setShowSpinner] = useState(false);
-const [hideCompletely, setHideCompletely] = useState(false);
+  const [showSpinner, setShowSpinner] = useState(false);
+  const [hideCompletely, setHideCompletely] = useState(false);
 
 const handleStop = async () => {
 	setShowSpinner(true);
@@ -206,27 +226,29 @@ const handleStop = async () => {
 	}
 };
 
-	return (
-		<>	
-			{showSpinner && (
-							<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
-									<Spinner size={48} />
-									<div className="mt-4 text-lg font-medium text-gray-700">Generating report...</div>
-									<div className="flex flex-col items-center mt-6">
-										<Image
-											src="/bill.png.jpeg"
-											alt="Bill walking back to his office"
-											width={120}
-											height={120}
-											className="rounded-md shadow"
-										/>
-										<div className="mt-2 text-base text-center text-gray-600">
-											Bill is walking back to his office
-										</div>
-									</div>
-							</div>
-			)}
-					{showCollapsedButton && !hideCompletely && (
+  return (
+    <>
+      {showSpinner && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
+          <Spinner size={48} />
+          <div className="mt-4 text-lg font-medium text-gray-700">
+            Generating report...
+          </div>
+          <div className="flex flex-col items-center mt-6">
+            <Image
+              src="/bill.png.jpeg"
+              alt="Bill walking back to his office"
+              width={120}
+              height={120}
+              className="rounded-md shadow"
+            />
+            <div className="mt-2 text-base text-center text-gray-600">
+              Bill is walking back to his office
+            </div>
+          </div>
+        </div>
+      )}
+      {/* {showCollapsedButton && !hideCompletely && (
 						<AnimatePresence mode='wait'>
 							{!showChat && (
 								<CollapsedButton
@@ -238,7 +260,7 @@ const handleStop = async () => {
 								/>
 							)}
 						</AnimatePresence>
-					)}
+					)} */}
 
       <div className="flex flex-col h-full">
         {/* Header */}
@@ -269,7 +291,7 @@ const handleStop = async () => {
         </div>
 
         {/* Chat input - fixed at bottom */}
-        <div className="flex-shrink-0 p-3">
+        <div className="flex-shrink-0 p-1">
           <ChatInput
             handleFocus={() => {}}
             handleBlur={() => {}}

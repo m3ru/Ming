@@ -111,7 +111,7 @@ function NpcOverview({ npc }: { npc: Npc }) {
 }
 
 function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <Card>
