@@ -113,5 +113,5 @@ user: <comment color="red" feedback="This response is defensive and dismissive. 
 - Generate the exact transcript with highlights as specified, do not ignore any part of the transcript provided.
 </important_guidelines>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: google("gemini-2.5-flash-lite-preview-09-2025"),
 });

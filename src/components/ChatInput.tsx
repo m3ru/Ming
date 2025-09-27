@@ -56,7 +56,7 @@ const ChatDataExporter = ({ children, ...sidePanelProps }) => {
     <SidePanelCedarChat {...sidePanelProps}>
       <div className="relative">
         {/* 4. Add a button to trigger the export */}
-        <div className="absolute top-0 right-0 p-4 z-10">
+        <div className="absolute top-0 right-0 z-10 p-4">
           <Button
             onClick={handleExportAndPost}
             disabled={status === "sending"}
@@ -103,6 +103,7 @@ export default function App() {
         );
       }
       // Fallback for any other fetch calls
+	  console.log("FOUND IT", url, options);
       return window.fetch(url, options);
     };
   }, []);
