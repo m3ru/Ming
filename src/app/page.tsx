@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { z } from 'zod';
 import {
   useRegisterState,
@@ -14,18 +15,21 @@ import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCed
 import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelCedarChat';
 import { DebuggerPanel } from '@/cedar/components/debugger';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import ScenarioCard from '@/components/ScenarioCard';
 import MenuBar from '@/components/MenuBar';
 
 type ChatMode = 'floating' | 'sidepanel' | 'caption';
 
 export default function HomePage() {
+  const router = useRouter();
+  
   // Cedar-OS chat components with mode selector
   // Choose between caption, floating, or side panel chat modes
   const [chatMode, setChatMode] = React.useState<ChatMode>('sidepanel');
 
   // Cedar state for the main text that can be changed by the agent
-  const [mainText, setMainText] = React.useState('tell Cedar to change me');
+  const [mainText, setMainText] = React.useState('Budding Manager');
 
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
@@ -93,65 +97,49 @@ export default function HomePage() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
         {/* Big text that Cedar can change */}
         <div className="text-center">
-          <h1 className="text-6xl font-bold text-gray-800 mb-4">{mainText}</h1>
+          <h1 className="text-6xl font-bold text-gray-800 mb-4">Welcome back</h1>
+          <h1 className="text-6xl font-bold text-blue-800 mb-4">{mainText}</h1>
           <p className="text-lg text-gray-600 mb-8">
-            This text can be changed by Cedar using state setters
+            Pass the first task to unlock new scenarios!
           </p>
         </div>
 
         <div className="flex space-x-4 w-full items-stretch">
           <ScenarioCard
-            title="Performance Review"
+            title="Performance Problems"
             imageUrl="/performanceReview.webp"
             description="An employee performance review meeting."
+            color="#ffffff97"
+            locked={false}
           />
           <ScenarioCard
             title="Workplace Conflict"
             imageUrl="/workplaceConflict.jpg"
             description="A tense discussion between coworkers."
+            color="#1f1c1897"
+            locked={true}
           />
+          
+          
           <ScenarioCard
             title="Employee Layoff"
             imageUrl="/employeeLayoff.jpg"
             description="A manager informing an employee about layoffs."
+            color="#1f1c1897"
+            locked={true}
           />
         </div>
 
-
-        {/* Instructions for adding new text */}
+        {/* Reports button */}
         <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-700 mb-2">
-            tell cedar to add new lines of text to the screen
-          </h2>
-          <p className="text-md text-gray-500 mb-6">
-            Cedar can add new text using frontend tools with different styles
-          </p>
+          <Button
+            onClick={() => router.push('/report')}
+            size="lg"
+            className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 font-semibold"
+          >
+            See analytics from past reports
+          </Button>
         </div>
-
-        {/* Display dynamically added text lines */}
-        {textLines.length > 0 && (
-          <div className="w-full max-w-2xl">
-            <h3 className="text-xl font-medium text-gray-700 mb-4 text-center">Added by Cedar:</h3>
-            <div className="space-y-2">
-              {textLines.map((line, index) => (
-                <div
-                  key={index}
-                  className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-center"
-                >
-                  {line.startsWith('**') && line.endsWith('**') ? (
-                    <strong className="text-blue-800">{line.slice(2, -2)}</strong>
-                  ) : line.startsWith('*') && line.endsWith('*') ? (
-                    <em className="text-blue-700">{line.slice(1, -1)}</em>
-                  ) : line.startsWith('🌟') ? (
-                    <span className="text-yellow-600 font-semibold">{line}</span>
-                  ) : (
-                    <span className="text-blue-800">{line}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {chatMode === 'caption' && <CedarCaptionChat />}
