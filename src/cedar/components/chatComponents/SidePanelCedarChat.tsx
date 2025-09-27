@@ -2,6 +2,20 @@ import React from 'react';
 import { X } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { useCedarStore } from 'cedar-os';
+import { SidePanelContainer } from '@/cedar/components/structural/SidePanelContainer';
+import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
+import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
+import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
+import Container3D from '@/cedar/components/containers/Container3D';
+import { useThreadMessages } from 'cedar-os';
+import { useState } from 'react';
+import { useRegisterState, useStateBasedMentionProvider, useCedarState } from 'cedar-os';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/shadcn-io/spinner';
+import Image from 'next/image';
+import { contextForAnalysis } from '@/backend/src/lib/scenarioUtil';
+import { Scenarios } from '@/backend/src/lib/scenarios';
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
@@ -31,18 +45,7 @@ if (!storeWithPatchFlag._sendMessagePatched) {
 	};
 	storeWithPatchFlag._sendMessagePatched = true;
 }
-import { SidePanelContainer } from '@/cedar/components/structural/SidePanelContainer';
-import { CollapsedButton } from '@/cedar/components/chatMessages/structural/CollapsedChatButton';
-import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
-import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
-import Container3D from '@/cedar/components/containers/Container3D';
-import { useThreadMessages } from 'cedar-os';
-import { useState } from 'react';
-import { useRegisterState, useStateBasedMentionProvider, useCedarState } from 'cedar-os';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/shadcn-io/spinner';
-import Image from 'next/image';
+
 
 interface SidePanelCedarChatProps {
 	children?: React.ReactNode; // Page content to wrap
@@ -158,27 +161,88 @@ const handleStop = async () => {
 	setShowChat(false); // Hide the chat panel so spinner is fully visible
 	setHideCompletely(true); // Hide the collapsed button as well
 	try {
-		const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
+		// Use the current thread ID as the run ID to link conversation requests
+		const workflowId = 'feedbackOrchestratorWorkflow';
+		const runId = currentThreadId || resourceId; // Use threadId first, fallback to resourceId
+		
+		// Step 1: Initialize the workflow run
+		const createResponse = await fetch(`http://localhost:4111/api/workflows/${workflowId}/create-run?runId=${runId}`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				messages: [
-					{
-						role: 'user',
-						content: transcript,
-					},
-				],
-				memory: {
-					thread: currentThreadId,
-					resource: resourceId,
-				},
-			}),
+			headers: { 'accept': '*/*' }
 		});
-		const data = await response.json();
+		
+		if (!createResponse.ok) {
+			throw new Error(`Failed to create workflow run: ${createResponse.statusText}`);
+		}
+		
+		// Step 2: Start the workflow with transcript and context
+		const startResponse = await fetch(`http://localhost:4111/api/workflows/${workflowId}/start?runId=${runId}`, {
+			method: 'POST',
+			headers: {
+				'accept': '*/*',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				inputData: {
+					transcript: transcript,
+					additionalContext: {
+						scenario: contextForAnalysis(Scenarios.demandingClient),
+						participants: ['user', 'bill'],
+						meetingType: 'project_review'
+					},
+					resourceId: resourceId,
+					threadId: currentThreadId
+				}
+			})
+		});
+		
+		if (!startResponse.ok) {
+			throw new Error(`Failed to start workflow: ${startResponse.statusText}`);
+		}
+		
+		// Step 3: Poll for execution result (takes ~10 seconds, ~2 attempts)
+		let data = null;
+		let attempts = 0;
+		const maxAttempts = 10; // Allow up to 10 attempts (50 seconds max)
+		const pollInterval = 5000; // Poll every 5 seconds
+		
+		while (attempts < maxAttempts) {
+			attempts++;
+			console.log(`Polling for execution result, attempt ${attempts}...`);
+			
+			const resultResponse = await fetch(`http://localhost:4111/api/workflows/${workflowId}/runs/${runId}/execution-result`, {
+				method: 'GET',
+				headers: { 'accept': '*/*' }
+			});
+			
+			if (!resultResponse.ok) {
+				throw new Error(`Failed to get execution result: ${resultResponse.statusText}`);
+			}
+			
+			const result = await resultResponse.json();
+			
+			// Check if we have actual execution results
+			if (result.result && Object.keys(result.result).length > 0) {
+				console.log('✅ Got execution results!', result);
+				data = result;
+				break;
+			}
+			
+			// If not the last attempt, wait before polling again
+			if (attempts < maxAttempts) {
+				console.log(`No results yet, waiting ${pollInterval/1000} seconds...`);
+				await new Promise(resolve => setTimeout(resolve, pollInterval));
+			}
+		}
+		
+		if (!data) {
+			throw new Error(`Workflow execution timed out after ${maxAttempts} attempts`);
+		}
+		
 		localStorage.setItem('reportData', JSON.stringify(data));
 		router.push('/report');
 	} catch (e) {
-		console.error('Failed to send transcript to analyzer:', e);
+		console.error('Failed to send transcript to workflow:', e);
 	} finally {
 		setShowSpinner(false);
 	}
