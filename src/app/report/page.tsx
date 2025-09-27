@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import ScoreBar from "@/components/ScoreBar";
+import {marked} from 'marked';
 
 const defaultScores = [
   { category: "Empathy", score: 85 },
@@ -117,20 +118,20 @@ export default function ReportPage() {
     <div className="min-h-screen flex justify-center font-sans bg-gray-50 p-6">
       <div className="flex flex-col w-full max-w-5xl space-y-8">
         {/* Summary */}
-        <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-          <h2 className="text-2xl font-bold text-center">Conversation Summary</h2>
-          <div>{summary}</div>
+        <div className="bg-white p-5 rounded-lg shadow-md max-h-[300px] overflow-auto break-words">
+          <h2 className="text-2xl mt-0 pt-0 font-bold text-center">Conversation Summary</h2>
+          <div dangerouslySetInnerHTML={{ __html: marked.parse(summary) }} />
         </div>
 
         {/* Feedback */}
-        <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-          <h2 className="text-2xl font-bold text-center">Feedback</h2>
-          <div>{feedback}</div>
+        <div className="bg-white p-5 rounded-lg shadow-md max-h-[450px] overflow-auto break-words">
+          <h2 className="text-2xl mt-0 pt-0 font-bold text-center">Feedback</h2>
+          <div dangerouslySetInnerHTML={{ __html: marked.parse(feedback) }} />
         </div>
 
         {/* Scoring */}
-        <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
-          <h2 className="text-2xl font-bold text-center">Scoring</h2>
+        <div className="bg-white p-5 rounded-lg shadow-md max-h-[500px] overflow-auto break-words">
+          <h2 className="text-2xl mt-0 pt-0 font-bold text-center">Scoring</h2>
           <div className="flex gap-4">
             <div className="flex-1">
               <ScoreBar category={scoring[0].category} score={scoring[0].score} />
@@ -146,7 +147,7 @@ export default function ReportPage() {
         </div>
 
         {/* Transcript */}
-        <div className="bg-white p-4 rounded-lg shadow-md max-h-[500px] overflow-auto">
+        <div className="bg-white p-5 rounded-lg shadow-md max-h-[500px] overflow-auto">
           <h2 className="text-2xl font-bold text-center">Annotated Transcript</h2>
           <div>
             {blocks.map((block, i) => (
