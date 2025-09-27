@@ -183,7 +183,7 @@ export default function AnnotatedTranscript({ segments }: { segments?: { title: 
   const blocks = React.useMemo(() => renderMarkdownBlocks(md), [md]);
 
   return (
-    <div className="bg-white p-5 rounded-md overflow-auto">
+    <div className="bg-white p-5 pt-0 rounded-md overflow-auto">
       <div>
         {blocks.map((block, i) => (
           <div key={i} className="flex items-start py-1 gap-2 leading-snug">

@@ -20,9 +20,9 @@ const defaultScores = [
 export default function ReportPage() {
   const reportRef = useRef<HTMLDivElement | null>(null);
 
-  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(true);
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(true);
+  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
 
   const [summary, setSummary] = useState<string>("Loading AI Summary...");

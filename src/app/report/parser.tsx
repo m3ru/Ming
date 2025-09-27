@@ -109,9 +109,18 @@ export default function Parser(rawText: string): ParsedResult {
   const segRegex = /<segment:\s*([^>]+)>([\s\S]*?)<\/segment:\s*\1>/gi;
   let segMatch;
   while ((segMatch = segRegex.exec(detailText)) !== null) {
+    let content = segMatch[2].trim();
+
+    // Make speaker labels bold in Markdown with first letter capitalized
+    content = content.replace(
+      /^(\s*)(\w+):/gim,
+      (_, ws, speaker) =>
+        `${ws}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`
+    );
+
     result.segments.push({
       title: segMatch[1].trim(),
-      content: segMatch[2].trim(),
+      content,
     });
   }
 
