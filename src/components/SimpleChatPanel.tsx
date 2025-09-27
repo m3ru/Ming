@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import StopButton from "./StopButton";
 import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -38,7 +39,9 @@ export default function SimpleChatPanel() {
   }, [messages]);
 
   // Handler for StopButton
+  const [showSpinner, setShowSpinner] = useState(false);
   const handleStop = async () => {
+    setShowSpinner(true);
     try {
       const response = await fetch("http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext", {
         method: "POST",
@@ -59,6 +62,8 @@ export default function SimpleChatPanel() {
       router.push("/report");
     } catch (e) {
       console.error("Failed to send transcript to analyzer:", e);
+    } finally {
+      setShowSpinner(false);
     }
   };
 
@@ -94,6 +99,9 @@ export default function SimpleChatPanel() {
       );
       if (!response.ok) throw new Error("Failed to export chat");
       const data = await response.json();
+
+      console.log("Response data:", data);
+
       // Try to extract the assistant's reply from the response
       let assistantText = "";
       if (data.text) {
@@ -129,62 +137,65 @@ export default function SimpleChatPanel() {
       setTimeout(() => setStatus("idle"), 2000);
     }
   };
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   return (
-    <Card className="flex flex-col h-full max-w-md mx-auto">
-      <div className="flex justify-end p-2">
-        <StopButton onStop={handleStop} />
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {messages.map((msg) => (
-          msg.role === "assistant" ? (
-            <div key={msg.id} className="flex items-start gap-2 self-start">
-              <Image
-                src="https://randomuser.me/api/portraits/men/1.jpg"
-                alt="Assistant profile"
-                width={32}
-                height={32}
-                className="rounded-full border"
-              />
-              <div className="bg-gray-100 text-gray-900 rounded px-3 py-2 w-fit max-w-full">
+    <div className="relative flex flex-col h-full max-w-md mx-auto">
+      {showSpinner && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
+          <Spinner size={48} />
+          <div className="mt-4 text-lg font-medium text-gray-700">Generating report...</div>
+        </div>
+      )}
+      <Card className="flex flex-col h-full">
+        <div className="flex justify-end p-2">
+          <StopButton onStop={handleStop} />
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {messages.map((msg) =>
+            msg.role === "assistant" ? (
+              <div key={msg.id} className="flex items-start gap-2 self-start">
+                <Image
+                  src="https://randomuser.me/api/portraits/men/1.jpg"
+                  alt="Assistant profile"
+                  width={32}
+                  height={32}
+                  className="rounded-full border"
+                />
+                <div className="bg-gray-100 text-gray-900 rounded px-3 py-2 w-fit max-w-full">
+                  {msg.text}
+                </div>
+              </div>
+            ) : (
+              <div
+                key={msg.id}
+                className="bg-blue-100 text-blue-900 rounded px-3 py-2 w-fit max-w-full self-end"
+              >
                 {msg.text}
               </div>
-            </div>
-          ) : (
-            <div
-              key={msg.id}
-              className="bg-blue-100 text-blue-900 rounded px-3 py-2 w-fit max-w-full self-end"
-            >
-              {msg.text}
-            </div>
-          )
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      <form
-        onSubmit={handleSend}
-        className="flex p-2 border-t gap-2 bg-background"
-      >
-        <Input
-          className="flex-1"
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Respond..."
-        />
-        <Button type="submit" disabled={!input.trim()}>
-          Send
-        </Button>
-      </form>
-      <div className="flex justify-end p-2 text-xs text-gray-500 h-4 min-h-[1rem]">
-        {status === "sending" && "Saving..."}
-        {status === "success" && "Saved!"}
-        {status === "error" && "Failed to save."}
-      </div>
-    </Card>
+            )
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        <form
+          onSubmit={handleSend}
+          className="flex p-2 border-t gap-2 bg-background"
+        >
+          <Input
+            className="flex-1"
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Respond..."
+          />
+          <Button type="submit" disabled={!input.trim()}>
+            Send
+          </Button>
+        </form>
+        <div className="flex justify-end p-2 text-xs text-gray-500 h-4 min-h-[1rem]">
+          {status === "sending" && "Saving..."}
+          {status === "success" && "Saved!"}
+          {status === "error" && "Failed to save."}
+        </div>
+      </Card>
+    </div>
   );
 }
