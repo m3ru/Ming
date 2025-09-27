@@ -18,6 +18,8 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ScenarioCard from '@/components/ScenarioCard';
 import MenuBar from '@/components/MenuBar';
+import Parser from '@/app/report/parser';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 type ChatMode = 'floating' | 'sidepanel' | 'caption';
 
@@ -33,6 +35,24 @@ export default function HomePage() {
 
   // Cedar state for dynamically added text lines
   const [textLines, setTextLines] = React.useState<string[]>([]);
+
+  // State for scores from report data
+  const [scores, setScores] = React.useState<{ category: string; score: number }[]>([]);
+
+  // Load scores from localStorage (same as report page)
+  React.useEffect(() => {
+    const stored = localStorage.getItem("reportData");
+    if (stored) {
+      try {
+        const data = Parser(stored);
+        if (data.scores) {
+          setScores(data.scores);
+        }
+      } catch (error) {
+        console.log('Could not parse report data:', error);
+      }
+    }
+  }, []);
 
   // Register the main text as Cedar state with a state setter
   useRegisterState({
@@ -130,15 +150,39 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Reports button */}
+        {/* Scores display */}
         <div className="text-center">
-          <Button
-            onClick={() => router.push('/report')}
-            size="lg"
-            className="px-8 py-4 text-lg bg-blue-600 hover:bg-blue-700 font-semibold"
-          >
-            See analytics from past reports
-          </Button>
+          <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md px-8 py-4 text-lg font-semibold bg-gray-100 border border-gray-200">
+            {scores.length > 0 ? (
+              <div className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-base font-bold">Latest Scores</div>
+                  <Button
+                    onClick={() => router.push('/report')}
+                    size="sm"
+                    className="text-xs bg-blue-600 hover:bg-blue-700"
+                  >
+                    View Full Report
+                  </Button>
+                </div>
+                <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+                  {scores.slice(0, 6).map((score, index) => (
+                    <div key={index} className="flex items-center min-w-[100px]">
+                      <span className="text-gray-700">{score.category}:</span>
+                      <span className="font-bold text-blue-600 ml-1">{score.score}</span>
+                      {score.score > 50 ? (
+                        <ChevronUp className="h-3 w-3 text-green-500 ml-1" />
+                      ) : (
+                        <ChevronDown className="h-3 w-3 text-red-500 ml-1" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <span className="text-gray-500">No scores available</span>
+            )}
+          </div>
         </div>
       </div>
 

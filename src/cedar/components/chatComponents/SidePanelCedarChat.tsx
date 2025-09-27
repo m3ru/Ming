@@ -234,7 +234,8 @@ const handleStop = async () => {
 			console.log("Workflow output:", workflowOutput);
 			localStorage.setItem('reportData', JSON.stringify({
 				summary: workflowOutput?.summaryAnalysis,
-				detail: workflowOutput?.detailedFeedback
+				detail: workflowOutput?.detailedFeedback,
+				analysis: workflowOutput?.segmentedAnalysis,
 			}));
 			// Mark scenario as completed for new prompt generation
 			localStorage.setItem('scenarioCompleted', 'true');

@@ -41,7 +41,7 @@ Choose 3-4 from these types based on scenario needs:
 </document_types>
 
 <output_format>
-You must structure your response using this exact format with NO markdown formatting:
+You must structure your response using this exact format with formatting:
 
 <document_1>
 [Document title/type]
@@ -65,6 +65,7 @@ You must structure your response using this exact format with NO markdown format
 </output_format>
 
 <guidelines>
+- ALWAYS start with <document_number> and end with </document_number> for each document content. (e.g., <document_1> ... </document_1>)
 - Create documents that feel authentic and professionally written
 - Include specific dates, names, and technical details relevant to the scenario
 - Ensure documents work together to tell a coherent story
