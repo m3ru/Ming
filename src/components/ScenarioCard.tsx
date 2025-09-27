@@ -5,7 +5,7 @@ export default function ScenarioCard({ imageUrl, title, description }: { imageUr
     return (
     <Card className="flex-1 flex flex-col p-2 max-w-1md">
             <CardHeader>
-                <h2 className="text-xl font-semibold">{title}</h2>
+                <h2 className="text-xl font-semibold"><a href='/scenario'>{title}</a></h2>
             </CardHeader>
             <CardContent className="flex-1">
                 <img
