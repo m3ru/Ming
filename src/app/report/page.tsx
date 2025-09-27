@@ -59,8 +59,8 @@ export default function ReportPage() {
     console.log("reportData from localStorage:", stored);
     if (stored != null) {
       try {
-        const data = JSON.parse(stored);
-        const text = data.text;
+  const data = JSON.parse(stored);
+  const text = typeof data.text === "string" ? data.text : "";
         const storedSegments = data.segments || [];
 
         const summaryMatch = text.match(/## CONVERSATION OVERVIEW\s*([\s\S]*?)\n## USER PERFORMANCE ANALYSIS/);

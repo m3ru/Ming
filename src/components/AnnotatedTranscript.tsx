@@ -137,7 +137,7 @@ import React from "react";
       const commentNode = commentTexts.length > 0 ? (
         <div className="space-y-2">
           {commentTexts.map((c) => (
-            <div key={c.idx} className="flex bg-yellow-100 border border-gray-100 rounded-sm pt-2 pb-2 pl-2 pr-5 shadow-sm">
+            <div key={c.idx} className="flex bg-yellow-100 border border-gray-100 rounded-sm p-1 shadow-sm">
               <div className="m-1 mr-0 text-sm text-blue-700 break-words">{c.text}</div>
               <span className="flex mr-1 mt-4 flex-col p-0 h-auto">
                 <sup className="text-[10px] text-gray-600 ml-0.25 align-baseline -translate-y-1">{c.idx}</sup>
