@@ -116,7 +116,7 @@ Success Criteria:
     `.trim();
   };
   return (
-    <div>
+    <div className="overflow-y-clip">
       <MenuBar />
       <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
         <ScenarioOverview scenario={currentScenario} />
