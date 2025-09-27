@@ -8,7 +8,7 @@ type ParsedResult = {
   scores: { category: string; score: number }[];
 };
 
-const defaultScores = [
+const defaultScores: ParsedResult["scores"] = [
   { category: "Empathy", score: 0 },
   { category: "Clarity", score: 0 },
   { category: "Open-mindedness", score: 0 },
@@ -17,13 +17,28 @@ const defaultScores = [
   { category: "Conflict Management", score: 0 },
 ];
 
+// Mapping of possible AI variants to canonical categories
+const CATEGORY_ALIASES: Record<string, string> = {
+  empathy: "Empathy",
+  clarity: "Clarity",
+  "openmindness": "Open-mindedness",
+  "openmindedness": "Open-mindedness",
+  "open mindness": "Open-mindedness",
+  "open mind": "Open-mindedness",
+  assertiveness: "Assertiveness",
+  activelistening: "Active Listening",
+  "active listening": "Active Listening",
+  conflictmanagement: "Conflict Management",
+  "conflict management": "Conflict Management",
+};
+
 export default function Parser(rawText: string): ParsedResult {
   const result: ParsedResult = {
     summary: null,
     feedback: null,
     suggestions: null,
     segments: [],
-    scores: defaultScores,
+    scores: defaultScores.map((s) => ({ ...s })),
   };
 
   let parsed: any;
@@ -37,43 +52,55 @@ export default function Parser(rawText: string): ParsedResult {
   const summaryText = parsed.summary || "";
   const detailText = parsed.detail || "";
 
-  // --- Summary (Conversation Overview) ---
+  // --- Conversation Overview ---
   const summaryMatch = summaryText.match(
     /##\s*CONVERSATION OVERVIEW\s*([\s\S]*?)(?=##|$)/i
   );
-  if (summaryMatch) {
-    result.summary = summaryMatch[1].trim();
-  }
+  if (summaryMatch) result.summary = summaryMatch[1].trim();
 
-  // --- Feedback (Performance Analysis + Recommendations, without Ratings) ---
+  // --- Feedback ---
   let perfMatch = summaryText.match(
-    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=##|$)/i
+    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=(?:\*\*RATING\*\*|##|$))/i
   );
+  if (perfMatch) perfMatch[1] = perfMatch[1].trim();
+  result.feedback = perfMatch ? perfMatch[1].trim() : null;
+
+  // --- Suggestions ---
   const improvementMatch = summaryText.match(
     /##\s*IMPROVEMENT RECOMMENDATIONS\s*([\s\S]*?)(?=##|$)/i
   );
-
-  // Remove **RATING** block from performance analysis text
-  if (perfMatch) {
-    perfMatch[1] = perfMatch[1].replace(/\*\*RATING\*\*[\s\S]*/i, "").trim();
-  }
-
-  // Assign feedback (performance analysis) and suggestions (improvement recommendations)
-  result.feedback = perfMatch ? perfMatch[1].trim() : null;
   result.suggestions = improvementMatch ? improvementMatch[1].trim() : null;
 
-  // --- Scores (from RATING block) ---
+  // --- Scores ---
   const ratingBlock = summaryText.match(/\*\*RATING\*\*([\s\S]*?)(?=##|$)/i);
   if (ratingBlock) {
-    const lines = ratingBlock[1].split("\n").map((l: string) => l.trim()).filter(Boolean);
-    result.scores = [];
+    const lines = ratingBlock[1]
+      .split("\n")
+      .map((l: string) => l.replace(/^\*+/g, "").trim()) // Remove leading asterisks
+      .filter(Boolean);
+
+    const parsedScores: { category: string; score: number }[] = [];
+
     for (const line of lines) {
-      const m = line.match(/-\s*([^:]+):\s*(\d+)/);
+      const m = line.match(/-?\s*([^:]+):\s*(\d+)/i);
       if (m) {
-        result.scores.push({
-          category: m[1].trim(),
-          score: Number(m[2]),
-        });
+        const rawCat = m[1].trim().toLowerCase().replace(/[\s\-_]+/g, "");
+        const canonicalCat = CATEGORY_ALIASES[rawCat] || m[1].trim();
+        parsedScores.push({ category: canonicalCat, score: Number(m[2]) });
+      }
+    }
+
+    // Merge parsed scores with default scores
+    const defaultMap = new Map<string, number>();
+    result.scores.forEach((s, i) => defaultMap.set(s.category, i));
+
+    for (const ps of parsedScores) {
+      const idx = defaultMap.get(ps.category);
+      if (idx !== undefined) {
+        result.scores[idx] = { category: ps.category, score: ps.score };
+      } else {
+        // Append any unknown/new categories
+        result.scores.push(ps);
       }
     }
   }
@@ -88,6 +115,5 @@ export default function Parser(rawText: string): ParsedResult {
     });
   }
 
-  console.log("Parsed Result:", result);
   return result;
 }
