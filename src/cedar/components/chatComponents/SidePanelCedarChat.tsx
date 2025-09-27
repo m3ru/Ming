@@ -9,6 +9,7 @@ import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import Container3D from '@/cedar/components/containers/Container3D';
 import { useThreadMessages } from 'cedar-os';
 import { useState } from 'react';
+import { useRegisterState, useStateBasedMentionProvider } from 'cedar-os';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
@@ -30,6 +31,11 @@ interface SidePanelCedarChatProps {
 	className?: string; // Additional CSS classes for positioning
 	topOffset?: number; // Top offset in pixels (e.g., for navbar height)
 	stream?: boolean; // Whether to use streaming for responses
+	documents?: Array<{
+		title: string;
+		type: string;
+		content: Array<{ format: string; content: string }>;
+	}>;
 }
 
 export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
@@ -39,15 +45,16 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 	collapsedLabel = 'Start with Hello.',
 	showCollapsedButton = true,
 	companyLogo,
-		dimensions = {
-			width: 350,
-			minWidth: 300,
-			maxWidth: 340,
-		},
+	dimensions = {
+		width: 350,
+		minWidth: 300,
+		maxWidth: 340,
+	},
 	resizable = true,
 	className = '',
 	topOffset = 0,
 	stream = true,
+	documents = [],
 }) => {
 	// Get showChat state and setShowChat from store
 	const showChat = useCedarStore((state) => state.showChat);
@@ -66,15 +73,46 @@ const transcript = messages
   .filter(Boolean)
   .join('\n');
 
+
 // Persistent resourceId per session (like SimpleChatPanel)
-const [resourceId] = useState(() => {
-  if (typeof window === 'undefined') return '';
-  let id = localStorage.getItem('cedar_resourceId');
-  if (!id) {
-    id = Array.from({ length: 20 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
-    localStorage.setItem('cedar_resourceId', id);
-  }
-  return id;
+const [resourceId, setResourceId] = useState(() => {
+	if (typeof window === 'undefined') return '';
+	let id = localStorage.getItem('cedar_resourceId');
+	if (!id) {
+		id = Array.from({ length: 20 }, () => Math.floor(Math.random() * 36).toString(36)).join('');
+		localStorage.setItem('cedar_resourceId', id);
+	}
+	return id;
+});
+
+// Register resourceId with Cedar
+useRegisterState({
+	key: 'resourceId',
+	description: 'A persistent resource/session ID for the chat session',
+	value: resourceId,
+	setValue: setResourceId,
+});
+
+
+// Register scenario documents as state for Cedar
+const [cedarDocuments, setCedarDocuments] = useState(documents);
+useRegisterState({
+	key: 'documents',
+	description: 'Scenario documents available for mention in chat',
+	value: cedarDocuments,
+	setValue: setCedarDocuments,
+});
+
+// Register mention provider for scenario documents
+useStateBasedMentionProvider({
+	stateKey: 'documents',
+	trigger: '@',
+	labelField: 'title',
+	searchFields: ['title', 'type'],
+	description: 'Documents',
+	icon: <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="2" width="13" height="14" rx="2"/><path d="M8 2v14"/></svg>,
+	color: '#8b5cf6',
+	order: 5,
 });
 
 const [showSpinner, setShowSpinner] = useState(false);
