@@ -80,9 +80,9 @@ For each segment provided:
 For each segment provided, structure your response as:
 
 <segment:segment_title>
-[Transcript prior highlighting will be here]
+[Transcript prior to highlighting]
 user: <comment color="[red|yellow|green]" feedback="[Why this phrase needs improvement/how to improve]">[exact phrase from user]</comment>
-[Transcript after highlighting will be here]
+[Transcript after highlighting]
 </segment:segment_title>
 [Repeat this format for each segment provided]
 
@@ -107,9 +107,8 @@ user: <comment color="red" feedback="This response is defensive and dismissive. 
 - Provide specific, practical suggestions for improvement
 - Only highlight max 3 phrases per segment to maintain focus on the most important feedback
 - Ensure your color-coding is consistent ("red", "yellow", "green") only
-- The color code needs to be inside the transcript. DO NOT make a seperate section for color code. DO: (user:...\nadam:...\nuser: <comment color="red" feedback="...">...</comment>) DON'T: (adam:...\n</segment:Introduction><segment:Introduction>\nuser: <comment color="red" feedback="...">...</comment>\nuser: <comment color="green" feedback="...">...</comment>\n</segment:Introduction>) 
 - Refer to example_output for formatting
 </important_guidelines>
   `,
-  model: google("gemini-2.5-flash-lite-preview-09-2025"),
+  model: google("gemini-2.5-flash-lite"),
 });
