@@ -60,6 +60,7 @@ export default function SimpleChatPanel() {
     } catch (e) {
       console.error("Failed to send transcript to analyzer:", e);
     }
+    window.location.href = "/report";
   };
 
   const handleSend = async (e?: React.FormEvent) => {
