@@ -45,14 +45,14 @@ export default function ReportPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col items-center font-sans bg-gray-50">
+    <div className="flex flex-col items-center min-h-screen font-sans bg-gray-50">
       <MenuBar />
       <div ref = {reportRef} id="report-content" className="flex flex-col w-full max-w-5xl p-6 space-y-5">
         {/* Summary */}
-        <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="bg-white p-3 rounded-md shadow-md">
-          <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
-            <h2 className="text-2xl font-bold text-center flex-grow">Conversation Summary</h2>
-            {isSummaryOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+        <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen} className="p-3 bg-white rounded-md shadow-md">
+          <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
+            <h2 className="flex-grow text-2xl font-bold text-center">Conversation Summary</h2>
+            {isSummaryOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4 max-h-[300px] overflow-auto break-words">
             <div dangerouslySetInnerHTML={{ __html: marked.parse(summary) }} />
@@ -60,10 +60,10 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Scoring */}
-        <Collapsible open={isEvaluationOpen} onOpenChange={setIsEvaluationOpen} className="bg-white p-3 rounded-md shadow-md">
-          <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
-            <h2 className="text-2xl font-bold text-center flex-grow">Evaluation</h2>
-            {isEvaluationOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+        <Collapsible open={isEvaluationOpen} onOpenChange={setIsEvaluationOpen} className="p-3 bg-white rounded-md shadow-md">
+          <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
+            <h2 className="flex-grow text-2xl font-bold text-center">Evaluation</h2>
+            {isEvaluationOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4 max-h-[500px] overflow-auto break-words">
             <div className = "mb-3" dangerouslySetInnerHTML={{ __html: marked.parse(feedback) }} />
@@ -84,10 +84,10 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Suggestions */}
-        <Collapsible open={isSuggestionsOpen} onOpenChange={setIsSuggestionsOpen} className="bg-white p-3 rounded-md shadow-md">
-          <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
-            <h2 className="text-2xl font-bold text-center flex-grow">Suggested Improvements</h2>
-            {isSuggestionsOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+        <Collapsible open={isSuggestionsOpen} onOpenChange={setIsSuggestionsOpen} className="p-3 bg-white rounded-md shadow-md">
+          <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
+            <h2 className="flex-grow text-2xl font-bold text-center">Suggested Improvements</h2>
+            {isSuggestionsOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4 max-h-[450px] overflow-auto break-words">
             <div dangerouslySetInnerHTML={{ __html: marked.parse(suggestions) }} />
@@ -95,10 +95,10 @@ export default function ReportPage() {
         </Collapsible>
 
         {/* Annotated Transcript */}
-        <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen} className="bg-white p-3 rounded-md shadow-md">
-          <CollapsibleTrigger className="flex justify-between items-center w-full cursor-pointer">
-            <h2 className="text-2xl font-bold text-center flex-grow">Annotated Transcript</h2>
-            {isTranscriptOpen ? <ChevronUp className="h-6 w-6" /> : <ChevronDown className="h-6 w-6" />}
+        <Collapsible open={isTranscriptOpen} onOpenChange={setIsTranscriptOpen} className="p-3 bg-white rounded-md shadow-md">
+          <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
+            <h2 className="flex-grow text-2xl font-bold text-center">Annotated Transcript</h2>
+            {isTranscriptOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
             <AnnotatedTranscript segments={segments} />
@@ -108,7 +108,7 @@ export default function ReportPage() {
       </div>
       <button
         onClick={()=>window.print()}
-        className = "px-3 py-1 mb-6 bg-blue-600 text-white rounded"
+        className = "px-3 py-1 mb-6 text-white bg-blue-600 rounded"
       >Print Report</button>
     </div>
   );

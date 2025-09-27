@@ -6,6 +6,7 @@ import { Scenarios } from "@/backend/src/lib/scenarios";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import { useState, useEffect } from "react";
+import { mastraClient } from "@/lib/mastra-client";
 
 const scenario = Scenarios.demandingClient;
 
@@ -48,15 +49,14 @@ export default function ScenarioPage() {
     setIsLoadingNewScenario(true);
     try {
       // For now, we'll generate a mock prompt - replace this with actual backend call
-      const newPrompt = await generateMockScenarioPrompt();
-      
-      console.log('New scenario prompt generated:');
-      console.log('=================================');
-      console.log(newPrompt);
-      console.log('=================================');
-      
-      // Clear the completion flag so we don't keep regenerating
-      localStorage.removeItem('scenarioCompleted');
+      const run = await mastraClient.getWorkflow("scenarioPipelineWorkflow").createRunAsync();
+
+	  const result = await run.startAsync({
+		inputData: {
+			analysis: JSON.parse(localStorage.getItem('reportData') || '{}')['analysis'],
+		}
+	  });
+      console.log("result", result);
       
       // TODO: In the future, this is where you'd:
       // 1. Parse the prompt to create a new Scenario object
@@ -107,12 +107,12 @@ Success Criteria:
     `.trim();
   };
   return (
-    <div className="h-screen w-screen flex">
+    <div className="flex w-screen h-screen">
       <ScenarioOverview scenario={currentScenario} />
-      <div className="flex-grow flex flex-col">
+      <div className="flex flex-col flex-grow">
         {isLoadingNewScenario && (
           <div className="w-full p-3 text-center bg-blue-100 border-b">
-            <p className="text-blue-800 font-medium">
+            <p className="font-medium text-blue-800">
               🔄 Generating new scenario based on your performance...
             </p>
           </div>
@@ -124,7 +124,7 @@ Success Criteria:
         <ScenarioVideo scenario={currentScenario} />
       </div>
       <div className="w-[350px] flex flex-col items-end">
-        <div className="h-full p-4 bg-white rounded shadow w-full">
+        <div className="w-full h-full p-4 bg-white rounded shadow">
           {/* <SimpleChatPanel /> */}
           <SidePanelCedarChat documents={currentScenario.documents} />
         </div>
