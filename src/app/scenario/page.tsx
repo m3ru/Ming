@@ -1,4 +1,5 @@
 import ScenarioOverview from "@/components/ScenarioOverview";
+import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/lib/scenarios";
 
 const scenario = Scenarios.demandingClient;
@@ -11,6 +12,7 @@ export default function ScenarioPage() {
         <div className="w-full p-2 text-2xl font-bold text-center bg-white">
           Scenario: {scenario.title}
         </div>
+        <ScenarioVideo scenario={scenario} />
       </div>
     </div>
   );
