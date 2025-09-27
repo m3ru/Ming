@@ -13,9 +13,16 @@ interface Message {
   role: MessageRole;
 }
 
+function randomId(length = 16) {
+  return Array.from({ length }, () => Math.floor(Math.random() * 36).toString(36)).join("");
+}
+
 export default function SimpleChatPanel() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
+  // Generate persistent thread/resource IDs for this chat session
+  const [threadId] = useState(() => randomId(12));
+  const [resourceId] = useState(() => randomId(20));
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [transcript, setTranscript] = useState("");
@@ -76,7 +83,13 @@ export default function SimpleChatPanel() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: backendMessages }),
+          body: JSON.stringify({
+            messages: backendMessages,
+            memory: {
+              thread: threadId,
+              resource: resourceId,
+            },
+          }),
         }
       );
       if (!response.ok) throw new Error("Failed to export chat");
