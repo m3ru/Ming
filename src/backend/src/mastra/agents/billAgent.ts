@@ -16,7 +16,7 @@ export const billVoice = new GoogleVoice({
   listeningModel: {
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
   },
-  speaker: "en-US-Casual-K",
+  speaker: "en-US-Chirp3-HD-Rasalgethi",
 });
 
 /**

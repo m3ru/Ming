@@ -21,9 +21,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
   return (
     <div className="flex flex-col p-5 w-1/4 gap-2 overflow-y-scroll border-r">
       <h1 className="text-2xl font-bold">Scenario</h1>
-      {scenario.situation.split('\n').map((line, i) => (
-  <p key={i}>{line}</p>
-))}
+      {scenario.situation.split("\n").map((line, i) => (
+        <p key={i}>{line}</p>
+      ))}
 
       <Separator />
 
@@ -39,9 +39,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          {scenario.companyDetails.split('\n').map((line, i) => (
+          <p>{scenario.companyDetails.split('\n').map((line, i) => (
             <p key={i}>{line}</p>
-          ))}
+          ))}</p>
         </CollapsibleContent>
       </Collapsible>
 

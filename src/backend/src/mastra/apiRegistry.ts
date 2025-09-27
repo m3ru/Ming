@@ -7,6 +7,7 @@ import {
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createSSEStream } from "../utils/streamUtils";
 import { handleVoiceRequest } from "../lib/voice";
+import { billAgent } from "./agents/billAgent";
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
@@ -104,6 +105,9 @@ export const apiRoutes = [
     },
     handler: async (c) => {
       try {
+        // const voiceOptions = await billAgent.voice.getSpeakers();
+        // console.log("Available voice options:", voiceOptions);
+
         const formData = await c.req.formData();
 
         // console.log("Received form data:", formData);
