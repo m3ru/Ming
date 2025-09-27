@@ -1,6 +1,11 @@
+'use client'
+
 import ScenarioOverview from "@/components/ScenarioOverview";
 import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/lib/scenarios";
+import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
+import SimpleChatPanel from "@/components/SimpleChatPanel";
+
 
 const scenario = Scenarios.demandingClient;
 
@@ -13,6 +18,11 @@ export default function ScenarioPage() {
           Scenario: {scenario.title}
         </div>
         <ScenarioVideo scenario={scenario} />
+      </div>
+      <div className="w-[350px] flex flex-col items-end">
+        <div className="h-[60vh] p-4 bg-white rounded shadow w-full">
+          <SimpleChatPanel />
+        </div>
       </div>
     </div>
   );
