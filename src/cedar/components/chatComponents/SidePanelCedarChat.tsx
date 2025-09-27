@@ -4,9 +4,7 @@ import { AnimatePresence } from 'motion/react';
 import { useCedarStore } from 'cedar-os';
 import "dotenv/config";
  
-import { mastra } from "../../../backend/src/mastra";
-import { contextForAnalysis } from "../../../backend/src/lib/scenarioUtil";
-import { Scenarios } from "../../../backend/src/lib/scenarios";
+import { mastraClient } from '@/lib/mastra-client';
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -49,6 +47,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/shadcn-io/spinner';
 import Image from 'next/image';
+import { contextForAnalysis } from '@/lib/scenarioUtil';
+import { Scenarios } from '@/backend/src/lib/scenarios';
 
 interface SidePanelCedarChatProps {
 	children?: React.ReactNode; // Page content to wrap
@@ -183,9 +183,11 @@ const handleStop = async () => {
 		// const data = await response.json();
 		// localStorage.setItem('reportData', JSON.stringify(data));
 		// router.push('/report');
-		const run = await mastra.getWorkflow("feedbackOrchestratorWorkflow").createRunAsync();
+		const workflow = await mastraClient.getWorkflow("feedbackOrchestratorWorkflow");
+		console.log("Workflow", workflow);
+		const run = await workflow.createRunAsync();
 
-		const result = await run.start({
+		const result = await run.startAsync({
 		inputData: {
 			transcript: transcript,
 			additionalContext: {
@@ -195,7 +197,8 @@ const handleStop = async () => {
 			},
 		}
 		});
-		console.log("Result", result);
+		console.log("summaryAnalysis", result.result.summaryAnalysis);
+		// console.log("Result");
 	} catch (e) {
 		console.error('Failed to send transcript to analyzer:', e);
 	} finally {
@@ -239,14 +242,14 @@ const handleStop = async () => {
 
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 z-20 flex flex-row items-center justify-between px-4 py-2 min-w-0 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center min-w-0 flex-1">
+        <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center flex-1 min-w-0">
             {companyLogo && (
               <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
             )}
-            <span className="font-bold text-lg truncate">{title}</span>
+            <span className="text-lg font-bold truncate">{title}</span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center flex-shrink-0 gap-2">
             <Button variant="destructive" onClick={handleStop} className="mr-2">
               End Scenario
             </Button>
@@ -255,7 +258,7 @@ const handleStop = async () => {
                   onClick={() => setShowChat(false)}
                   aria-label="Close chat"
                 >
-                  <X className="h-4 w-4" strokeWidth={2.5} />
+                  <X className="w-4 h-4" strokeWidth={2.5} />
                 </button> */}
           </div>
         </div>
