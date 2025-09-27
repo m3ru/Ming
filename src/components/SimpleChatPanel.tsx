@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import StopButton from "./StopButton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +13,8 @@ interface Message {
   role: MessageRole;
 }
 
-
 export default function SimpleChatPanel() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -48,6 +49,7 @@ export default function SimpleChatPanel() {
       setAnalyzerResponse(data);
       localStorage.setItem("reportData", JSON.stringify(data));
       console.log("Analyzer response:", data);
+      router.push("/report");
     } catch (e) {
       console.error("Failed to send transcript to analyzer:", e);
     }
