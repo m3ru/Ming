@@ -115,7 +115,8 @@ export const apiRoutes = [
         const audioFile = formData.get("audio") as File | null;
         const context = formData.get("context") as string | null;
 
-        // console.log("Audio file:", audioFile);
+        const resourceId = formData.get("resourceId") as string | null;
+        const threadId = formData.get("threadId") as string | null;
 
         const audioBlob = audioFile
           ? audioFile.slice(0, audioFile.size, audioFile.type)
@@ -130,7 +131,10 @@ export const apiRoutes = [
 
         // console.log("Audio blob:", audioBlob);
 
-        const result = await handleVoiceRequest(audioBlob, context);
+        const result = await handleVoiceRequest(audioBlob, context, {
+          resourceId: resourceId!,
+          threadId: threadId!,
+        });
         return c.json(result);
       } catch (error) {
         console.error(error);
