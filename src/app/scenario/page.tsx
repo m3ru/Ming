@@ -30,17 +30,18 @@ export default function ScenarioPage() {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   const checkScenarioCompletion = () => {
     // Check if there's report data (indicates completed scenario)
-    const reportData = localStorage.getItem('reportData');
-    const scenarioCompletedFlag = localStorage.getItem('scenarioCompleted');
-    
-    if (reportData && !scenarioCompleted && scenarioCompletedFlag === 'true') {
-      console.log('User has completed a scenario, generating new prompt...');
+    const reportData = localStorage.getItem("reportData");
+    const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
+
+    if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
+      console.log("User has completed a scenario, generating new prompt...");
       setScenarioCompleted(true);
       generateNewScenarioPrompt();
     }
@@ -50,23 +51,29 @@ export default function ScenarioPage() {
     setIsLoadingNewScenario(true);
     try {
       // For now, we'll generate a mock prompt - replace this with actual backend call
-      const run = await mastraClient.getWorkflow("scenarioPipelineWorkflow").createRunAsync();
+      const run = await mastraClient
+        .getWorkflow("scenarioPipelineWorkflow")
+        .createRunAsync();
 
-	  const result = await run.startAsync({
-		inputData: {
-			analysis: JSON.parse(localStorage.getItem('reportData') || '{}')['analysis'],
-		}
-	  });
+      const result = await run.startAsync({
+        inputData: {
+          analysis: JSON.parse(localStorage.getItem("reportData") || "{}")[
+            "analysis"
+          ],
+        },
+      });
       console.log("result", result);
-	  localStorage.removeItem('scenarioCompleted');
-	  localStorage.setItem('scenarioData', JSON.stringify({
-		prompts: result.result.prompts,
-		reports: result.result.reports,
-		scenario: result.result.scenario,
-      }));
-      
+      localStorage.removeItem("scenarioCompleted");
+      localStorage.setItem(
+        "scenarioData",
+        JSON.stringify({
+          prompts: (result as any).result.prompts,
+          reports: (result as any).result.reports,
+          scenario: (result as any).result.scenario,
+        })
+      );
     } catch (error) {
-      console.error('Failed to generate new scenario prompt:', error);
+      console.error("Failed to generate new scenario prompt:", error);
     } finally {
       setIsLoadingNewScenario(false);
     }
@@ -75,8 +82,8 @@ export default function ScenarioPage() {
   // Mock function to simulate backend scenario generation
   const generateMockScenarioPrompt = async (): Promise<string> => {
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // This would be replaced with actual backend call
     return `
 SCENARIO PROMPT:
@@ -111,30 +118,32 @@ Success Criteria:
   return (
     <div>
       <MenuBar />
-    <div className="flex w-screen" style={{ height: 'calc(100vh - 3rem)' }}>
-      <ScenarioOverview scenario={currentScenario} />
-      <div className="flex flex-col flex-grow">
-        {isLoadingNewScenario && (
-          <div className="w-full p-3 text-center bg-blue-100 border-b">
-            <p className="font-medium text-blue-800">
-              🔄 Generating new scenario based on your performance...
-            </p>
-          </div>
-        )}
-        {/*<div className="w-full p-2 text-center bg-white">
+      <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
+        <ScenarioOverview scenario={currentScenario} />
+        <div className="flex flex-col flex-grow">
+          {isLoadingNewScenario && (
+            <div className="w-full p-3 text-center bg-blue-100 border-b">
+              <p className="font-medium text-blue-800">
+                🔄 Generating new scenario based on your performance...
+              </p>
+            </div>
+          )}
+          {/*<div className="w-full p-2 text-center bg-white">
           <h1 className="text-2xl font-bold">Scenario: {scenario.title}</h1>
           <p>{scenario.goal}</p>
         </div> */}
-        <ScenarioVideo scenario={currentScenario} />
-      </div>
-      <div className="w-[350px] flex flex-col items-end">
-        <div className="w-full p-4 bg-white rounded shadow" style={{ height: 'calc(100vh - 3rem)' }}>
-          {/* <SimpleChatPanel /> */}
-          <SidePanelCedarChat documents={currentScenario.documents} />
+          <ScenarioVideo scenario={currentScenario} />
+        </div>
+        <div className="w-[350px] flex flex-col items-end">
+          <div
+            className="w-full p-4 bg-white rounded shadow"
+            style={{ height: "calc(100vh - 3rem)" }}
+          >
+            {/* <SimpleChatPanel /> */}
+            <SidePanelCedarChat documents={currentScenario.documents} />
+          </div>
         </div>
       </div>
     </div>
-        </div>
-
   );
 }
