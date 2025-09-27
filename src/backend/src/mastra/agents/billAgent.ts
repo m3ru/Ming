@@ -1,8 +1,9 @@
 import { google } from '@ai-sdk/google';
 import { Agent } from '@mastra/core/agent';
 import { ALL_TOOLS, TOOL_REGISTRY } from '../tools/toolDefinitions';
-import { generateCategorizedToolDescriptions } from '@cedar-os/backend';
-import { memory } from '../memory';
+import { memory_bill } from '../memory';
+import { Memory } from '@mastra/memory';
+import { LibSQLStore } from '@mastra/libsql';
 
 /**
  * Bill Agent - Developer focused on logic and efficiency
@@ -70,5 +71,18 @@ When responding:
   `,
   model: google('gemini-2.5-flash-lite'),
   tools: Object.fromEntries(ALL_TOOLS.map((tool) => [tool.id, tool])),
-  memory,
+//   memory_bill,
+  memory: new Memory({
+    storage: new LibSQLStore({
+      url: "file:bill-memory.db"
+    }),
+    options: {
+      workingMemory: {
+        enabled: true
+      },
+      threads: {
+        generateTitle: true
+      }
+    }
+  })
 });
