@@ -6,7 +6,7 @@
  * All other content goes through 'data:' field only.
  */
 export function createSSEStream(
-  cb: (controller: ReadableStreamDefaultController<Uint8Array>) => Promise<void>,
+  cb: (controller: ReadableStreamDefaultController<Uint8Array>) => Promise<void>
 ): Response {
   const encoder = new TextEncoder();
 
@@ -15,14 +15,16 @@ export function createSSEStream(
       try {
         await cb(controller);
         // Signal completion with empty data
-        controller.enqueue(encoder.encode('event: done\n'));
-        controller.enqueue(encoder.encode('data:\n\n'));
+        controller.enqueue(encoder.encode("event: done\n"));
+        controller.enqueue(encoder.encode("data:\n\n"));
       } catch (err) {
-        console.error('Error during SSE stream', err);
+        console.error("Error during SSE stream", err);
 
-        const message = err instanceof Error ? err.message : 'Internal error';
-        controller.enqueue(encoder.encode('data: '));
-        controller.enqueue(encoder.encode(`${JSON.stringify({ type: 'error', message })}\n\n`));
+        const message = err instanceof Error ? err.message : "Internal error";
+        controller.enqueue(encoder.encode("data: "));
+        controller.enqueue(
+          encoder.encode(`${JSON.stringify({ type: "error", message })}\n\n`)
+        );
       } finally {
         controller.close();
       }
@@ -31,9 +33,9 @@ export function createSSEStream(
 
   return new Response(stream, {
     headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
     },
   });
 }
@@ -44,11 +46,11 @@ export function createSSEStream(
  */
 export function streamJSONEvent<T>(
   controller: ReadableStreamDefaultController<Uint8Array>,
-  eventType: string,
-  eventData: T,
+  eventName: string,
+  eventData: T
 ) {
   const encoder = new TextEncoder();
-  controller.enqueue(encoder.encode('data: '));
+  controller.enqueue(encoder.encode("data: "));
   controller.enqueue(encoder.encode(`${JSON.stringify(eventData)}\n\n`));
 }
 
@@ -62,12 +64,83 @@ export function streamJSONEvent<T>(
 export async function handleTextStream(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   chunk: string,
-  streamController: ReadableStreamDefaultController<Uint8Array>,
+  streamController: ReadableStreamDefaultController<Uint8Array>
 ): Promise<string> {
   const encoder = new TextEncoder();
 
   // Escape literal newlines for SSE compliance
-  const escaped = chunk.replace(/\n/g, '\\n');
+  const escaped = chunk.replace(/\n/g, "\\n");
+  streamController.enqueue(encoder.encode(`data:${escaped}\n\n`));
+
+  return chunk;
+}
+
+/**
+ * Generate audio from provided text using a speak function and emit an 'audio' event via SSE.
+ * The speak function should return a NodeJS.ReadableStream of audio data.
+ */
+export async function streamAudioFromText(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  // Accept either Node.js Readable or Web ReadableStream for broader compatibility
+  speakFn: (
+    text: string,
+    options?: Record<string, unknown>
+  ) => Promise<NodeJS.ReadableStream | ReadableStream>,
+  text: string,
+  options: { voice?: string; speed?: number; eventType?: string } = {}
+) {
+  const { voice = "alloy", speed = 1.0, eventType = "audio" } = options;
+  const speechStream = await speakFn(text, { voice, speed });
+
+  // Convert stream to buffer for response (support Web ReadableStream and Node Readable)
+  let audioResponse: Buffer;
+  if (typeof (speechStream as ReadableStream).getReader === "function") {
+    // Web ReadableStream
+    const reader = (speechStream as ReadableStream).getReader();
+    const parts: Uint8Array[] = [];
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) parts.push(value);
+    }
+    audioResponse = Buffer.concat(parts.map((u8) => Buffer.from(u8)));
+  } else {
+    // Node Readable
+    const chunks: Buffer[] = [];
+    for await (const chunk of speechStream as unknown as NodeJS.ReadableStream) {
+      chunks.push(Buffer.from(chunk as Buffer));
+    }
+    audioResponse = Buffer.concat(chunks);
+  }
+
+  console.log(
+    `Generated audio of ${audioResponse.length} bytes: ${audioResponse.toString("base64").slice(0, 100)}...`
+  );
+
+  streamJSONEvent(controller, eventType, {
+    type: eventType as "audio",
+    audioData: audioResponse.toString("base64"),
+    audioFormat: "audio/mpeg",
+    content: text,
+  });
+}
+
+/**
+ * Handles streaming of text chunks to SSE controller for Mastra's streamVNext compatibility
+ *
+ * @param streamResult - The StreamTextResult from an AI agent
+ * @param streamController - Optional SSE stream controller
+ * @returns Promise<string> - The complete response text
+ */
+export async function handleTextStreamV2(
+  chunk: string,
+  streamController: ReadableStreamDefaultController<Uint8Array>
+): Promise<string> {
+  console.log("Handling text stream chunk:", chunk);
+  const encoder = new TextEncoder();
+
+  // Escape literal newlines for SSE compliance
+  const escaped = chunk.replace(/\n/g, "\\n");
   streamController.enqueue(encoder.encode(`data:${escaped}\n\n`));
 
   return chunk;

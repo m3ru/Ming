@@ -25,7 +25,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tiptap/react": "^3.4.2",
     "ai": "^5.0.44",
-    "cedar-os": "^0.1.18",
+    "cedar-os": "^0.1.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

@@ -42,7 +42,7 @@ export default function RootLayout({
             pitch: 1.0,
             rate: 1.0,
             volume: 1.0,
-            endpoint: "/chat/voice", // Optional: Custom voice endpoint
+            endpoint: "/chat/voice/stream", // Optional: Custom voice endpoint
           }}
         >
           {children}

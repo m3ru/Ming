@@ -1,14 +1,14 @@
-import { Mastra } from '@mastra/core/mastra';
-import { chatWorkflow } from './workflows/chatWorkflow';
-import { feedbackOrchestratorWorkflow } from './workflows/feedbackOrchestratorWorkflow';
-import { apiRoutes } from './apiRegistry';
-import { helloWorldAgent } from './agents/helloWorldAgent';
-import { storage } from './memory';
-import { billAgent } from './agents/billAgent';
-import { workingMemoryAgent } from './agents/workingMemoryAgent';
-import { transcriptSummaryAnalyzerAgent } from './agents/transcriptSummaryAnalyzerAgent';
-import { transcriptAnalyzerAgent } from './agents/transcriptAnalyzerAgent';
-import { transcriptDetailAgent } from './agents/transcriptDetailAgent';
+import { Mastra } from "@mastra/core/mastra";
+import { chatWorkflow } from "./workflows/chatWorkflow";
+import { feedbackOrchestratorWorkflow } from "./workflows/feedbackOrchestratorWorkflow";
+import { apiRoutes } from "./apiRegistry";
+import { helloWorldAgent } from "./agents/helloWorldAgent";
+import { storage } from "./memory";
+import { billAgent } from "./agents/billAgent";
+import { workingMemoryAgent } from "./agents/workingMemoryAgent";
+import { transcriptSummaryAnalyzerAgent } from "./agents/transcriptSummaryAnalyzerAgent";
+import { transcriptAnalyzerAgent } from "./agents/transcriptAnalyzerAgent";
+import { transcriptDetailAgent } from "./agents/transcriptDetailAgent";
 
 /**
  * Main Mastra configuration
@@ -28,7 +28,7 @@ export const mastra = new Mastra({
     workingMemoryAgent,
     transcriptSummaryAnalyzerAgent,
     transcriptAnalyzerAgent,
-    transcriptDetailAgent
+    transcriptDetailAgent,
   },
   workflows: { chatWorkflow, feedbackOrchestratorWorkflow },
   storage,
@@ -36,9 +36,9 @@ export const mastra = new Mastra({
     enabled: true,
   },
   observability: {
-	default: {
-		enabled: true,
-	}
+    default: {
+      enabled: true,
+    },
   },
   server: {
     apiRoutes,

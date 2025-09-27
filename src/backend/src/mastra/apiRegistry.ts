@@ -6,7 +6,7 @@ import {
 } from "./workflows/chatWorkflow";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createSSEStream } from "../utils/streamUtils";
-import { handleVoiceRequest } from "../lib/voice";
+import { handleVoiceRequest, handleVoiceStream } from "../lib/voice";
 import { billAgent } from "./agents/billAgent";
 
 // Helper function to convert Zod schema to OpenAPI schema
@@ -144,5 +144,9 @@ export const apiRoutes = [
         );
       }
     },
+  }),
+  registerApiRoute("/chat/voice/stream", {
+    method: "POST",
+    handler: handleVoiceStream,
   }),
 ];
