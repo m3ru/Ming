@@ -17,15 +17,15 @@ export namespace Scenarios {
         scenarioSpecificInfo:
           "Bill is frustrated with the unrealistic expectations of the client. He feels that the client doesn't understand the technical challenges involved in the project.",
       },
-      {
-        name: "Susan",
-        role: "Designer",
-        pfp: "https://randomuser.me/api/portraits/women/2.jpg",
-        personality:
-          "Susan is a creative and empathetic individual who prioritizes user experience and aesthetics, often advocating for the end-user's perspective.",
-        scenarioSpecificInfo:
-          "Susan is trying to balance the client's demands with the team's capacity. She believes that the client needs to be educated about the design process.",
-      },
+      // {
+      //   name: "Susan",
+      //   role: "Designer",
+      //   pfp: "https://randomuser.me/api/portraits/women/2.jpg",
+      //   personality:
+      //     "Susan is a creative and empathetic individual who prioritizes user experience and aesthetics, often advocating for the end-user's perspective.",
+      //   scenarioSpecificInfo:
+      //     "Susan is trying to balance the client's demands with the team's capacity. She believes that the client needs to be educated about the design process.",
+      // },
     ],
     documents: [
       {
