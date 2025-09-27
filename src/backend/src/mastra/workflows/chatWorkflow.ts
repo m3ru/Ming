@@ -3,12 +3,13 @@
 // Docs: https://mastra.ai/en/docs/workflows/overview
 // ---------------------------------------------
 
-import { createWorkflow, createStep } from '@mastra/core/workflows';
-import { RuntimeContext } from '@mastra/core/di';
-import { z } from 'zod';
-import { helloWorldAgent } from '../agents/helloWorldAgent';
-import { handleTextStream, streamJSONEvent } from '../../utils/streamUtils';
-import { ActionSchema } from './chatWorkflowTypes';
+import { createWorkflow, createStep } from "@mastra/core/workflows";
+import { RuntimeContext } from "@mastra/core/di";
+import { z } from "zod";
+import { helloWorldAgent } from "../agents/helloWorldAgent";
+import { handleTextStream, streamJSONEvent } from "../../utils/streamUtils";
+import { ActionSchema } from "./chatWorkflowTypes";
+import { billAgent } from "../agents/billAgent";
 
 export const ChatInputSchema = z.object({
   prompt: z.string(),
@@ -31,8 +32,8 @@ export const ChatOutputSchema = z.object({
 export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
 const callAgent = createStep({
-  id: 'callAgent',
-  description: 'Invoke the chat agent with the user prompt using streamVNext',
+  id: "callAgent",
+  description: "Invoke the chat agent with the user prompt using streamVNext",
   inputSchema: ChatInputSchema,
   outputSchema: ChatOutputSchema,
   execute: async ({ inputData }) => {
@@ -48,28 +49,29 @@ const callAgent = createStep({
     } = inputData;
 
     if (!streamController) {
-      throw new Error('Stream controller is required');
+      throw new Error("Stream controller is required");
     }
 
-    console.log('Chat workflow received input data', inputData);
+    console.log("Chat workflow received input data", inputData);
 
     // Create runtime context with additionalContext and streamController
     const runtimeContext = new RuntimeContext();
-    runtimeContext.set('additionalContext', additionalContext);
-    runtimeContext.set('streamController', streamController);
+    runtimeContext.set("additionalContext", additionalContext);
+    runtimeContext.set("streamController", streamController);
 
     const messages = [
-      'User message: ' + prompt,
-      'Additional context (for background knowledge): ' + JSON.stringify(additionalContext),
+      "User message: " + prompt,
+      "Additional context (for background knowledge): " +
+        JSON.stringify(additionalContext),
     ];
 
-    let responseText = '';
+    let responseText = "";
     /**
      * Using Mastra streamVNext for enhanced streaming capabilities.
      * streamVNext returns a stream result that we can iterate over to get chunks
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
-    const streamResult = await helloWorldAgent.streamVNext(messages, {
+    const streamResult = await billAgent.streamVNext(messages, {
       // If system prompt is provided, overwrite the default system prompt for this agent
       ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
       modelSettings: {
@@ -88,17 +90,17 @@ const callAgent = createStep({
     });
 
     for await (const chunk of streamResult.fullStream) {
-      if (chunk.type === 'text-delta') {
+      if (chunk.type === "text-delta") {
         await handleTextStream(chunk.payload.text, streamController);
         responseText += chunk.payload.text;
-      } else if (chunk.type === 'tool-result' || chunk.type === 'tool-call') {
+      } else if (chunk.type === "tool-result" || chunk.type === "tool-call") {
         streamJSONEvent(streamController, chunk.type, chunk);
       }
     }
 
     const usage = await streamResult.usage;
 
-    console.log('Chat workflow result', {
+    console.log("Chat workflow result", {
       content: responseText,
       usage: usage,
     });
@@ -111,8 +113,9 @@ const callAgent = createStep({
 });
 
 export const chatWorkflow = createWorkflow({
-  id: 'chatWorkflow',
-  description: 'Chat workflow that handles agent interactions with optional streaming support',
+  id: "chatWorkflow",
+  description:
+    "Chat workflow that handles agent interactions with optional streaming support",
   inputSchema: ChatInputSchema,
   outputSchema: ChatOutputSchema,
 })
