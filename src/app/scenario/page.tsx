@@ -108,9 +108,9 @@ Success Criteria:
     `.trim();
   };
   return (
-    <div className="h-screen w-screen flex flex-col">
+    <div>
       <MenuBar />
-      <div className = "flex">
+    <div className="h-screen w-screen flex">
       <ScenarioOverview scenario={currentScenario} />
       <div className="flex-grow flex flex-col">
         {isLoadingNewScenario && (
@@ -132,7 +132,8 @@ Success Criteria:
           <SidePanelCedarChat documents={currentScenario.documents} />
         </div>
       </div>
-      </div>
     </div>
+        </div>
+
   );
 }
