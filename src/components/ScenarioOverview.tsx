@@ -54,8 +54,8 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
   const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(false);
 
   return (
-    <div className="flex flex-col p-5 w-1/5 gap-2 overflow-y-scroll">
-      <h1 className="text-2xl font-bold">{scenario.title}</h1>
+    <div className="flex flex-col p-5 w-1/5 gap-2 overflow-y-scroll border-r">
+      <h1 className="text-2xl font-bold">Scenario</h1>
       <p>{scenario.situation}</p>
       <Collapsible
         open={isCompanyCultureOpen}
