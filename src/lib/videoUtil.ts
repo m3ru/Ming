@@ -14,7 +14,7 @@ function scenarioToPrompt(scenario: Scenario): string {
   let prompt = `Generate a loopable video based on the following scenario:\n\n`;
   prompt += `Title: ${scenario.title}\n\n`;
   prompt += `Situation: ${scenario.situation}\n\n`;
-  prompt += `Company Culture: ${scenario.companyCulture}\n\n`;
+  prompt += `Company Culture: ${scenario.companyDetails}\n\n`;
   prompt += `NPCs:\n`;
   scenario.npcs.forEach((npc) => {
     prompt += `- ${npc.name} (${npc.role}): ${npc.scenarioSpecificInfo}\n`;

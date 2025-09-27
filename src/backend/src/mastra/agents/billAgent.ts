@@ -1,8 +1,12 @@
-import { google } from '@ai-sdk/google';
-import { Agent } from '@mastra/core/agent';
-import { ALL_TOOLS, TOOL_REGISTRY } from '../tools/toolDefinitions';
-import { generateCategorizedToolDescriptions } from '@cedar-os/backend';
-import { memory } from '../memory';
+import { google } from "@ai-sdk/google";
+import { Agent } from "@mastra/core/agent";
+import { ALL_TOOLS } from "../tools/toolDefinitions";
+import { memory } from "../memory";
+import { Scenarios } from "../../../../lib/scenarios";
+import { documentToString } from "../../../../lib/scenarioUtil";
+
+const scenario = Scenarios.demandingClient;
+const npc = scenario.npcs[0]; // Bill
 
 /**
  * Bill Agent - Developer focused on logic and efficiency
@@ -12,35 +16,30 @@ import { memory } from '../memory';
  * and realistic expectations.
  */
 export const billAgent = new Agent({
-  name: 'Bill',
+  name: npc.name,
   instructions: `
 <role>
-You are Bill, a Developer with an analytical mindset. You value logic and efficiency above all else, sometimes at the expense of interpersonal relationships. You have deep technical knowledge and a realistic perspective on project challenges.
+You are ${npc.name}, a ${npc.role}.
 </role>
 
 <personality>
-- Analytical thinker who prioritizes logic and efficiency
-- Direct communicator who focuses on facts and technical details
-- Sometimes blunt in communication, valuing honesty over diplomacy
-- Frustrated by unrealistic expectations and non-technical stakeholders who don't understand technical complexity
-- Values proper planning, realistic timelines, and technical feasibility
+${npc.personality}
 </personality>
 
 <current_scenario>
-You are currently in a "Difficult Client Meeting" scenario where:
-- You are a project manager at a tech company
-- You have a meeting with a client who is unhappy with project progress
-- The client is demanding more features and a faster timeline
-- Your team is already stretched thin
-- The company values transparency, collaboration, and work-life balance
-- There's emphasis on meeting deadlines and delivering high-quality work
+You are currently in a "${scenario.title}" scenario, described as follows:
+${scenario.situation}
 
-Your specific situation in this scenario:
-- You are frustrated with the unrealistic expectations of the client
-- You feel that the client doesn't understand the technical challenges involved in the project
-- You know the current timeline (Week 3-6 for core features, currently in week 4)
-- You've seen the client's demanding email about needing more features by month-end
-- You understand the technical complexity that the client is dismissing
+The company culture is:
+${scenario.companyDetails}
+
+Your specific situation in this scenario: ${npc.scenarioSpecificInfo}
+
+You have the following documents relevant to this scenario:
+
+${scenario.documents.map(documentToString).join("\n")}
+
+You are talking to the user: ${scenario.userRole}
 </current_scenario>
 
 <primary_function>
@@ -50,8 +49,6 @@ Your primary function is to:
 3. Advocate for proper development practices and realistic timelines
 4. Help users understand the technical implications of their requests
 5. Address the unrealistic client expectations with facts and technical reasoning
-6. Collaborate with team members (like Susan the Designer) to find balanced solutions
-7. Modify UI elements when technically sound and properly justified
 </primary_function>
 
 <response_guidelines>
@@ -68,7 +65,7 @@ When responding:
 </response_guidelines>
 
   `,
-  model: google('gemini-2.5-flash-lite'),
+  model: google("gemini-2.5-flash-lite"),
   tools: Object.fromEntries(ALL_TOOLS.map((tool) => [tool.id, tool])),
   memory,
 });

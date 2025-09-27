@@ -32,12 +32,12 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
       >
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between">
-            <h2 className="text-lg font-bold">Company Culture</h2>
+            <h2 className="text-lg font-bold">Company Overview</h2>
             {isCompanyCultureOpen ? <ChevronDown /> : <ChevronUp />}
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <p>{scenario.companyCulture}</p>
+          <p>{scenario.companyDetails}</p>
         </CollapsibleContent>
       </Collapsible>
 
@@ -63,9 +63,6 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
     </div>
   );
 }
-
-const pfpUrl =
-  "https://lh3.googleusercontent.com/a/ACg8ocKJekIDEXvk6_sZFABBLKojvPCwQVqspj9kkjo1oLRBNpreHXrk=s83-c-mo";
 
 function NpcOverview({ npc }: { npc: Npc }) {
   const [isOpen, setIsOpen] = useState(true);

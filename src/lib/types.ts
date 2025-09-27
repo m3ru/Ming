@@ -1,7 +1,9 @@
 export type Scenario = {
   title: string;
+  description: string;
   situation: string;
-  companyCulture: string;
+  companyDetails: string;
+  userRole: string;
   npcs: Npc[];
   documents: ScenarioDocument[];
 };

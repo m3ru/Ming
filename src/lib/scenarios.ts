@@ -3,19 +3,25 @@ import { Scenario } from "./types";
 export namespace Scenarios {
   export const demandingClient: Scenario = {
     title: "Difficult Client Meeting",
-    situation:
-      "You are a project manager at a tech company. You have a meeting with a client who is unhappy with the progress of the project. The client is demanding more features and a faster timeline, but your team is already stretched thin.",
-    companyCulture:
-      "Your company values transparency, collaboration, and work-life balance. Employees are encouraged to speak up and share their ideas, but there is also a strong emphasis on meeting deadlines and delivering high-quality work.",
+    description: "You must work with Bill to handle a demanding client.",
+    situation: `You are a project manager at a tech company who is leading a project to build an 
+e-commerce portal for a client. You have a meeting with a client who is unhappy with the progress 
+of the project. The client is demanding more features and a faster timeline, but your team is 
+already stretched thin.`,
+    companyDetails: `Your company, called Ming, values transparency, collaboration, and work-life balance. 
+Employees are encouraged to speak up and share their ideas, but there is also a strong emphasis 
+on meeting deadlines and delivering high-quality work.`,
+    userRole:
+      "The user is a project manager trying to mediate between the client and the development team.",
     npcs: [
       {
         name: "Bill",
         role: "Developer",
         pfp: "https://randomuser.me/api/portraits/men/1.jpg",
-        personality:
-          "Bill is an analytical thinker who values logic and efficiency, sometimes at the expense of interpersonal relationships.",
-        scenarioSpecificInfo:
-          "Bill is frustrated with the unrealistic expectations of the client. He feels that the client doesn't understand the technical challenges involved in the project.",
+        personality: `Bill is an analytical thinker who values logic and efficiency, sometimes at the 
+expense of interpersonal relationships. He is always concise in his speech.`,
+        scenarioSpecificInfo: `Bill is frustrated with the unrealistic expectations of the client. He feels that 
+the client doesn't understand the technical challenges involved in the project.`,
       },
       // {
       //   name: "Susan",
@@ -29,18 +35,18 @@ export namespace Scenarios {
     ],
     documents: [
       {
-        title: "Re: Project Update",
+        title: "Re:  Project Update",
         type: "email",
         content: [
           { format: "bold", content: "From: client@example.com" },
           { format: "bold", content: "To: project-manager@example.com" },
-          { format: "bold", content: "Subject: Re: Project Update" },
+          { format: "bold", content: "Subject: Re: E-Commerce Project Update" },
           { format: "plain", content: "Hi," },
           {
             format: "plain",
-            content:
-              "I reviewed the latest update on the project, and I'm quite concerned about the progress. " +
-              "We need to see more features implemented by the end of the month. The current timeline is not acceptable.",
+            content: `I reviewed the latest update on the portal, and I'm quite concerned about the 
+progress. We need to see more features, namely buy-now-pay-later and subscription options, implemented by 
+the end of the month. The current timeline is not acceptable.`,
           },
           {
             format: "plain",
