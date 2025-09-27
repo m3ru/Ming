@@ -1,20 +1,20 @@
-import { useVoice, cn, useCedarStore, HumanInTheLoopMessage } from 'cedar-os';
+import { useVoice, cn, useCedarStore, HumanInTheLoopMessage } from "cedar-os";
 
-import { CedarEditorContent as EditorContent } from 'cedar-os';
-import { Code, Image, Mic, SendHorizonal } from 'lucide-react';
-import { motion } from 'motion/react';
-import React, { useCallback, useEffect } from 'react';
+import { CedarEditorContent as EditorContent } from "cedar-os";
+import { Code, Image, Mic, SendHorizonal } from "lucide-react";
+import { motion } from "motion/react";
+import React, { useCallback, useEffect } from "react";
 
-import './ChatInput.css';
-import { ContextBadgeRow } from '@/cedar/components/chatInput/ContextBadgeRow';
-import { useCedarEditor } from 'cedar-os';
-import Container3DButton from '@/cedar/components/containers/Container3DButton';
-import { VoiceIndicator } from '@/cedar/components/voice/VoiceIndicator';
-import { KeyboardShortcut } from '@/cedar/components/ui/KeyboardShortcut';
-import { HumanInTheLoopIndicator } from '@/cedar/components/chatInput/HumanInTheLoopIndicator';
+import "./ChatInput.css";
+import { ContextBadgeRow } from "@/cedar/components/chatInput/ContextBadgeRow";
+import { useCedarEditor } from "cedar-os";
+import Container3DButton from "@/cedar/components/containers/Container3DButton";
+import { VoiceIndicator } from "@/cedar/components/voice/VoiceIndicator";
+import { KeyboardShortcut } from "@/cedar/components/ui/KeyboardShortcut";
+import { HumanInTheLoopIndicator } from "@/cedar/components/chatInput/HumanInTheLoopIndicator";
 
 // ChatContainer component with position options
-export type ChatContainerPosition = 'bottom-center' | 'embedded' | 'custom';
+export type ChatContainerPosition = "bottom-center" | "embedded" | "custom";
 
 // Inlined mention items removed; using external suggestion module
 
@@ -24,7 +24,13 @@ export const ChatInput: React.FC<{
   isInputFocused?: boolean;
   className?: string; // Additional classes for the container
   stream?: boolean; // Whether to use streaming for responses
-}> = ({ handleFocus, handleBlur, isInputFocused, className = '', stream = true }) => {
+}> = ({
+  handleFocus,
+  handleBlur,
+  isInputFocused,
+  className = "",
+  stream = true,
+}) => {
   const [isFocused, setIsFocused] = React.useState(false);
 
   const { editor, isEditorEmpty, handleSubmit } = useCedarEditor({
@@ -46,42 +52,42 @@ export const ChatInput: React.FC<{
   const messages = useCedarStore((state) => state.messages);
   const latestMessage = messages[messages.length - 1];
   const isHumanInTheLoopSuspended =
-    latestMessage?.type === 'humanInTheLoop' &&
-    (latestMessage as HumanInTheLoopMessage).state === 'suspended';
+    latestMessage?.type === "humanInTheLoop" &&
+    (latestMessage as HumanInTheLoopMessage).state === "suspended";
 
   // Handle voice toggle
   const handleVoiceToggle = useCallback(async () => {
     // Check if voice is supported
     if (!voice.checkVoiceSupport()) {
-      console.error('Voice features are not supported in this browser');
+      console.error("Voice features are not supported in this browser");
       return;
     }
 
     // Request permission if needed
-    if (voice.voicePermissionStatus === 'prompt') {
+    if (voice.voicePermissionStatus === "prompt") {
       await voice.requestVoicePermission();
     }
 
     // Toggle voice if permission is granted
-    if (voice.voicePermissionStatus === 'granted') {
+    if (voice.voicePermissionStatus === "granted") {
       voice.toggleVoice();
-    } else if (voice.voicePermissionStatus === 'denied') {
-      console.error('Microphone access denied');
+    } else if (voice.voicePermissionStatus === "denied") {
+      console.error("Microphone access denied");
     }
   }, [voice]);
 
   // Get mic button appearance based on voice state
   const getMicButtonClass = () => {
     if (voice.isListening) {
-      return 'p-1 text-red-500 hover:text-red-600 cursor-pointer animate-pulse';
+      return "p-1 text-red-500 hover:text-red-600 cursor-pointer animate-pulse";
     }
     if (voice.isSpeaking) {
-      return 'p-1 text-green-500 hover:text-green-600 cursor-pointer';
+      return "p-1 text-green-500 hover:text-green-600 cursor-pointer";
     }
-    if (voice.voicePermissionStatus === 'denied') {
-      return 'p-1 text-gray-400 cursor-not-allowed';
+    if (voice.voicePermissionStatus === "denied") {
+      return "p-1 text-gray-400 cursor-not-allowed";
     }
-    return 'p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer';
+    return "p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer";
   };
 
   // Focus the editor when isInputFocused changes to allow for controlled focusing
@@ -94,43 +100,82 @@ export const ChatInput: React.FC<{
   // Handle tab key to focus the editor and escape to unfocus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
+      console.log(
+        `Key down: '${e.key}'`,
+        "Editor:",
+        editor?.isFocused,
+        "Voice:",
+        voice.isListening
+      );
+      if (e.key === "Tab") {
         e.preventDefault();
         if (editor) {
           editor.commands.focus();
           setIsFocused(true);
         }
-      } else if (e.key === 'Escape') {
+      } else if (e.key === "Escape") {
         if (isFocused && editor) {
           editor.commands.blur();
           setIsFocused(false);
         }
+      } else if (e.key === " " && !editor && !voice.isListening) {
+        console.log("Enabling voice");
+        voice.startListening();
       }
     };
 
     // Add the event listener
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
 
     // Clean up
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [editor, isFocused]);
 
+  useEffect(() => {
+    const handleKeyUp = (e: KeyboardEvent) => {
+      console.log(
+        `Key up: '${e.key}'`,
+        "Editor:",
+        editor?.isFocused,
+        "Voice:",
+        voice.isListening
+      );
+      if (e.key === " " && !editor?.isFocused && voice.isListening) {
+        console.log("Disabling voice");
+        voice.stopListening();
+      }
+    };
+
+    // Add the event listener
+    window.addEventListener("keyup", handleKeyUp);
+
+    // Clean up
+    return () => {
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [editor]);
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       // Check if user is currently typing in an input, textarea, or contenteditable element
       const target = e.target as HTMLElement;
       const isTypingInInput =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.getAttribute('contenteditable') === 'true' ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.getAttribute("contenteditable") === "true" ||
         target.closest('[contenteditable="true"]') !== null;
 
       // Handle M key for microphone (only when not typing)
-      if (e.key === 'm' || e.key === 'M') {
-        if (!isTypingInInput && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      if (e.key === "m" || e.key === "M") {
+        if (
+          !isTypingInInput &&
+          !e.shiftKey &&
+          !e.ctrlKey &&
+          !e.altKey &&
+          !e.metaKey
+        ) {
           e.preventDefault();
           handleVoiceToggle();
           return;
@@ -139,16 +184,21 @@ export const ChatInput: React.FC<{
     };
 
     // Add the event listener
-    window.addEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener("keydown", handleGlobalKeyDown);
 
     // Clean up
     return () => {
-      window.removeEventListener('keydown', handleGlobalKeyDown);
+      window.removeEventListener("keydown", handleGlobalKeyDown);
     };
   }, [handleVoiceToggle]);
 
   return (
-    <div className={cn('bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-3 text-sm', className)}>
+    <div
+      className={cn(
+        "bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-3 text-sm",
+        className
+      )}
+    >
       {/* Input context row showing selected context nodes */}
       <ContextBadgeRow editor={editor} />
 
@@ -167,7 +217,9 @@ export const ChatInput: React.FC<{
           </div>
         ) : isHumanInTheLoopSuspended ? (
           <div className="py-2 items-center justify-center w-full">
-            <HumanInTheLoopIndicator state={(latestMessage as HumanInTheLoopMessage).state} />
+            <HumanInTheLoopIndicator
+              state={(latestMessage as HumanInTheLoopMessage).state}
+            />
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -192,61 +244,52 @@ export const ChatInput: React.FC<{
       </div>
 
       {/* Bottom rows. Contains tools and send chat button */}
-      <div id="input-tools" className="flex items-center  space-x-2  justify-between">
+      <div
+        id="input-tools"
+        className="flex items-center  space-x-2  justify-between"
+      >
         <div className="flex items-center gap-2">
           <button
             type="button"
             className={getMicButtonClass()}
             onClick={handleVoiceToggle}
             disabled={
-              voice.voicePermissionStatus === 'denied' ||
-              voice.voicePermissionStatus === 'not-supported'
+              voice.voicePermissionStatus === "denied" ||
+              voice.voicePermissionStatus === "not-supported"
             }
             title={
               voice.isListening
-                ? 'Stop recording'
+                ? "Stop recording"
                 : voice.isSpeaking
-                  ? 'Speaking...'
-                  : voice.voicePermissionStatus === 'denied'
-                    ? 'Microphone access denied'
-                    : voice.voicePermissionStatus === 'not-supported'
-                      ? 'Voice not supported'
-                      : 'Start voice chat (M)'
+                  ? "Speaking..."
+                  : voice.voicePermissionStatus === "denied"
+                    ? "Microphone access denied"
+                    : voice.voicePermissionStatus === "not-supported"
+                      ? "Voice not supported"
+                      : "Start voice chat (M)"
             }
           >
             <Mic className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            className="p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer"
-          >
-            <Image className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            className="p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer"
-          >
-            <Code className="w-4 h-4" />
           </button>
         </div>
         <Container3DButton
           id="send-chat"
           motionProps={{
-            layoutId: 'send-chat',
+            layoutId: "send-chat",
             animate: {
               opacity: isEditorEmpty ? 0.5 : 1,
-              backgroundColor: isEditorEmpty ? 'transparent' : '#93c5fd',
+              backgroundColor: isEditorEmpty ? "transparent" : "#93c5fd",
             },
-            transition: { type: 'spring', stiffness: 300, damping: 20 },
+            transition: { type: "spring", stiffness: 300, damping: 20 },
           }}
           onClick={() => handleSubmit()}
-          color={isEditorEmpty ? undefined : '#93c5fd'}
+          color={isEditorEmpty ? undefined : "#93c5fd"}
           className="flex items-center flex-shrink-0 ml-auto -mt-0.5 rounded-full bg-white dark:bg-gray-800"
           childClassName="p-1.5"
         >
           <motion.div
             animate={{ rotate: isEditorEmpty ? 0 : -90 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
           >
             <SendHorizonal className="w-4 h-4" />
           </motion.div>
