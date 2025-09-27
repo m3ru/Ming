@@ -100,13 +100,6 @@ export const ChatInput: React.FC<{
   // Handle tab key to focus the editor and escape to unfocus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      console.log(
-        `Key down: '${e.key}'`,
-        "Editor:",
-        editor?.isFocused,
-        "Voice:",
-        voice.isListening
-      );
       if (e.key === "Tab") {
         e.preventDefault();
         if (editor) {
@@ -118,7 +111,7 @@ export const ChatInput: React.FC<{
           editor.commands.blur();
           setIsFocused(false);
         }
-      } else if (e.key === " " && !editor && !voice.isListening) {
+      } else if (e.key === " " && !editor?.isFocused && !voice.isListening) {
         console.log("Enabling voice");
         voice.startListening();
       }
@@ -131,17 +124,10 @@ export const ChatInput: React.FC<{
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [editor, isFocused]);
+  }, [editor, isFocused, voice]);
 
   useEffect(() => {
     const handleKeyUp = (e: KeyboardEvent) => {
-      console.log(
-        `Key up: '${e.key}'`,
-        "Editor:",
-        editor?.isFocused,
-        "Voice:",
-        voice.isListening
-      );
       if (e.key === " " && !editor?.isFocused && voice.isListening) {
         console.log("Disabling voice");
         voice.stopListening();
@@ -155,7 +141,7 @@ export const ChatInput: React.FC<{
     return () => {
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [editor]);
+  }, [editor, voice]);
   // Handle global keyboard shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -191,6 +177,12 @@ export const ChatInput: React.FC<{
       window.removeEventListener("keydown", handleGlobalKeyDown);
     };
   }, [handleVoiceToggle]);
+
+  useEffect(() => {
+    if (voice.voicePermissionStatus === "prompt") {
+      voice.toggleVoice();
+    }
+  }, [voice.voicePermissionStatus]); // Only run when permission status changes
 
   return (
     <div
@@ -248,7 +240,7 @@ export const ChatInput: React.FC<{
         id="input-tools"
         className="flex items-center  space-x-2  justify-between"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             type="button"
             className={getMicButtonClass()}
@@ -271,6 +263,9 @@ export const ChatInput: React.FC<{
           >
             <Mic className="w-4 h-4" />
           </button>
+          <div className="text-sm text-gray-500 animate-pulse">
+            Hold space to talk
+          </div>
         </div>
         <Container3DButton
           id="send-chat"
