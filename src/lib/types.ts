@@ -1,7 +1,9 @@
 export type Scenario = {
   title: string;
   description: string;
+  descriptionForAnalyzer: string;
   situation: string;
+  situationForAnalyzer: string;
   companyDetails: string;
   userRole: string;
   npcs: Npc[];

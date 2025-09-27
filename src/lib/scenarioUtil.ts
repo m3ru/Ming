@@ -28,10 +28,10 @@ export function contextForAnalysis(scenario: Scenario): string {
   let context = "";
 
   context += `Scenario Title: ${scenario.title}\n`;
-  context += `Description: ${scenario.description}\n\n`;
-  context += `Situation: ${scenario.situation}\n\n`;
+  context += `Description: ${scenario.descriptionForAnalyzer}\n\n`;
+  context += `Situation: ${scenario.situationForAnalyzer}\n\n`;
   context += `Company Details: ${scenario.companyDetails}\n\n`;
-  context += `User Role: ${scenario.userRole}\n\n`;
+  context += `User: ${scenario.userRole}\n\n`;
 
   context += `NPCs:\n`;
   for (const npc of scenario.npcs) {

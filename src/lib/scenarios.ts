@@ -4,11 +4,15 @@ export namespace Scenarios {
   export const demandingClient: Scenario = {
     title: "Difficult Client Meeting",
     description: "You must work with Bill to handle a demanding client.",
+    descriptionForAnalyzer: `This scenario involved the user talking with Bill about a difficult client.`,
     situation: `You are a project manager at a tech company who is leading a project to build an 
 e-commerce portal for a client. You have a meeting with a client who is unhappy with the progress 
 of the project. The client is demanding more features and a faster timeline, but your team is 
 already stretched thin.`,
-    companyDetails: `Your company, called Ming, values transparency, collaboration, and work-life balance. 
+    situationForAnalyzer: `The situation involves a project manager dealing with a demanding client 
+who is unhappy with the project's progress and is requesting more features and a faster timeline, 
+while the project team is already stretched thin.`,
+    companyDetails: `The company, called Ming, values transparency, collaboration, and work-life balance. 
 Employees are encouraged to speak up and share their ideas, but there is also a strong emphasis 
 on meeting deadlines and delivering high-quality work. The company takes Fridays off and is fully remote.`,
     userRole:
