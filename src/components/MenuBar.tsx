@@ -9,7 +9,7 @@ export default function MenuBar() {
           {/* Logo / Home button */}
           <div className="flex-shrink-0 flex-1/6">
             <button
-              onClick={() => null}
+              onClick={() => window.location.href = './'}
               className="text-lg font-bold hover:text-gray-200 px-3 py-1 rounded"
             >
               Home
