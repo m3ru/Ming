@@ -35,27 +35,7 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
 }
 
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
-  // console.log("Transcription Object:", transcriptionObj);
-  let transcription: string;
-
-  try {
-    // 1. Transcribe audio
-
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const stream = new AudioReadableStream(arrayBuffer);
-
-    // console.log("Starting transcription... Stream:", stream);
-    const transcriptionObj = await billAgent.voice.listen(stream, {
-      fileType: "webm",
-      language: "en-US",
-      encoding: "LINEAR16",
-    });
-
-    transcription = transcriptionObj as string;
-  } catch (error) {
-    console.error("Error during transcription:", error);
-    transcription = "Hi Bill!";
-  }
+  const transcription = await speechToText(audioBlob);
 
   // 2. Add context to the conversation
   const contextData = JSON.parse(context);
@@ -76,6 +56,30 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
     audioData: speech.audioData,
     audioFormat: "mp3",
   };
+}
+
+export async function speechToText(audioBlob: Blob) {
+  // console.log("Transcription Object:", transcriptionObj);
+  let transcription: string;
+
+  try {
+    // 1. Transcribe audio
+
+    const arrayBuffer = await audioBlob.arrayBuffer();
+    const stream = new AudioReadableStream(arrayBuffer);
+
+    // console.log("Starting transcription... Stream:", stream);
+    const transcriptionObj = await billAgent.voice.listen(stream, {
+      fileType: "webm",
+      language: "en-US",
+      encoding: "LINEAR16",
+    });
+
+    return transcriptionObj as string;
+  } catch (error) {
+    console.error("Error during transcription:", error);
+    return "Hi Bill!";
+  }
 }
 
 export async function textToSpeech(text: string) {
