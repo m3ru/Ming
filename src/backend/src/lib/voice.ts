@@ -1,18 +1,55 @@
+import { Readable } from "node:stream";
 import { billAgent } from "../mastra/agents/billAgent";
-import { Readable } from "stream";
+import {
+  createReadStream,
+  unlink,
+  write,
+  writeFile,
+  writeFileSync,
+} from "node:fs";
+import { create } from "node:domain";
+
+class AudioReadableStream extends Readable {
+  private offset = 0;
+  constructor(private buffer: ArrayBuffer) {
+    super();
+  }
+
+  _read() {
+    if (this.offset < this.buffer.byteLength) {
+      const chunk = Buffer.from(
+        this.buffer.slice(this.offset, this.offset + 1024)
+      );
+      this.push(chunk);
+      this.offset += 1024;
+    } else {
+      this.push(null);
+    }
+  }
+}
 
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
   // 1. Transcribe audio
 
-  // Convert browser ReadableStream to Node.js Readable
+  const filePath = "./audioBlob.mp3";
 
-  async function blobToNodeStream(blob: Blob): Promise<Readable> {
-    const arrayBuffer = await blob.arrayBuffer();
-    return Readable.from(Buffer.from(arrayBuffer));
-  }
+  const buffer = Buffer.from(await audioBlob.arrayBuffer());
+  console.log("Audio blob bytes:", buffer);
 
-  const nodeStream = await blobToNodeStream(audioBlob);
-  const transcription = (await billAgent.voice.listen(nodeStream)) as string;
+  writeFileSync(filePath, buffer);
+
+  const stream = createReadStream(filePath);
+
+  console.log("Converted audio blob to Node.js stream. Stream:", stream);
+  const transcription = (await billAgent.voice.listen(stream)) as string;
+
+  // unlink(filePath, (err) => {
+  //   if (err) {
+  //     console.error("Error deleting temporary audio file:", err);
+  //   } else {
+  //     console.log("Temporary audio file deleted.");
+  //   }
+  // });
 
   // 2. Add context to the conversation
   const contextData = JSON.parse(context);

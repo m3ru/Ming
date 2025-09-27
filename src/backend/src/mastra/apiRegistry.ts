@@ -106,17 +106,25 @@ export const apiRoutes = [
       try {
         const formData = await c.req.formData();
 
-        const audioFile = formData.get("audio") as Blob | null;
+        console.log("Received form data:", formData);
+
+        const audioFile = formData.get("audio") as File | null;
         const context = formData.get("context") as string | null;
 
-        if (!audioFile || !context) {
+        const audioBlob = audioFile
+          ? audioFile.slice(0, audioFile.size, audioFile.type)
+          : null;
+
+        if (!audioBlob || !context) {
           return c.json(
             { error: "Missing 'audio' file or 'context' in form data" },
             400
           );
         }
 
-        const result = await handleVoiceRequest(audioFile, context);
+        console.log("Audio blob:", audioBlob);
+
+        const result = await handleVoiceRequest(audioBlob, context);
         return c.json(result);
       } catch (error) {
         console.error(error);
