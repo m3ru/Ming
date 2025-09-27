@@ -3,11 +3,7 @@ import { X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useCedarStore } from "cedar-os";
 import "dotenv/config";
-
-// import { mastra } from "../../../backend/src/mastra";
-import { contextForAnalysis } from "../../../backend/src/lib/scenarioUtil";
-import { Scenarios } from "../../../backend/src/lib/scenarios";
-
+import { mastraClient } from '@/lib/mastra-client';
 import { SidePanelContainer } from "@/cedar/components/structural/SidePanelContainer";
 import { CollapsedButton } from "@/cedar/components/chatMessages/structural/CollapsedChatButton";
 import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
@@ -24,6 +20,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Image from "next/image";
+import { contextForAnalysis } from '@/lib/scenarioUtil';
+import { Scenarios } from '@/backend/src/lib/scenarios';
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -181,116 +179,61 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
   const [showSpinner, setShowSpinner] = useState(false);
   const [hideCompletely, setHideCompletely] = useState(false);
 
-  const handleStop = async () => {
-    setShowSpinner(true);
-    setShowChat(false); // Hide the chat panel so spinner is fully visible
-    setHideCompletely(true); // Hide the collapsed button as well
-    try {
-      // Use the current thread ID as the run ID to link conversation requests
-      const workflowId = "feedbackOrchestratorWorkflow";
-      const runId = currentThreadId || resourceId; // Use threadId first, fallback to resourceId
+const handleStop = async () => {
+	setShowSpinner(true);
+	setShowChat(false); // Hide the chat panel so spinner is fully visible
+	setHideCompletely(true); // Hide the collapsed button as well
+	try {
+		// const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
+		// 	method: 'POST',
+		// 	headers: { 'Content-Type': 'application/json' },
+		// 	body: JSON.stringify({
+		// 		messages: [
+		// 			{
+		// 				role: 'user',
+		// 				content: transcript,
+		// 			},
+		// 		],
+		// 		memory: {
+		// 			thread: currentThreadId,
+		// 			resource: resourceId,
+		// 		},
+		// 	}),
+		// });
+		// const data = await response.json();
+		// localStorage.setItem('reportData', JSON.stringify(data));
+		// router.push('/report');
+		const workflow = await mastraClient.getWorkflow("feedbackOrchestratorWorkflow");
+		console.log("Workflow", workflow);
+		const run = await workflow.createRunAsync();
 
-      // Step 1: Initialize the workflow run
-      const createResponse = await fetch(
-        `http://localhost:4111/api/workflows/${workflowId}/create-run?runId=${runId}`,
-        {
-          method: "POST",
-          headers: { accept: "*/*" },
-        }
-      );
-
-      if (!createResponse.ok) {
-        throw new Error(
-          `Failed to create workflow run: ${createResponse.statusText}`
-        );
-      }
-
-      // Step 2: Start the workflow with transcript and context
-      const startResponse = await fetch(
-        `http://localhost:4111/api/workflows/${workflowId}/start?runId=${runId}`,
-        {
-          method: "POST",
-          headers: {
-            accept: "*/*",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            inputData: {
-              transcript: transcript,
-              additionalContext: {
-                scenario: contextForAnalysis(Scenarios.demandingClient),
-                participants: ["user", "bill"],
-                meetingType: "project_review",
-              },
-              resourceId: resourceId,
-              threadId: currentThreadId,
-            },
-          }),
-        }
-      );
-
-      if (!startResponse.ok) {
-        throw new Error(
-          `Failed to start workflow: ${startResponse.statusText}`
-        );
-      }
-
-      // Step 3: Poll for execution result (takes ~10 seconds, ~2 attempts)
-      let data = null;
-      let attempts = 0;
-      const maxAttempts = 10; // Allow up to 10 attempts (50 seconds max)
-      const pollInterval = 5000; // Poll every 5 seconds
-
-      while (attempts < maxAttempts) {
-        attempts++;
-        console.log(`Polling for execution result, attempt ${attempts}...`);
-
-        const resultResponse = await fetch(
-          `http://localhost:4111/api/workflows/${workflowId}/runs/${runId}/execution-result`,
-          {
-            method: "GET",
-            headers: { accept: "*/*" },
-          }
-        );
-
-        if (!resultResponse.ok) {
-          throw new Error(
-            `Failed to get execution result: ${resultResponse.statusText}`
-          );
-        }
-
-        const result = await resultResponse.json();
-
-        // Check if we have actual execution results
-        if (result.result && Object.keys(result.result).length > 0) {
-          console.log("✅ Got execution results!", result);
-          data = result;
-          break;
-        }
-
-        // If not the last attempt, wait before polling again
-        if (attempts < maxAttempts) {
-          console.log(
-            `No results yet, waiting ${pollInterval / 1000} seconds...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, pollInterval));
-        }
-      }
-
-      if (!data) {
-        throw new Error(
-          `Workflow execution timed out after ${maxAttempts} attempts`
-        );
-      }
-
-      localStorage.setItem("reportData", JSON.stringify(data));
-      router.push("/report");
-    } catch (e) {
-      console.error("Failed to send transcript to workflow:", e);
-    } finally {
-      setShowSpinner(false);
-    }
-  };
+		const result = await run.startAsync({
+		inputData: {
+			transcript: transcript,
+			additionalContext: {
+				scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
+				participants: ['user', 'bill'],
+				meetingType: 'project_review'
+			},
+			memory: {
+				thread: currentThreadId,
+				resource: resourceId
+			}
+		}
+		});
+		console.log("summaryAnalysis", result.result.summaryAnalysis);
+		localStorage.setItem('reportData', JSON.stringify({
+			summary: result.result.summaryAnalysis,
+			detail: result.result.detailedFeedback
+		}));
+		console.log(localStorage.getItem('reportData'));
+		router.push('/report');
+	} catch (e) {
+		console.error('Failed to send transcript to analyzer:', e);
+	} finally {
+		setShowSpinner(false);
+	}
+};
 
   return (
     <>
@@ -330,15 +273,15 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
 
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex-shrink-0 z-20 flex flex-row items-center justify-between py-2 min-w-0 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center min-w-0 flex-1">
+        <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center flex-1 min-w-0">
             {companyLogo && (
               <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
             )}
-            <span className="font-bold text-lg truncate">{title}</span>
+            <span className="text-lg font-bold truncate">{title}</span>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Button variant="destructive" onClick={handleStop} className="">
+          <div className="flex items-center flex-shrink-0 gap-2">
+            <Button variant="destructive" onClick={handleStop} className="mr-2">
               End Scenario
             </Button>
             {/* <button
@@ -346,7 +289,7 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
                   onClick={() => setShowChat(false)}
                   aria-label="Close chat"
                 >
-                  <X className="h-4 w-4" strokeWidth={2.5} />
+                  <X className="w-4 h-4" strokeWidth={2.5} />
                 </button> */}
           </div>
         </div>
