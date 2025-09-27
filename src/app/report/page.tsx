@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ScoreBar from "@/components/ScoreBar";
 import {marked} from 'marked';
 import MenuBar from "@/components/MenuBar";
@@ -14,6 +14,8 @@ const defaultScores = [
 ];
 
 export default function ReportPage() {
+  const reportRef = useRef<HTMLDivElement | null>(null);
+
   const [md, setMd] = useState<string>("Loading...");
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
@@ -118,7 +120,7 @@ export default function ReportPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center font-sans bg-gray-50">
       <MenuBar />
-      <div className="flex flex-col w-full max-w-5xl p-6 space-y-8">
+      <div ref = {reportRef} id="report-content" className="flex flex-col w-full max-w-5xl p-6 space-y-8">
         {/* Summary */}
         <div className="bg-white p-5 rounded-lg shadow-md max-h-[300px] overflow-auto break-words">
           <h2 className="text-2xl mt-0 pt-0 font-bold text-center">Conversation Summary</h2>
@@ -167,6 +169,10 @@ export default function ReportPage() {
           </div>
         </div>
       </div>
+      <button
+        onClick={()=>window.print()}
+        className = "px-3 py-1 mb-6 bg-blue-600 text-white rounded"
+      >Print Report</button>
     </div>
   );
 }
