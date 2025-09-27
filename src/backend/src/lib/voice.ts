@@ -1,22 +1,7 @@
 import { Readable } from "node:stream";
 import { billAgent, billVoice } from "../mastra/agents/billAgent";
 import { createWriteStream } from "node:fs";
-
-class AudioReadableStream extends Readable {
-  constructor(private buffer: ArrayBuffer) {
-    super();
-    this.init();
-  }
-
-  private init() {
-    this.push(Buffer.from(this.buffer));
-    this.push(null); // Signal the end of the stream
-  }
-
-  _read(size: number) {
-    // No-op since we push all data in init
-  }
-}
+import { StorageThreadType } from "@mastra/core";
 
 function saveAudioToFile(audioData: Readable, filename: string) {
   const writeStream = createWriteStream(filename);
@@ -34,7 +19,17 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export async function handleVoiceRequest(audioBlob: Blob, context: string) {
+export async function handleVoiceRequest(
+  audioBlob: Blob,
+  context: string,
+  {
+    threadId,
+    resourceId,
+  }: {
+    threadId: string | (Partial<StorageThreadType> & { id: string });
+    resourceId: string;
+  }
+) {
   const transcription = await speechToText(audioBlob);
 
   // 2. Add context to the conversation
@@ -42,10 +37,18 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
   const systemMessage = `Additional context: ${JSON.stringify(contextData)}`;
 
   // 3. Generate response with agent
-  const response = await billAgent.generateVNext([
-    { role: "system", content: systemMessage },
-    { role: "user", content: transcription },
-  ]);
+  const response = await billAgent.generateVNext(
+    [
+      { role: "system", content: systemMessage },
+      { role: "user", content: transcription },
+    ],
+    {
+      memory: {
+        thread: threadId,
+        resource: resourceId,
+      },
+    }
+  );
 
   // 4. Convert response to speech
   const speech = await textToSpeech(response.text);
@@ -79,7 +82,9 @@ export async function speechToText(audioBlob: Blob) {
 
 export async function textToSpeech(text: string) {
   // 1. Convert to speech
-  const speech = await billAgent.voice.speak(text);
+  const speech = await billAgent.voice.speak(text, {
+    speed: 1.3,
+  });
 
   const stream = speech as Readable;
 

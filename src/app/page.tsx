@@ -15,6 +15,7 @@ import { SidePanelCedarChat } from '@/cedar/components/chatComponents/SidePanelC
 import { DebuggerPanel } from '@/cedar/components/debugger';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import ScenarioCard from '@/components/ScenarioCard';
+import MenuBar from '@/components/MenuBar';
 
 type ChatMode = 'floating' | 'sidepanel' | 'caption';
 
@@ -60,7 +61,7 @@ export default function HomePage() {
   });
 
   // Register frontend tool for adding text lines
-  useRegisterFrontendTool({
+  {/* useRegisterFrontendTool({
     name: 'addNewTextLine',
     description: 'Add a new line of text to the screen via frontend tool',
     argsSchema: z.object({
@@ -82,10 +83,11 @@ export default function HomePage() {
       setTextLines((prev) => [...prev, styledText]);
     },
   });
-
+*/}
   const renderContent = () => (
     <div className="relative h-screen w-full">
-      <ChatModeSelector currentMode={chatMode} onModeChange={setChatMode} />
+      <MenuBar />
+      {/* <ChatModeSelector currentMode={chatMode} onModeChange={setChatMode} /> */}
 
       {/* Main interactive content area */}
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
@@ -160,7 +162,7 @@ export default function HomePage() {
     </div>
   );
 
-  if (chatMode === 'sidepanel') {
+  {/* if (chatMode === 'sidepanel') {
     return (
       <SidePanelCedarChat
         side="right"
@@ -172,7 +174,7 @@ export default function HomePage() {
         {renderContent()}
       </SidePanelCedarChat>
     );
-  }
+  } 8*/}
 
   return renderContent();
 }
