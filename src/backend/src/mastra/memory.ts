@@ -7,9 +7,6 @@ const storage = new LibSQLStore({
 
 
 export const memory_bill = new Memory({
-//   storage: new LibSQLStore({
-// 	url: 'file:./bill_memory.db', // Separate database for Bill Agent memory
-//   }),
   options: {
 	lastMessages: 30,
   }

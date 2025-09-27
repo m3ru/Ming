@@ -21,7 +21,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
   return (
     <div className="flex flex-col p-5 w-1/4 gap-2 overflow-y-scroll border-r">
       <h1 className="text-2xl font-bold">Scenario</h1>
-      <p>{scenario.situation}</p>
+      {scenario.situation.split("\n").map((line, i) => (
+        <p key={i}>{line}</p>
+      ))}
 
       <Separator />
 
@@ -37,7 +39,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <p>{scenario.companyDetails}</p>
+          <div>{scenario.companyDetails.split('\n').map((line, i) => (
+            <p key={i}>{line}</p>
+          ))}</div>
         </CollapsibleContent>
       </Collapsible>
 
@@ -65,7 +69,7 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
 }
 
 function NpcOverview({ npc }: { npc: Npc }) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
     <Card>

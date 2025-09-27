@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { billAgent } from "../mastra/agents/billAgent";
+import { createWriteStream } from "node:fs";
 
 class AudioReadableStream extends Readable {
   constructor(private buffer: ArrayBuffer) {
@@ -17,7 +18,47 @@ class AudioReadableStream extends Readable {
   }
 }
 
+function saveAudioToFile(audioData: Readable, filename: string) {
+  const writeStream = createWriteStream(filename);
+  audioData.pipe(writeStream);
+  writeStream.on("finish", () => {
+    console.log(`Audio file saved as ${filename}`);
+  });
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
+  const transcription = await speechToText(audioBlob);
+
+  // 2. Add context to the conversation
+  const contextData = JSON.parse(context);
+  const systemMessage = `Additional context: ${JSON.stringify(contextData)}`;
+
+  // 3. Generate response with agent
+  const response = await billAgent.generateVNext([
+    { role: "system", content: systemMessage },
+    { role: "user", content: transcription },
+  ]);
+
+  // 4. Convert response to speech
+  const speech = await textToSpeech(response.text);
+
+  return {
+    transcription: transcription,
+    text: response.text,
+    audioData: speech.audioData,
+    audioFormat: "mp3",
+  };
+}
+
+export async function speechToText(audioBlob: Blob) {
   // console.log("Transcription Object:", transcriptionObj);
   let transcription: string;
 
@@ -34,36 +75,24 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
       encoding: "LINEAR16",
     });
 
-    transcription = transcriptionObj as string;
+    return transcriptionObj as string;
   } catch (error) {
     console.error("Error during transcription:", error);
-    transcription = "Sorry, I couldn't understand the audio.";
+    return "Hi Bill!";
   }
+}
 
-  // 2. Add context to the conversation
-  const contextData = JSON.parse(context);
-  const systemMessage = `Additional context: ${JSON.stringify(contextData)}`;
+export async function textToSpeech(text: string) {
+  // 1. Convert to speech
+  const speech = await billAgent.voice.speak(text);
 
-  // 3. Generate response with agent
-  const response = await billAgent.generateVNext([
-    { role: "system", content: systemMessage },
-    { role: "user", content: transcription },
-  ]);
+  const stream = speech as Readable;
 
-  console.log("Agent response:", response.text);
-
-  // 4. Convert to speech
-  const speech = await billAgent.voice.speak(response.text);
-
-  console.log(
-    "Generated speech audio data readable:",
-    typeof speech === "object" ? speech.readable : "void"
-  );
+  // Write stream to file
+  // saveAudioToFile(stream, "./output.mp3");
 
   return {
-    transcription: transcription,
-    text: response.text,
-    audioData: speech,
+    audioData: (await streamToBuffer(stream)).toString("base64"),
     audioFormat: "mp3",
   };
 }
