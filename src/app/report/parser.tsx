@@ -9,12 +9,12 @@ type ParsedResult = {
 };
 
 const defaultScores: ParsedResult["scores"] = [
-  { category: "Empathy", score: 0 },
-  { category: "Clarity", score: 0 },
-  { category: "Open-mindedness", score: 0 },
-  { category: "Assertiveness", score: 0 },
-  { category: "Active Listening", score: 0 },
-  { category: "Conflict Management", score: 0 },
+  { category: "Empathy", score: 85 },
+  { category: "Clarity", score: 90 },
+  { category: "Open-mindedness", score: 80 },
+  { category: "Assertiveness", score: 75 },
+  { category: "Active Listening", score: 88 },
+  { category: "Conflict Management", score: 99 },
 ];
 
 // Mapping of possible AI variants to canonical categories

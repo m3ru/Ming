@@ -14,7 +14,7 @@ const defaultScores = [
   { category: "Open-mindedness", score: 80 },
   { category: "Assertiveness", score: 75 },
   { category: "Active Listening", score: 88 },
-  { category: "Conflict Management", score: 82 },
+  { category: "Conflict Management", score: 99 },
 ];
 
 export default function ReportPage() {
