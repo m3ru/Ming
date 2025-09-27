@@ -1,5 +1,6 @@
 import { Readable } from "node:stream";
 import { billAgent } from "../mastra/agents/billAgent";
+import { createWriteStream } from "node:fs";
 
 class AudioReadableStream extends Readable {
   constructor(private buffer: ArrayBuffer) {
@@ -15,6 +16,30 @@ class AudioReadableStream extends Readable {
   _read(size: number) {
     // No-op since we push all data in init
   }
+}
+
+function saveAudioToFile(audioData: Readable, filename: string) {
+  const writeStream = createWriteStream(filename);
+  audioData.pipe(writeStream);
+  writeStream.on("finish", () => {
+    console.log(`Audio file saved as ${filename}`);
+  });
+}
+
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
+
+async function streamToArrayBuffer(stream: Readable): Promise<ArrayBuffer> {
+  const buffer = await streamToBuffer(stream);
+  return buffer.buffer.slice(
+    buffer.byteOffset,
+    buffer.byteOffset + buffer.byteLength
+  ) as ArrayBuffer;
 }
 
 export async function handleVoiceRequest(audioBlob: Blob, context: string) {
@@ -50,20 +75,18 @@ export async function handleVoiceRequest(audioBlob: Blob, context: string) {
     { role: "user", content: transcription },
   ]);
 
-  console.log("Agent response:", response.text);
-
   // 4. Convert to speech
   const speech = await billAgent.voice.speak(response.text);
 
-  console.log(
-    "Generated speech audio data readable:",
-    typeof speech === "object" ? speech.readable : "void"
-  );
+  const stream = speech as Readable;
+
+  // Write stream to file
+  // saveAudioToFile(stream, "./output.mp3");
 
   return {
     transcription: transcription,
     text: response.text,
-    audioData: speech,
+    audioData: (await streamToBuffer(stream)).toString("base64"),
     audioFormat: "mp3",
   };
 }
