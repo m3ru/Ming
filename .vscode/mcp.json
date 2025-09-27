@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"Cedar-MCP": {
+			"url": "https://mcpwithcedar-production.up.railway.app/jsonrpc",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
