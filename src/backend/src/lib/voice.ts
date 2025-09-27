@@ -83,7 +83,7 @@ export async function speechToText(audioBlob: Blob) {
 export async function textToSpeech(text: string) {
   // 1. Convert to speech
   const speech = await billAgent.voice.speak(text, {
-    speed: 1.15,
+    speed: 1.3,
   });
 
   const stream = speech as Readable;
