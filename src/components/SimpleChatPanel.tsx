@@ -138,14 +138,14 @@ export default function SimpleChatPanel() {
     }
   };
   return (
-    <div className="relative flex flex-col h-full max-w-md mx-auto">
+    <div className="relative flex flex-col max-w-md mx-auto" style={{ height: 'calc(100vh - 3rem)' }}> 
       {showSpinner && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
           <Spinner size={48} />
           <div className="mt-4 text-lg font-medium text-gray-700">Generating report...</div>
         </div>
       )}
-      <Card className="flex flex-col h-full">
+      <Card className="flex flex-col" style={{ height: 'calc(100vh - 3rem)' }}>
         <div className="flex justify-end p-2">
           <StopButton onStop={handleStop} />
         </div>

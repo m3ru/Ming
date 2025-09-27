@@ -111,7 +111,7 @@ Success Criteria:
   return (
     <div>
       <MenuBar />
-    <div className="flex w-screen h-screen">
+    <div className="flex w-screen" style={{ height: 'calc(100vh - 3rem)' }}>
       <ScenarioOverview scenario={currentScenario} />
       <div className="flex flex-col flex-grow">
         {isLoadingNewScenario && (
@@ -128,7 +128,7 @@ Success Criteria:
         <ScenarioVideo scenario={currentScenario} />
       </div>
       <div className="w-[350px] flex flex-col items-end">
-        <div className="w-full h-full p-4 bg-white rounded shadow">
+        <div className="w-full p-4 bg-white rounded shadow" style={{ height: 'calc(100vh - 3rem)' }}>
           {/* <SimpleChatPanel /> */}
           <SidePanelCedarChat documents={currentScenario.documents} />
         </div>
