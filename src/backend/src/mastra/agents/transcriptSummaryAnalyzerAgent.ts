@@ -89,6 +89,9 @@ Structure your response using clear headers:
 3. [Third specific recommendation]
 4. [Fourth specific recommendation if applicable]
 </output_format>
+<important>
+1. Refer the user as "you", not "the user".
+</important>
   `,
   model: google("gemini-2.5-flash"),
 });

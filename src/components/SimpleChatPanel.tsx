@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import StopButton from "./StopButton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import "dotenv/config";
-
-import { mastra } from "../backend/src/mastra";
+// ...existing code...
 type MessageRole = "user" | "assistant";
 interface Message {
   id: number;
@@ -13,18 +13,55 @@ interface Message {
   role: MessageRole;
 }
 
-interface BackendMessage {
-  role: "user";
-  content: string;
+function randomId(length = 16) {
+  return Array.from({ length }, () => Math.floor(Math.random() * 36).toString(36)).join("");
 }
 
 export default function SimpleChatPanel() {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
+  // Generate persistent thread/resource IDs for this chat session
+  const [threadId] = useState(() => randomId(12));
+  const [resourceId] = useState(() => randomId(20));
   const [input, setInput] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "sending" | "success" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [transcript, setTranscript] = useState("");
+  const [analyzerResponse, setAnalyzerResponse] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // Update transcript string whenever messages changes
+  useEffect(() => {
+    const lines = messages.map((m) =>
+      m.role === "user" ? `user: ${m.text}` : `bill: ${m.text}`
+    );
+    setTranscript(lines.join("\n"));
+  }, [messages]);
+
+  // Handler for StopButton
+  const handleStop = async () => {
+    try {
+      const response = await fetch("http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: transcript,
+            },
+          ],
+        }),
+      });
+      const data = await response.json();
+      setAnalyzerResponse(data);
+      localStorage.setItem("reportData", JSON.stringify(data));
+      console.log("Analyzer response:", data);
+      router.push("/report");
+    } catch (e) {
+      console.error("Failed to send transcript to analyzer:", e);
+    }
+    window.location.href = "/report";
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -36,7 +73,7 @@ export default function SimpleChatPanel() {
     setStatus("sending");
 
     // Convert to backend format
-    const backendMessages: BackendMessage[] = newMessages.map((m) => ({
+    const backendMessages = newMessages.map((m) => ({
       role: "user",
       content: m.text,
     }));
@@ -47,7 +84,13 @@ export default function SimpleChatPanel() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: backendMessages }),
+          body: JSON.stringify({
+            messages: backendMessages,
+            memory: {
+              thread: threadId,
+              resource: resourceId,
+            },
+          }),
         }
       );
       if (!response.ok) throw new Error("Failed to export chat");
@@ -97,6 +140,9 @@ export default function SimpleChatPanel() {
 
   return (
     <Card className="flex flex-col h-full max-w-md mx-auto">
+      <div className="flex justify-end p-2">
+        <StopButton onStop={handleStop} />
+      </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.map((msg) =>
           msg.role === "assistant" ? (
