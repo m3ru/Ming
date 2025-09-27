@@ -1,3 +1,5 @@
 export function ScenarioPage() {
-  return <div>Scenario Page</div>;
+  return (
+    <div>Scenario Page</div>
+  );
 }
