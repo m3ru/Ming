@@ -159,11 +159,11 @@ Success Criteria:
             </div>
           ) : (
             <div className="w-full text-center bg-white z-10">
-              <h1 className="p-2">{currentScenario.title}</h1>
+              <h1 className="pt-2">{currentScenario.title}</h1>
               <div className="flex flex-col w-full gap-1">
-                {userSentiment && (
+                {userSentiment ? (
                   <SentimentBar label="You" sentiment={userSentiment.score} />
-                )}
+                ) : <div className="mb-2" />}
                 {/* {botSentiment && (
                   <SentimentBar label="Bill" sentiment={botSentiment.score} />
                 )} */}

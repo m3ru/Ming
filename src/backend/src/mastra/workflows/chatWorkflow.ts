@@ -108,7 +108,7 @@ const callAgent = createStep({
       "Additional context (for background knowledge): " +
         JSON.stringify(additionalContext),
     ];
-
+    console.log("DING DONG:", additionalContext);
     let responseText = "";
     /**
      * Using Mastra streamVNext for enhanced streaming capabilities.
@@ -117,7 +117,7 @@ const callAgent = createStep({
      */
     const streamResult = await defaultAgent.streamVNext(messages, {
       // If system prompt is provided, overwrite the default system prompt for this agent
-      ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
+      ...(modifiedPrompt ? ({ instructions: modifiedPrompt } as const) : {}),
       modelSettings: {
         temperature,
         maxOutputTokens: maxTokens,
