@@ -16,7 +16,7 @@ import { AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 
 export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
-  const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(true);
+  const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(false);
 
   return (
     <div className="flex flex-col p-5 w-1/2 lg:w-1/4 gap-2 overflow-y-scroll border-r">
@@ -149,7 +149,7 @@ function DocumentContentBlock({ block }: { block: ScenarioDocumentBlock }) {
   if (block.format === "bold") className = "font-bold";
   else if (block.format === "italic") className = "italic";
   else if (block.format === "code")
-    className = "font-mono bg-gray-100 p-1 rounded";
+    className = "font-mono bg-gray-100 p-1 rounded-md";
 
   const lines = block.content.split("\n");
 
