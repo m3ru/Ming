@@ -33,7 +33,7 @@ export default function SentimentBar({
   return (
     <div className="w-full flex flex-col items-center">
       <div
-        className="w-full h-7 relative overflow-hidden justify-center"
+        className="w-full h-11 relative overflow-hidden justify-center"
         style={{
           backgroundColor: 'lightgray',
         }}
@@ -54,8 +54,8 @@ export default function SentimentBar({
           }}
         />
         {/* The emojis on the ends of the bar */}
-        <span className="absolute text-white font-bold left-2 top-1/2 -translate-y-1/2 text-xl z-30">☹</span>
-        <span className="absolute text-white font-bold right-2 top-1/2 -translate-y-1/2 text-xl z-30">☺</span>
+        <span className="absolute my-0.3 text-white text-3xl font-extrabold left-2 top-1/2 -translate-y-1/2 z-30">☹</span>
+        <span className="absolute my-0.3 text-white text-3xl font-extrabold right-2 top-1/2 -translate-y-1/2 z-30">☺</span>
 
         {/* The "Mood" text, centered over the bar */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 text-white font-medium">
