@@ -5,7 +5,7 @@ import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import MenuBar from "@/components/MenuBar";
 import { mastraClient } from "@/lib/mastra-client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,7 +17,7 @@ import SentimentBar from "@/components/SentimentBar";
 
 const scenario = Scenarios.demandingClient;
 
-export default function ScenarioPage() {
+function ScenarioPageContent() {
   const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);
   const [scenarioCompleted, setScenarioCompleted] = useState(false);
   const [isLoadingNewScenario, setIsLoadingNewScenario] = useState(false);
@@ -193,5 +193,13 @@ Success Criteria:
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ScenarioPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ScenarioPageContent />
+    </Suspense>
   );
 }
