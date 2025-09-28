@@ -153,7 +153,9 @@ function ScenarioPageContent() {
           <div className="flex-grow relative flex items-center justify-center bg-black">
             <ScenarioVideo scenario={currentScenario} />
             <div className="absolute bottom-0 left-0 w-full z-20">
-              <SentimentBar sentiment={userSentiment ? userSentiment.score : 0} />
+              <SentimentBar
+                sentiment={userSentiment ? userSentiment.score : 0}
+              />
             </div>
           </div>
         </div>
