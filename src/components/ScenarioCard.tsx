@@ -60,7 +60,7 @@ export default function ScenarioCard({
                     : role === "Level: Manager"
                       ? "text-blue-800"
                       : role === "LevelL CEO"
-                        ? "text-black"
+                        ? "text-red-800"
                         : "text-gray-600"
                 }`}
               >

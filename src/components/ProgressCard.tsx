@@ -17,7 +17,7 @@ export default function ProgressCard() {
         }
     }, []);
     const totalScenarios = 5;
-    const progressPercent = (scenariosCompleted / totalScenarios) * 100;
+    const progressPercent = Math.min((scenariosCompleted / totalScenarios) * 100, 100);
     console.log('Progress percent:', progressPercent);
 
     return (
@@ -33,7 +33,7 @@ export default function ProgressCard() {
                 />
                 </div>
                 <p className="mt-2 text-sm text-gray-600">
-                {scenariosCompleted} of {totalScenarios} scenarios completed
+                {Math.min(scenariosCompleted, totalScenarios)} of {totalScenarios} scenarios completed
                 </p>
             </CardContent>
         </Card>
