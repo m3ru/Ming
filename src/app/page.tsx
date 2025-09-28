@@ -94,7 +94,6 @@ export default function HomePage() {
 
   return (
     <div className="relative min-h-screen w-full overflow-y-auto grid-background overflow-x-clip">
-      <MenuBar />
       {/* Main Section */}
       <div className="flex flex-col items-center justify-center min-h-[60vh] p-5 md:p-8 space-y-2 md:space-y-8">
         {/* Header */}
