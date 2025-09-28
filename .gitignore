@@ -10,3 +10,5 @@ dist
 *.db
 pnpm-lock.yaml
 *.db-*
+.open-next
+.wrangler
