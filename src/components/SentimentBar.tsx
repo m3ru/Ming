@@ -2,15 +2,11 @@ import React from "react";
 import { Badge } from "./ui/badge";
 
 export default function SentimentBar({
-  label,
-  sentiment,
+  sentiment
 }: {
-  label: string;
   sentiment: number;
 }) {
   const value = (sentiment + 1) / 2; // Normalize score from [-1, 1] to [0, 1]
-
-  const descriptor = sentiment < 0 ? "negative" : "positive";
 
   const [displayValue, setDisplayValue] = React.useState(0.5);
   const [lastUpdateTime, setLastUpdateTime] = React.useState(Date.now());
@@ -21,7 +17,6 @@ export default function SentimentBar({
         const now = Date.now();
         // Calculate delta time
         const deltaTime = now - lastUpdateTime;
-        console.log(deltaTime);
         setLastUpdateTime(now);
 
         const maxChange = (deltaTime / 1000) * 0.05; // Max change per 100ms
@@ -36,33 +31,37 @@ export default function SentimentBar({
   }, [value]);
 
   return (
-    <span
-      // style={{
-      //   backgroundColor: `color-mix(in srgb, red ${Math.round((1 - value) * 100)}%, lime ${Math.round(
-      //     value * 100
-      //   )}%)`,
-      // }}
-      className="w-full flex items-center justify-between overflow-x-clip transition-all duration-500 px-2"
-    >
-      <span>☹</span>
-      {/* <Badge className="z-10 text-black bg-white pointer-events-none">
-        You are {Math.abs(Math.round((value - 0.5) * 200))}% {descriptor}
-      </Badge> */}
-      <style>{`
-        progress::-webkit-progress-value {
-          border-color: color-mix(in srgb, red ${Math.round((1 - displayValue) * 100)}%, lime ${Math.round(
-            displayValue * 100
-          )}%);
-        }
+    <div className="w-full flex flex-col items-center">
+      <div
+        className="w-full h-7 relative overflow-hidden justify-center"
+        style={{
+          backgroundColor: 'lightgray',
+        }}
+      >
+        {/* The color bar, which changes width based on sentiment */}
+        <div
+          className="h-full transition-all duration-500 ease-out"
+          style={{
+            width: `${displayValue * 100}%`,
+            background: `linear-gradient(to right, #ef4444, #f59e0b, #22c55e)`,
+          }}
+        />
+        {/* The moving white cursor */}
+        <div
+          className="absolute h-full aspect-square bg-white shadow-lg transition-all duration-500 ease-out z-20"
+          style={{
+            left: `calc(${displayValue * 100}% - 1rem)`,
+          }}
+        />
+        {/* The emojis on the ends of the bar */}
+        <span className="absolute text-white font-bold left-2 top-1/2 -translate-y-1/2 text-xl z-30">☹</span>
+        <span className="absolute text-white font-bold right-2 top-1/2 -translate-y-1/2 text-xl z-30">☺</span>
 
-        progress::-moz-progress-bar {
-          border-color: color-mix(in srgb, red ${Math.round((1 - displayValue) * 100)}%, lime ${Math.round(
-            displayValue * 100
-          )}%);
-        }
-      `}</style>
-      <progress className="w-full" value={displayValue} max={1} />
-      <span>☺</span>
-    </span>
+        {/* The "Mood" text, centered over the bar */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 text-white font-medium">
+          
+        </div>
+      </div>
+    </div>
   );
 }

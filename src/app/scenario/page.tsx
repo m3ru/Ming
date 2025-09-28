@@ -5,7 +5,7 @@ import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import MenuBar from "@/components/MenuBar";
 import { mastraClient } from "@/lib/mastra-client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -17,7 +17,7 @@ import SentimentBar from "@/components/SentimentBar";
 
 const scenario = Scenarios.negativeReview;
 
-export default function ScenarioPage() {
+function ScenarioPageContent() {
   const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);
   const [scenarioCompleted, setScenarioCompleted] = useState(false);
   const [isLoadingNewScenario, setIsLoadingNewScenario] = useState(false);
@@ -58,14 +58,16 @@ export default function ScenarioPage() {
     const reportData = localStorage.getItem("reportData");
     const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
 
-    const scenesString = localStorage.getItem('numScenariosCompleted');
+    const scenesString = localStorage.getItem("numScenariosCompleted");
     if (scenesString) {
-      localStorage.setItem('numScenariosCompleted', (parseInt(scenesString) + 1).toString());
+      localStorage.setItem(
+        "numScenariosCompleted",
+        (parseInt(scenesString) + 1).toString()
+      );
+    } else {
+      localStorage.setItem("numScenariosCompleted", "1");
     }
-    else {
-      localStorage.setItem('numScenariosCompleted', "1");
-    }
-    
+
     if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
       console.log("User has completed a scenario, generating new prompt...");
       setScenarioCompleted(true);
@@ -145,9 +147,29 @@ Success Criteria:
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
   const [botSentiment, setBotSentiment] = useState<Sentiment>();
 
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">(
+    "landscape"
+  );
+
+  useEffect(() => {
+    const updateOrientation = () => {
+      if (window.innerWidth > window.innerHeight) {
+        setOrientation("landscape");
+      } else {
+        setOrientation("portrait");
+      }
+    };
+
+    window.addEventListener("resize", updateOrientation);
+    updateOrientation(); // Call on mount
+
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+    };
+  }, []);
+
   return (
     <div className="overflow-y-clip">
-      <MenuBar />
       <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
@@ -159,11 +181,9 @@ Success Criteria:
             </div>
           ) : (
             <div className="w-full text-center bg-white z-10">
-              <h1 className="pt-2">{currentScenario.title}</h1>
               <div className="flex flex-col w-full gap-1">
-                {userSentiment ? (
-                  <SentimentBar label="You" sentiment={userSentiment.score} />
-                ) : <div className="mb-2" />}
+                <SentimentBar sentiment={userSentiment ? userSentiment.score : 0} />
+
                 {/* {botSentiment && (
                   <SentimentBar label="Bill" sentiment={botSentiment.score} />
                 )} */}
@@ -193,5 +213,13 @@ Success Criteria:
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ScenarioPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ScenarioPageContent />
+    </Suspense>
   );
 }
