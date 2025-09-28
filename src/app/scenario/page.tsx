@@ -174,7 +174,9 @@ Success Criteria:
           <h1 className="text-2xl font-bold">Scenario: {scenario.title}</h1>
           <p>{scenario.goal}</p>
         </div> */}
-          <ScenarioVideo scenario={currentScenario} />
+          <div className="flex-grow flex items-center justify-center bg-black">
+            <ScenarioVideo scenario={currentScenario} />
+          </div>
         </div>
         <div className="w-[350px] flex flex-col items-end">
           <div
