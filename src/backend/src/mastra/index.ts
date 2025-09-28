@@ -13,6 +13,7 @@ import { transcriptDetailAgent } from './agents/transcriptDetailAgent';
 import { scenarioCreateAgent } from './agents/scenarioCreateAgent';
 import { promptCreateAgent } from './agents/promptCreateAgent';
 import { reportCreateAgent } from './agents/reportCreateAgent';
+import { feedbackReplyAgent } from './agents/feedbackReplyAgent';
 
 /**
  * Main Mastra configuration
@@ -35,7 +36,8 @@ export const mastra = new Mastra({
     transcriptDetailAgent,
     scenarioCreateAgent,
     promptCreateAgent,
-    reportCreateAgent
+    reportCreateAgent,
+    feedbackReplyAgent
   },
   workflows: { chatWorkflow, feedbackOrchestratorWorkflow, scenarioPipelineWorkflow },
   storage,
