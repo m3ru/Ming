@@ -41,6 +41,24 @@ export const billVoice = new OpenAIVoice({
 export const billAgent = new Agent({
   name: npc.name,
   voice: billVoice,
+  instructions:``,
+  model: google("gemini-2.5-flash"),
+  memory: new Memory({
+    storage: new LibSQLStore({
+      url: "file:bill-memory.db",
+    }),
+    options: {
+      workingMemory: {
+        enabled: true,
+      },
+      threads: {
+        generateTitle: true,
+      },
+    },
+  }),
+});
+/*
+
   instructions: `
 <role>
 ${npc.role_llm}
@@ -85,18 +103,4 @@ When responding:
 </response_guidelines>
 
   `,
-  model: google("gemini-2.5-flash"),
-  memory: new Memory({
-    storage: new LibSQLStore({
-      url: "file:bill-memory.db",
-    }),
-    options: {
-      workingMemory: {
-        enabled: true,
-      },
-      threads: {
-        generateTitle: true,
-      },
-    },
-  }),
-});
+*/
