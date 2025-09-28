@@ -30,6 +30,7 @@ export default function HomePage() {
 
   const [mainText, setMainText] = React.useState('Budding Manager');
   const [scores, setScores] = React.useState(defaultScores);
+  const [prevScores, setPrevScores] = React.useState(defaultScores);
   const [scenariosCompleted, setScenariosCompleted] = React.useState(0);
 
   const [showAnalytics, setShowAnalytics] = React.useState(false);
@@ -44,6 +45,28 @@ export default function HomePage() {
       } catch (error) {
         console.log('Could not parse report data:', error);
       }
+    }
+  }, []);
+
+  React.useEffect(() => {
+   
+
+    const prevScoresString = localStorage.getItem('prevScores');
+    if (!prevScoresString){
+      localStorage.setItem('prevScores', JSON.stringify(defaultScores));
+      setPrevScores(defaultScores);
+    }
+    else {
+      setPrevScores(JSON.parse(prevScoresString));
+    }
+
+    const scoresString = localStorage.getItem('scores');
+    if (!scoresString){
+      localStorage.setItem('scores', JSON.stringify(defaultScores));
+      setScores(defaultScores);
+    }
+    else {
+      setScores(JSON.parse(scoresString));
     }
   }, []);
 

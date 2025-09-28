@@ -58,6 +58,14 @@ export default function ScenarioPage() {
     const reportData = localStorage.getItem("reportData");
     const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
 
+    const scenesString = localStorage.getItem('numScenariosCompleted');
+    if (scenesString) {
+      localStorage.setItem('numScenariosCompleted', (parseInt(scenesString) + 1).toString());
+    }
+    else {
+      localStorage.setItem('numScenariosCompleted', "1");
+    }
+    
     if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
       console.log("User has completed a scenario, generating new prompt...");
       setScenarioCompleted(true);
