@@ -23,6 +23,7 @@ import Image from "next/image";
 import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
+import { useSubscribeStateToAgentContext } from "cedar-os";
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -190,6 +191,21 @@ export const SidePanelCedarChat: React.FC<
     color: "#8b5cf6",
     order: 5,
   });
+
+  // Subscribe scenario context to agent - this tells the backend to use billPrompt
+  useSubscribeStateToAgentContext(
+    'documents',
+    (documents) => ({
+      chatContext: 'scenario',
+      promptType: 'bill',
+      scenarioDocuments: documents,
+      resourceId: resourceId
+    }),
+    {
+      showInChat: false,
+      color: '#8b5cf6',
+    }
+  );
 
   // Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
 
