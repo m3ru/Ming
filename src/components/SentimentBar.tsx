@@ -35,7 +35,7 @@ export default function SentimentBar({
       <div
         className="w-full h-11 relative overflow-hidden justify-center"
         style={{
-          backgroundColor: 'lightgray',
+          backgroundColor: 'black',
         }}
       >
         {/* The color bar, which changes width based on sentiment */}
