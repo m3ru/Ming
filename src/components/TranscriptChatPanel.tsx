@@ -91,15 +91,15 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
   });
 
   return (
-    <div className="flex flex-col max-h-4xl h-full bg-gray-50 border border-gray-200 rounded-lg max-w-md mr-0">
+    <div className="flex flex-col h-[500px] w-full bg-gray-50 border border-gray-200 rounded-lg">
       {/* Header */}
-      <div className="flex items-center px-4 py-3 border-b border-gray-200 bg-white rounded-t-lg">
+      <div className="flex items-center px-4 py-3 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
         <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
         <h3 className="text-lg font-semibold text-gray-800">Ask About Your Performance</h3>
       </div>
 
       {/* Welcome Message */}
-      <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+      <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex-shrink-0">
         <div className="text-xs text-blue-700 space-y-1">
           <div>• "Why did I get a low empathy score?"</div>
           <div>• "How could I have handled that conflict better?"</div>
@@ -108,8 +108,8 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
         </div>
       </div>
 
-      {/* Chat Messages Area */}
-      <div className="flex-1 min-h-0 overflow-hidden bg-white">
+      {/* Chat Messages Area - Fixed height with scroll */}
+      <div className="flex-1 overflow-y-auto bg-white">
         <ChatBubbles />
       </div>
 
