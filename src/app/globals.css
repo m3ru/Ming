@@ -1,6 +1,21 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@import "tailwindcss/preflight";
+@tailwind utilities;
+
+/* Your other global styles here */
+
+.grid-background {
+  background-color: #ffffff; /* Sets the base background color to white */
+  background-image: 
+    linear-gradient(to right, lightgray 1px, transparent 1px),
+    linear-gradient(to bottom, lightgray 1px, transparent 1px); /* Creates the grid lines */
+  background-size: 20px 20px; /* Adjusts the size of the grid cells */
+}
+
+/* Other global styles... */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

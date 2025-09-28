@@ -2,14 +2,13 @@
 
 import { Card, CardHeader, CardContent } from "./ui/card"
 
-export default function ProgressCard() {
+export default function ProgressCard({ completedScenarios }: { completedScenarios: number }) {
     // Progress tracker
-    const completedScenarios = 1;
-    const totalScenarios = 3;
+    const totalScenarios = 5;
     const progressPercent = (completedScenarios / totalScenarios) * 100;
 
     return (
-        <Card className="flex-3/10 shadow-lg border border-gray-200">
+        <Card className="w-full shadow-lg border border-gray-200">
             <CardHeader>
                 <h3 className="text-lg font-bold text-gray-800">Progress Tracker</h3>
             </CardHeader>

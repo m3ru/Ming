@@ -2,89 +2,85 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { z } from 'zod';
-import {
-  useRegisterState,
-  useSubscribeStateToAgentContext,
-} from 'cedar-os';
-
-import { CedarCaptionChat } from '@/cedar/components/chatComponents/CedarCaptionChat';
-import { FloatingCedarChat } from '@/cedar/components/chatComponents/FloatingCedarChat';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import ScenarioCard from '@/components/ScenarioCard';
 import MenuBar from '@/components/MenuBar';
-import Parser from '@/app/report/parser';
 import ScoreCard from '@/components/ScoreCard';
 import AchievementsCard from '@/components/AchievementsCard';
 import ProgressCard from '@/components/ProgressCard';
-const defaultScores = [
-  { category: "Empathy", score: 85 },
-  { category: "Clarity", score: 90 },
-  { category: "Open-mindedness", score: 80 },
-  { category: "Assertiveness", score: 75 },
-  { category: "Active Listening", score: 88 },
-  { category: "Conflict Management", score: 99 },
-];
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
+type analyticsData = {
+  numScenariosCompleted?: number;
+  latestScores?: { category: string; score: number }[];
+  prevScores?: { category: string; score: number }[];
+}
+
+const defaultScores = [
+  { category: 'Empathy', score: 0 },
+  { category: 'Clarity', score: 0 },
+  { category: 'Open-mindedness', score: 0 },
+  { category: 'Assertiveness', score: 0 },
+  { category: 'Active Listening', score: 0 },
+  { category: 'Conflict Management', score: 0 },
+];
 
 export default function HomePage() {
   const router = useRouter();
 
-
-  // Cedar main text
   const [mainText, setMainText] = React.useState('Budding Manager');
+  const [scores, setScores] = React.useState(defaultScores);
+  const [scenariosCompleted, setScenariosCompleted] = React.useState(0);
 
-  // Scores from report data
-  const [scores, setScores] = React.useState<{ category: string; score: number }[]>(defaultScores);
+  const [showAnalytics, setShowAnalytics] = React.useState(false);
+  const analyticsRef = React.useRef<HTMLDivElement>(null);
 
-
-  // Load scores from localStorage
   React.useEffect(() => {
     const stored = localStorage.getItem('reportData');
     if (stored) {
       try {
-        const data = Parser(stored);
-        if (data.scores) {
-          setScores(data.scores);
-        }
+        const data = JSON.parse(stored);
+        if (data.scores) setScores(data.scores);
       } catch (error) {
         console.log('Could not parse report data:', error);
       }
     }
-  }, defaultScores);
+  }, []);
 
-  // Register Cedar state
-  useRegisterState({
-    key: 'mainText',
-    description: 'The main text that can be modified by Cedar',
-    value: mainText,
-    setValue: setMainText,
-    stateSetters: {
-      changeText: {
-        name: 'changeText',
-        description: 'Change the main text to a new value',
-        argsSchema: z.object({
-          newText: z.string().min(1, 'Text cannot be empty').describe('The new text to display'),
-        }),
-        execute: (_current, setValue, args) => {
-          setValue(args.newText);
-        },
-      },
-    },
-  });
+  React.useEffect(() => {
+    const analytics = localStorage.getItem('analytics');
+    if (analytics) {
+      try {
+        const data: analyticsData = JSON.parse(analytics);
+        setScenariosCompleted(data.numScenariosCompleted || 0);
+        setScores(data.latestScores || defaultScores);
+      } catch (error) {
+        console.log('Could not parse analytics data:', error);
+      }
+    } else {
+      const data: analyticsData = {};
+      data.numScenariosCompleted = 0;
+      data.latestScores = defaultScores;
+      data.prevScores = defaultScores;
+      localStorage.setItem('analytics', JSON.stringify(data));
+    }
+  }, []);
 
-  useSubscribeStateToAgentContext('mainText', (mainText) => ({ mainText }), {
-    showInChat: true,
-    color: '#4F46E5',
-  });
+  React.useEffect(() => {
+    if (showAnalytics && analyticsRef.current) {
+      analyticsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showAnalytics]);
 
-  const renderContent = () => (
-    <div className="relative h-screen w-full overflow-y-auto">
+  const toggleAnalytics = () => {
+    setShowAnalytics((prev) => !prev);
+  };
+
+  return (
+    <div className="relative min-h-screen w-full overflow-y-auto grid-background">
       <MenuBar />
-
       {/* Main Section */}
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8 gridBackground">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-6xl font-bold text-gray-800 mb-4">Welcome back</h1>
@@ -93,9 +89,8 @@ export default function HomePage() {
             Pass the first task to unlock new scenarios!
           </p>
         </div>
-
-        {/* Scenarios */}
-        <div className="flex space-x-4 w-full items-stretch">
+        {/* Scenario Cards */}
+        <div className="flex flex-wrap justify-center gap-4 w-full max-w-6xl">
           <ScenarioCard
             title="Performance Problems"
             imageUrl="/performanceReview.webp"
@@ -121,25 +116,33 @@ export default function HomePage() {
             role="Level: CEO"
           />
         </div>
-        <div id="analytics" className ="flex">
-          {/* Scores */}
-          <div className = "flex-2/5"> 
-            <ScoreCard scores={scores} />
-          </div>
-            {/* Achievements */}
-          <div className="w-full max-w-3xl">
-            <AchievementsCard />
-          </div>
-
-          {/* Progress Tracker */}
-          <div className="w-full max-w-3xl">
-            <ProgressCard />
-          </div>
+        {/* Analytics Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleAnalytics}
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-50"
+        >
+          {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+          {showAnalytics ? <ChevronUp className="h-10 w-10" /> : <ChevronDown className="h-10 w-10" />}
+        </Button>
+        {/* Analytics Section */}
+        <div
+          ref={analyticsRef}
+          className={`
+            w-full bg-gray-50 transition-all duration-500 ease-in-out
+            ${showAnalytics ? 'opacity-100 max-h-[2000px] py-6' : 'opacity-0 max-h-0 py-0'}
+          `}
+        >
+          {showAnalytics && (
+            <div className="flex flex-col max-w-5xl mx-auto px-4 space-y-5">
+              <ScoreCard scores={scores} />
+              <AchievementsCard />
+              <ProgressCard scenariosCompleted={scenariosCompleted} />
+            </div>
+          )}
         </div>
       </div>
-
     </div>
   );
-
-  return renderContent();
 }

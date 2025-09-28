@@ -12,7 +12,7 @@ export default function AchievementsCard() {
         { title: 'Empathy Master', icon: Star, unlocked: false },
     ];
     return (
-        <Card className="flex-3/10 shadow-lg border border-gray-200">
+        <Card className="w-full shadow-lg border border-gray-200">
             <CardHeader>
                 <h3 className="text-lg font-bold text-gray-800">Achievements</h3>
             </CardHeader>
