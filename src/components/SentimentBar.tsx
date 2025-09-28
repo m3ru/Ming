@@ -33,7 +33,7 @@ export default function SentimentBar({
   return (
     <div className="w-full flex flex-col items-center">
       <div
-        className="w-full h-11 relative overflow-hidden justify-center"
+        className="w-full h-10 relative overflow-hidden justify-center"
         style={{
           backgroundColor: 'black',
         }}

@@ -110,7 +110,7 @@ function ScenarioPageContent() {
 
   if (orientation === "portrait") {
     return (
-      <div className="flex flex-col items-center justify-center h-screen p-4 text-center">
+      <div className="flex flex-col items-center justify-center h-full p-4 text-center">
         <h1 className="text-2xl font-bold mb-4">Please Rotate Your Device</h1>
         <p className="text-lg mb-16">
           For the best experience, please use this application in landscape
@@ -122,7 +122,7 @@ function ScenarioPageContent() {
 
   return (
     <div className="overflow-y-clip" style={{ height: "calc(100vh - 3rem)" }}>
-      <div className="flex w-screen h-full" >
+      <div className="flex w-full h-full" >
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
           {isLoadingNewScenario ? (
