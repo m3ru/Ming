@@ -139,8 +139,8 @@ function ScenarioPageContent() {
   }
 
   return (
-    <div className="overflow-y-clip">
-      <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
+    <div className="overflow-y-clip" style={{ height: "calc(100vh - 3rem)" }}>
+      <div className="flex w-screen h-full" >
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
           {isLoadingNewScenario ? (
@@ -161,8 +161,8 @@ function ScenarioPageContent() {
         </div>
         <div className="w-[350px] flex flex-col items-end">
           <div
-            className="w-full p-2 bg-white border-l"
-            style={{ height: "calc(100vh - 3rem)" }}
+            className="w-full p-2 bg-white border-l h-full"
+            
           >
             <SidePanelCedarChat
               documents={currentScenario.documents}

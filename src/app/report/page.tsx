@@ -248,7 +248,7 @@ export default function ReportPage() {
       <button
         onClick={() => {
           setIsEvaluationOpen(true);
-          setIsTranscriptOpen(true);
+          setIsTranscriptOpen(false);
           setIsSuggestionsOpen(true);
           setIsSummaryOpen(true);
           setTimeout(() => {
