@@ -24,6 +24,7 @@ import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
+import { Separator } from "@/components/ui/separator";
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -90,7 +91,7 @@ export const SidePanelCedarChat: React.FC<
 > = ({
   children, // Page content
   side = "right",
-  title = "Chat",
+  title = "Transcript",
   collapsedLabel = "Start with Hello.",
   showCollapsedButton = true,
   companyLogo,
@@ -194,16 +195,16 @@ export const SidePanelCedarChat: React.FC<
 
   // Subscribe scenario context to agent - this tells the backend to use billPrompt
   useSubscribeStateToAgentContext(
-    'documents',
+    "documents",
     (documents) => ({
-      chatContext: 'scenario',
-      promptType: 'bill',
+      chatContext: "scenario",
+      promptType: "bill",
       scenarioDocuments: documents,
-      resourceId: resourceId
+      resourceId: resourceId,
     }),
     {
       showInChat: false,
-      color: '#8b5cf6',
+      color: "#8b5cf6",
     }
   );
 
@@ -357,25 +358,32 @@ export const SidePanelCedarChat: React.FC<
 
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center flex-1 min-w-0">
-            {companyLogo && (
-              <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
-            )}
-            <span className="text-lg font-bold truncate">{title}</span>
-          </div>
-          <div className="flex items-center flex-shrink-0 gap-2">
-            <Button variant="destructive" onClick={handleStop} className="mr-2">
-              End Scenario
-            </Button>
-            {/* <button
+        <div className="flex flex-col">
+          <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 pb-2 ">
+            <div className="flex items-center flex-1 min-w-0">
+              {companyLogo && (
+                <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
+              )}
+              <span className="text-lg font-bold truncate">{title}</span>
+            </div>
+            <div className="flex items-center flex-shrink-0 gap-2">
+              <Button
+                variant="destructive"
+                onClick={handleStop}
+                className="mr-2"
+              >
+                End Scenario
+              </Button>
+              {/* <button
                   className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                   onClick={() => setShowChat(false)}
                   aria-label="Close chat"
                 >
                   <X className="w-4 h-4" strokeWidth={2.5} />
                 </button> */}
+            </div>
           </div>
+          <Separator />
         </div>
 
         {/* Chat messages - takes up remaining space */}
