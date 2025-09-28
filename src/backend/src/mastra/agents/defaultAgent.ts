@@ -39,7 +39,7 @@ export const defaultAgent = new Agent({
   name: '',
   voice: billVoice,
   instructions:``,
-  model: google("gemini-2.5-flash-lite"),
+  model: google("gemini-2.5-flash"),
   memory: new Memory({
     storage: new LibSQLStore({
       url: "file:default-memory.db",
