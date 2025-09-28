@@ -192,7 +192,7 @@ export default function ReportPage() {
             <div className="flex min-h-[500px]">
               {/* Left side - Annotated Transcript */}
 
-              <div className="flex-[1] min-w-[300px]">
+              <div className="max-md:hidden flex-[1] md:min-w-[300px]">
                 <TranscriptChatPanel
                   segments={segments}
                   feedback={feedback}

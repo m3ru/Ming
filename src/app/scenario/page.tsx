@@ -14,6 +14,7 @@ import { Scenario } from "@/lib/types";
 import { Sentiment } from "@/lib/googleSentiment";
 import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
+import useOrientation from "@/hooks/useOrientation";
 
 const scenario = Scenarios.negativeReview;
 
@@ -105,26 +106,7 @@ function ScenarioPageContent() {
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
   const [botSentiment, setBotSentiment] = useState<Sentiment>();
 
-  const [orientation, setOrientation] = useState<"landscape" | "portrait">(
-    "landscape"
-  );
-
-  useEffect(() => {
-    const updateOrientation = () => {
-      if (window.innerWidth > window.innerHeight) {
-        setOrientation("landscape");
-      } else {
-        setOrientation("portrait");
-      }
-    };
-
-    window.addEventListener("resize", updateOrientation);
-    updateOrientation(); // Call on mount
-
-    return () => {
-      window.removeEventListener("resize", updateOrientation);
-    };
-  }, []);
+  const orientation = useOrientation();
 
   if (orientation === "portrait") {
     return (
