@@ -192,20 +192,19 @@ export default function ReportPage() {
               {/* Left side - Annotated Transcript */}
 
               <div className="flex-[1] min-w-[300px]">
-                <TranscriptChatPanel 
+                <TranscriptChatPanel
                   segments={segments}
                   feedback={feedback}
                   suggestions={suggestions}
                   scores={scoring}
                 />
               </div>
-              
+
               <div className="flex-[2] min-w-0">
                 <AnnotatedTranscript segments={segments} />
               </div>
-              
+
               {/* Right side - Transcript Chat */}
-              
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -237,6 +236,7 @@ export default function ReportPage() {
               </div>
               <Button
                 onClick={() => (window.location.href = `/scenario?next=true`)}
+                className="cursor-pointer"
               >
                 Start Next Scenario
               </Button>

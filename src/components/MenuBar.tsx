@@ -9,7 +9,7 @@ export default function MenuBar() {
         {/* Left: Home */}
         <button
           onClick={() => (window.location.href = "/")}
-          className="inline-flex items-center gap-2 text-gray-800 hover:bg-gray-100 rounded-md px-2 py-1 text-sm font-semibold"
+          className="inline-flex items-center gap-2 text-gray-800 hover:bg-gray-100 rounded-md px-2 py-1 text-sm font-semibold cursor-pointer"
           aria-label="Home"
         >
           <svg
@@ -37,7 +37,7 @@ export default function MenuBar() {
           >
             Reports
           </a>
-          <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
+          <div className="pointer-events-none h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
             M
           </div>
         </div>

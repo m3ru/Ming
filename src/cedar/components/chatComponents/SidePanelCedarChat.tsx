@@ -10,7 +10,7 @@ import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
 import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
 import Container3D from "@/cedar/components/containers/Container3D";
 import { useThreadMessages } from "cedar-os";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   useRegisterState,
   useStateBasedMentionProvider,
@@ -24,39 +24,48 @@ import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
+import { Separator } from "@/components/ui/separator";
+import { billPrompt } from "@/lib/prompts";
 
-// Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
+// Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
 const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & {
-  _sendMessagePatched?: boolean;
+  _sendMessageDocPatchPatched?: boolean;
 };
-if (!storeWithPatchFlag._sendMessagePatched) {
+if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
   const origSend = cedarStoreGlobal.sendMessage;
   storeWithPatchFlag.sendMessage = (msg, ...args) => {
-    // Always get the latest contextDocs and documents from the store
-    const state = useCedarStore.getState();
-    const contextDocsVal: number[] =
-      ((state as any)["contextDocs"] as number[]) || [];
-    const documentsVal =
-      ((state as any)["documents"] as Array<{ title: string }>) || [];
-    if (
-      typeof msg === "string" &&
-      contextDocsVal &&
-      contextDocsVal.length > 0 &&
-      documentsVal.length > 0
-    ) {
-      const docNames = contextDocsVal
-        .map((idx: number) => documentsVal[idx]?.title)
-        .filter(Boolean)
-        .join(", ");
-      if (docNames && !(msg as string).startsWith("re: (")) {
-        msg = `re: (${docNames}) ${msg}` as any;
+    if (typeof msg === "string") {
+      let modifiedMsg = msg as string;
+      
+      // Always get the latest contextDocs and documents from the store
+      const state = useCedarStore.getState();
+      const contextDocsVal: number[] =
+        ((state as any)["contextDocs"] as number[]) || [];
+      const documentsVal =
+        ((state as any)["documents"] as Array<{ title: string }>) || [];
+      
+      // Prepend document references if they exist
+      if (
+        contextDocsVal &&
+        contextDocsVal.length > 0 &&
+        documentsVal.length > 0
+      ) {
+        const docNames = contextDocsVal
+          .map((idx: number) => documentsVal[idx]?.title)
+          .filter(Boolean)
+          .join(", ");
+        if (docNames && !modifiedMsg.startsWith("re: (")) {
+          modifiedMsg = `re: (${docNames}) ${modifiedMsg}`;
+        }
       }
+      
+      msg = modifiedMsg as any;
     }
     return origSend(msg as any, ...args);
   };
-  storeWithPatchFlag._sendMessagePatched = true;
+  storeWithPatchFlag._sendMessageDocPatchPatched = true;
 }
 
 interface SidePanelCedarChatProps {
@@ -90,7 +99,7 @@ export const SidePanelCedarChat: React.FC<
 > = ({
   children, // Page content
   side = "right",
-  title = "Chat",
+  title = "Transcript",
   collapsedLabel = "Start with Hello.",
   showCollapsedButton = true,
   companyLogo,
@@ -155,6 +164,27 @@ export const SidePanelCedarChat: React.FC<
     setValue: setResourceId,
   });
 
+  // Register scenario context marker
+  useRegisterState({
+    key: "scenarioContext",
+    description: "Marker to indicate we're in scenario chat context",
+    value: "bill_scenario",
+    setValue: () => {},
+  });
+
+  // Subscribe scenario context to agent
+  useSubscribeStateToAgentContext(
+    'scenarioContext',
+    (context) => ({
+      chatType: 'scenario',
+      scenarioType: context
+    }),
+    {
+      showInChat: false,
+      color: '#8b5cf6',
+    }
+  );
+
   // Register scenario documents as state for Cedar
   const [cedarDocuments, setCedarDocuments] = useState(documents);
   useRegisterState({
@@ -194,16 +224,16 @@ export const SidePanelCedarChat: React.FC<
 
   // Subscribe scenario context to agent - this tells the backend to use billPrompt
   useSubscribeStateToAgentContext(
-    'documents',
+    "documents",
     (documents) => ({
-      chatContext: 'scenario',
-      promptType: 'bill',
+      chatContext: "scenario",
+      promptType: "bill",
       scenarioDocuments: documents,
-      resourceId: resourceId
+      resourceId: resourceId,
     }),
     {
       showInChat: false,
-      color: '#8b5cf6',
+      color: "#8b5cf6",
     }
   );
 
@@ -357,25 +387,32 @@ export const SidePanelCedarChat: React.FC<
 
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center flex-1 min-w-0">
-            {companyLogo && (
-              <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
-            )}
-            <span className="text-lg font-bold truncate">{title}</span>
-          </div>
-          <div className="flex items-center flex-shrink-0 gap-2">
-            <Button variant="destructive" onClick={handleStop} className="mr-2">
-              End Scenario
-            </Button>
-            {/* <button
+        <div className="flex flex-col">
+          <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 pb-2 ">
+            <div className="flex items-center flex-1 min-w-0">
+              {companyLogo && (
+                <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
+              )}
+              <span className="text-lg font-bold truncate">{title}</span>
+            </div>
+            <div className="flex items-center flex-shrink-0 gap-2">
+              <Button
+                variant="destructive"
+                onClick={handleStop}
+                className="mr-2"
+              >
+                End Scenario
+              </Button>
+              {/* <button
                   className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                   onClick={() => setShowChat(false)}
                   aria-label="Close chat"
                 >
                   <X className="w-4 h-4" strokeWidth={2.5} />
                 </button> */}
+            </div>
           </div>
+          <Separator />
         </div>
 
         {/* Chat messages - takes up remaining space */}

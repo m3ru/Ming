@@ -178,7 +178,7 @@ Success Criteria:
         </div>
         <div className="w-[350px] flex flex-col items-end">
           <div
-            className="w-full p-4 bg-white rounded shadow"
+            className="w-full p-2 bg-white border-l"
             style={{ height: "calc(100vh - 3rem)" }}
           >
             {/* <SimpleChatPanel /> */}
