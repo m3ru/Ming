@@ -74,7 +74,7 @@ export default function HomePage() {
           </h1>
           <h1 className="text-6xl font-bold text-blue-800 mb-4">{mainText}</h1>
           <p className="text-lg text-gray-600 mb-8">
-            Pass the first task to unlock new scenarios!
+            Keep working hard to unlock new scenarios!
           </p>
         </div>
         {/* Scenario Cards */}
