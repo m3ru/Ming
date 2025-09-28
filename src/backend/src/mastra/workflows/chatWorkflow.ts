@@ -82,12 +82,14 @@ const callAgent = createStep({
       detectedChatType: chatType,
       fullAdditionalContext: additionalContext
     });
-    
-    if (chatType === 'scenario' && !prompt.includes("mid-level full-stack")) {
+
+    console.log("======Prompt====\n", prompt)
+
+    if (chatType === 'scenario') {
       const { bartPrompt } = await import('../../lib/prompts');
       modifiedPrompt = `${bartPrompt}\n\nUser: ${prompt}`;
       console.log("Applied bart prompt in workflow");
-    } else if (chatType === 'transcript' && !prompt.includes("communication coach")) {
+    } else if (chatType === 'transcript') {
       const { feedbackReplyPrompt } = await import('../../lib/prompts');
       
       // Check if the combined prompt would be too long
@@ -115,6 +117,10 @@ const callAgent = createStep({
      * streamVNext returns a stream result that we can iterate over to get chunks
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
+
+    console.log("====================");
+    console.log("modifiedPrompt", modifiedPrompt);
+    console.log("=====================");
     const streamResult = await defaultAgent.streamVNext(messages, {
       // If system prompt is provided, overwrite the default system prompt for this agent
       ...(modifiedPrompt ? ({ instructions: modifiedPrompt } as const) : {}),

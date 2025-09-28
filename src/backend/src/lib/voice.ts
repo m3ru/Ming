@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 import { defaultAgent, billVoice } from "../mastra/agents/defaultAgent";
 import { createWriteStream } from "node:fs";
 import { StorageThreadType } from "@mastra/core";
+import { bartPrompt, feedbackReplyPrompt } from "./prompts";
 
 function saveAudioToFile(audioData: Readable, filename: string) {
   const writeStream = createWriteStream(filename);
@@ -34,9 +35,15 @@ export async function handleVoiceRequest(
 
   // 2. Add context to the conversation
   const contextData = JSON.parse(context);
-  const systemMessage = `Additional context: ${JSON.stringify(contextData)}`;
+  const additionalContext = `Additional context: ${JSON.stringify(contextData)}`;
 
   // 3. Generate response with agent
+    let systemMessage = ``;
+    if (contextData['chatType']['data'] === 'scenario') {
+        systemMessage = `${bartPrompt}\n\n${additionalContext}`;
+    } else if (contextData['chatType']['data'] === 'transcript') {
+      systemMessage = `${feedbackReplyPrompt}\n\n${additionalContext}`;
+    }
   const response = await defaultAgent.generateVNext(
     [
       { role: "system", content: systemMessage },

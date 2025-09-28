@@ -110,7 +110,7 @@ export const apiRoutes = [
 
         const formData = await c.req.formData();
 
-        // console.log("Received form data:", formData);
+        console.log("Received form data:", formData);
 
         const audioFile = formData.get("audio") as File | null;
         const context = formData.get("context") as string | null;
