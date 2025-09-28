@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import ScenarioCard from "@/components/ScenarioCard";
 import MenuBar from "@/components/MenuBar";
@@ -84,6 +84,22 @@ export default function HomePage() {
     setShowAnalytics((prev) => !prev);
   };
 
+  useEffect(() => {
+    window.addEventListener("wheel", (e: WheelEvent) => {
+      if (analyticsRef.current) {
+        const delta = e.deltaY;
+
+        if (delta > 0) {
+          // Scrolling down
+          setShowAnalytics(true);
+        } else if (delta < 0) {
+          // Scrolling up
+          setShowAnalytics(false);
+        }
+      }
+    });
+  }, []);
+
   return (
     <div className="relative min-h-screen w-full overflow-y-auto grid-background">
       <MenuBar />
@@ -133,11 +149,13 @@ export default function HomePage() {
           onClick={toggleAnalytics}
           className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-20"
         >
-          {showAnalytics ? "Hide Analytics" : "Show Analytics"}
+          {showAnalytics
+            ? "Scroll Up for Scenarios"
+            : "Scroll Down for Analytics"}
           {showAnalytics ? (
-            <ChevronUp className="h-10 w-10" />
+            <ChevronUp className="h-10 w-10 animate-bounce" />
           ) : (
-            <ChevronDown className="h-10 w-10" />
+            <ChevronDown className="mt-2 h-10 w-10 animate-bounce" />
           )}
         </Button>
         {/* Analytics Section */}
