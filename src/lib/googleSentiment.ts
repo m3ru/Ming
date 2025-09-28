@@ -5,13 +5,9 @@ export type Sentiment = {
 
 export async function analyzeSentiment(text: string) {
   const res = await fetch(
-    "https://language.googleapis.com/v2/documents:analyzeSentiment",
+    `https://language.googleapis.com/v2/documents:analyzeSentiment?key=${process.env.NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY}`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_GOOGLE_NLP_KEY}`,
-        "x-goog-user-project": process.env.NEXT_PUBLIC_GOOGLE_PROJECT,
-      } as any,
       body: JSON.stringify({
         document: {
           type: "PLAIN_TEXT",
