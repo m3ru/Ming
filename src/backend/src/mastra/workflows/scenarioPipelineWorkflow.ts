@@ -50,7 +50,9 @@ const createScenario = createStep({
 
     const result = await scenarioCreateAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
-      temperature: 0.2,
+	  modelSettings: {
+		temperature: 0.2,
+	  },
       ...(threadId && resourceId
         ? {
             memory: {
@@ -101,7 +103,9 @@ const createPrompts = createStep({
 
     const result = await promptCreateAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
-      temperature: 0.2,
+      modelSettings: {
+		temperature: 0.2,
+	  },
       ...(threadId && resourceId
         ? {
             memory: {
@@ -153,7 +157,9 @@ const createReports = createStep({
 
     const result = await reportCreateAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
-      temperature: 0.2,
+      modelSettings: {
+        temperature: 0.2,
+      },
       ...(threadId && resourceId
         ? {
             memory: {

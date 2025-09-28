@@ -6,8 +6,11 @@
   "scripts": {
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start"
-  },
+    "start": "mastra start",
+	"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+	"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+	"cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+},
   "engines": {
     "node": ">=20.9.0"
   },
@@ -22,6 +25,7 @@
     "@mastra/memory": "^0.15.3",
     "@mastra/voice-google": "^0.11.6",
     "@mastra/voice-openai": "^0.11.6",
+    "@opennextjs/cloudflare": "^1.9.0",
     "marked": "^16.3.0",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"
@@ -29,6 +33,7 @@
   "devDependencies": {
     "@types/node": "^20.9.0",
     "mastra": "^0.13.1",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "wrangler": "^4.40.2"
   }
 }
