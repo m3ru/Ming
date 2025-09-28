@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   const llmProvider: ProviderConfig = {
     provider: "mastra" as const,
-    baseURL: process.env.NEXT_PUBLIC_URL || "http://3.220.169.218:4111" //|| "http://localhost:4111",
+    baseURL: process.env.NEXT_PUBLIC_URL || "https://ming.m3ru.org", //|| "http://localhost:4111",
   };
 
   return (
