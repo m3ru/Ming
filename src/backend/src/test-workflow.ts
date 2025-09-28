@@ -19,11 +19,11 @@ const result = await run.start({
 });
 
 console.log("Segmented Analysis:");
-console.log(result.result.segmentedAnalysis);
+// console.log(result.result.segmentedAnalysis);
 console.log("Summary Analysis:");
-console.log(result.result.summaryAnalysis);
+// console.log(result.result.summaryAnalysis);
 console.log("Detailed Analysis:");
-console.log(result.result.detailedFeedback);
+// console.log(result.result.detailedFeedback);
 
 // console.log(result);
  

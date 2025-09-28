@@ -108,7 +108,7 @@ const callAgent = createStep({
       "Additional context (for background knowledge): " +
         JSON.stringify(additionalContext),
     ];
-    console.log("DING DONG:", additionalContext);
+    console.log("DING DONG WOIII:", modifiedPrompt);
     let responseText = "";
     /**
      * Using Mastra streamVNext for enhanced streaming capabilities.
