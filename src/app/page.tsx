@@ -124,9 +124,14 @@ export default function HomePage() {
           onClick={toggleAnalytics}
           className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-7 md:mt-20"
         >
-          {showAnalytics
-            ? "Scroll Up for Scenarios"
-            : "Scroll Down for Analytics"}
+          <span className="max-md:hidden">
+            {showAnalytics
+              ? "Scroll Up for Scenarios"
+              : "Scroll Down for Analytics"}
+          </span>
+          <span className="md:hidden">
+            {showAnalytics ? "Tap for Scenarios" : "Tap for Analytics"}
+          </span>
           {showAnalytics ? (
             <ChevronUp className="h-10 w-10 animate-bounce" />
           ) : (

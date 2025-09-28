@@ -56,7 +56,10 @@ export default function ReportPage() {
     setSegments(data.segments || []);
     setSuggestions(data.suggestions || "No suggestions found.");
     setScores(data.scores || defaultScores);
-    localStorage.setItem("prevScores", localStorage.getItem("scores") || JSON.stringify(defaultScores));
+    localStorage.setItem(
+      "prevScores",
+      localStorage.getItem("scores") || JSON.stringify(defaultScores)
+    );
     localStorage.setItem("scores", JSON.stringify(data.scores));
   }, []);
 
@@ -219,7 +222,7 @@ export default function ReportPage() {
           >
             <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
               <h2 className="flex-grow text-2xl font-bold text-center">
-                Next Scenario: {/**{nextScenario.title}**/}
+                Next Scenario: {nextScenario.title}
               </h2>
               {isNextScenarioOpen ? (
                 <ChevronUp className="w-6 h-6" />
