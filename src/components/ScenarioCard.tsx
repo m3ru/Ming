@@ -19,9 +19,9 @@ export default function ScenarioCard({
   role?: string;
 }) {
   return (
-    <Link href={locked ? "#" : "/scenario"} className={`w-full flex-1 ${locked ? "cursor-not-allowed" : ""}`}>
+    <Link href={locked ? "#" : "/scenario"} className={`w-2/3 md:w-full flex-1 ${locked ? "cursor-not-allowed" : ""}`}>
       <Card
-        className={`flex-1 flex flex-col p-2 max-w-1md relative ${locked ? "opacity-60" : "hover:shadow-lg hover:scale-[1.02] transition-transform duration-200"}`}
+        className={`flex-1 flex flex-col md:p-2 max-w-1md relative ${locked ? "opacity-60" : "hover:shadow-lg hover:scale-[1.02] transition-transform duration-200"}`}
         style={{ backgroundColor: color }}
       >
         {locked && (
@@ -47,7 +47,7 @@ export default function ScenarioCard({
           <img
             src={imageUrl}
             alt={title}
-            className={`w-full h-48 object-cover rounded ${locked ? "grayscale" : ""}`}
+            className={`w-full h-36 md:h-48 object-cover rounded ${locked ? "grayscale" : ""}`}
             loading="lazy"
           />
 
