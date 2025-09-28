@@ -3,9 +3,8 @@ import React from "react";
 
 export default function MenuBar() {
   return (
-    <nav className="w-full bg-white border-b border-gray-100 shadow-sm px-3 sm:px-4 lg:px-6">
+    <nav className="w-full bg-white border-b border-gray-100 px-3 sm:px-4 lg:px-6">
       <div className="h-12 flex items-center justify-between">
-
         {/* Left: Home */}
         <button
           onClick={() => (window.location.href = "/")}
@@ -41,7 +40,6 @@ export default function MenuBar() {
             M
           </div>
         </div>
-
       </div>
     </nav>
   );

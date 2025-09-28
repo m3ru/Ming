@@ -4,9 +4,43 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import ScoreBar from "./ScoreBar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import React from "react";
 
-export default function ScoreCard({ scores }: { scores: { category: string; score: number }[] }) {
+export default function ScoreCard() {
+    const defaultScores = [
+      { category: "Empathy", score: 0 },
+      { category: "Clarity", score: 0 },
+      { category: "Open-mindedness", score: 0 },
+      { category: "Assertiveness", score: 0 },
+      { category: "Active Listening", score: 0 },
+      { category: "Conflict Management", score: 0 },
+    ];
     const router = useRouter();
+    const [prevScores, setPrevScores] = React.useState(defaultScores);
+    const [scores, setScores] = React.useState(defaultScores);
+
+    React.useEffect(() => {
+    
+
+    const prevScoresString = localStorage.getItem('prevScores');
+    if (!prevScoresString){
+        localStorage.setItem('prevScores', JSON.stringify(defaultScores));
+        setPrevScores(defaultScores);
+    }
+    else {
+        setPrevScores(JSON.parse(prevScoresString));
+    }
+
+    const scoresString = localStorage.getItem('scores');
+    if (!scoresString){
+        localStorage.setItem('scores', JSON.stringify(defaultScores));
+        setScores(defaultScores);
+    }
+    else {
+        setScores(JSON.parse(scoresString));
+    }
+    }, []);
+
 
     return (
         <Card className="shadow-lg border border-gray-200">

@@ -16,55 +16,17 @@ type analyticsData = {
   prevScores?: { category: string; score: number }[];
 };
 
-const defaultScores = [
-  { category: "Empathy", score: 0 },
-  { category: "Clarity", score: 0 },
-  { category: "Open-mindedness", score: 0 },
-  { category: "Assertiveness", score: 0 },
-  { category: "Active Listening", score: 0 },
-  { category: "Conflict Management", score: 0 },
-];
+
 
 export default function HomePage() {
   const router = useRouter();
 
   const [mainText, setMainText] = React.useState("Budding Manager");
-  const [scores, setScores] = React.useState(defaultScores);
-  const [scenariosCompleted, setScenariosCompleted] = React.useState(0);
 
   const [showAnalytics, setShowAnalytics] = React.useState(false);
   const analyticsRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const stored = localStorage.getItem("reportData");
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        if (data.scores) setScores(data.scores);
-      } catch (error) {
-        console.log("Could not parse report data:", error);
-      }
-    }
-  }, []);
 
-  React.useEffect(() => {
-    const analytics = localStorage.getItem("analytics");
-    if (analytics) {
-      try {
-        const data: analyticsData = JSON.parse(analytics);
-        setScenariosCompleted(data.numScenariosCompleted || 0);
-        setScores(data.latestScores || defaultScores);
-      } catch (error) {
-        console.log("Could not parse analytics data:", error);
-      }
-    } else {
-      const data: analyticsData = {};
-      data.numScenariosCompleted = 0;
-      data.latestScores = defaultScores;
-      data.prevScores = defaultScores;
-      localStorage.setItem("analytics", JSON.stringify(data));
-    }
-  }, []);
 
   React.useEffect(() => {
     if (showAnalytics) {
@@ -112,13 +74,13 @@ export default function HomePage() {
           </h1>
           <h1 className="text-6xl font-bold text-blue-800 mb-4">{mainText}</h1>
           <p className="text-lg text-gray-600 mb-8">
-            Pass the first task to unlock new scenarios!
+            Keep working hard to unlock new scenarios!
           </p>
         </div>
         {/* Scenario Cards */}
         <div className="flex flex-wrap justify-center gap-4 w-full max-w-6xl">
           <ScenarioCard
-            title="Performance Problems"
+            title="Negative Performance Review"
             imageUrl="/performanceReview.webp"
             description="An employee performance review meeting."
             color="#ffffff97"
@@ -167,9 +129,9 @@ export default function HomePage() {
           `}
         >
           <div className="flex flex-col max-w-5xl mx-auto px-4 space-y-5">
-            <ScoreCard scores={scores} />
+            <ScoreCard />
             <AchievementsCard />
-            <ProgressCard completedScenarios={scenariosCompleted} />
+            <ProgressCard />
           </div>
         </div>
       </div>

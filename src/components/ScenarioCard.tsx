@@ -30,13 +30,13 @@ export default function ScenarioCard({
           </div>
         )}
         <CardHeader>
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-xl font-semibold flex items-center">
             {locked ? (
-              <span className="cursor-not-allowed text-gray-600">{title}</span>
+              <span className="flex items-center mx-auto cursor-not-allowed text-gray-600">{title}</span>
             ) : (
               <span
                 // href="/scenario"
-                className="hover:text-blue-600 transition-colors"
+                className="hover:text-blue-600 transition-colors items-center mx-auto"
               >
                 {title}
               </span>
@@ -60,7 +60,7 @@ export default function ScenarioCard({
                     : role === "Level: Manager"
                       ? "text-blue-800"
                       : role === "LevelL CEO"
-                        ? "text-black"
+                        ? "text-red-800"
                         : "text-gray-600"
                 }`}
               >

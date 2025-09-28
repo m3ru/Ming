@@ -58,6 +58,14 @@ export default function ScenarioPage() {
     const reportData = localStorage.getItem("reportData");
     const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
 
+    const scenesString = localStorage.getItem('numScenariosCompleted');
+    if (scenesString) {
+      localStorage.setItem('numScenariosCompleted', (parseInt(scenesString) + 1).toString());
+    }
+    else {
+      localStorage.setItem('numScenariosCompleted', "1");
+    }
+    
     if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
       console.log("User has completed a scenario, generating new prompt...");
       setScenarioCompleted(true);
@@ -166,7 +174,9 @@ Success Criteria:
           <h1 className="text-2xl font-bold">Scenario: {scenario.title}</h1>
           <p>{scenario.goal}</p>
         </div> */}
-          <ScenarioVideo scenario={currentScenario} />
+          <div className="flex-grow flex items-center justify-center bg-black">
+            <ScenarioVideo scenario={currentScenario} />
+          </div>
         </div>
         <div className="w-[350px] flex flex-col items-end">
           <div

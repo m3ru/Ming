@@ -87,13 +87,13 @@ function NpcOverview({ npc }: { npc: Npc }) {
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between items-center px-4 py-1">
             <div className="flex items-center gap-1">
-              <Avatar className="rounded-lg w-8 h-8">
+              <Avatar className="max-lg:hidden rounded-full w-8 h-8">
                 <AvatarImage src={npc.pfp} className="rounded-full" />
                 <AvatarFallback>{npc.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start">
                 <h3 className="font-bold">{npc.name}</h3>
-                <p className="text-sm">{title}</p>
+                <p className="text-sm text-left">{title}</p>
               </div>
             </div>
             {isOpen ? <ChevronDown /> : <ChevronUp />}
@@ -124,7 +124,7 @@ function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
       >
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between px-4 py-1">
-            <h3 className="font-bold">{doc.title}</h3>
+            <h3 className="font-bold text-left">{doc.title}</h3>
             <div className="flex">
               <p>({doc.type})</p>
               {isOpen ? <ChevronDown /> : <ChevronUp />}
