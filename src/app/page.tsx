@@ -121,7 +121,7 @@ export default function HomePage() {
           variant="ghost"
           size="sm"
           onClick={toggleAnalytics}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-50"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-20"
         >
           {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
           {showAnalytics ? <ChevronUp className="h-10 w-10" /> : <ChevronDown className="h-10 w-10" />}
@@ -138,7 +138,7 @@ export default function HomePage() {
             <div className="flex flex-col max-w-5xl mx-auto px-4 space-y-5">
               <ScoreCard scores={scores} />
               <AchievementsCard />
-              <ProgressCard scenariosCompleted={scenariosCompleted} />
+              <ProgressCard completedScenarios={scenariosCompleted} />
             </div>
           )}
         </div>
