@@ -129,9 +129,19 @@ progress {
 progress::-webkit-progress-bar {
   background-color: transparent;
 }
+
 progress::-webkit-progress-value {
   background-color: transparent;
+  /* background-color: linear-gradient(90deg, red 50%, lime 50%); */
+  /* background-color: lime; */
+  border-right: 2px solid;
 }
+
+progress::-moz-progress-bar {
+  background-color: transparent;
+  border-right: 2px solid;
+}
+
 progress::-moz-progress-bar {
   background-color: transparent;
 }

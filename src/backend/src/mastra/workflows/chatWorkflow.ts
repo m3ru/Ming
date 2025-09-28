@@ -83,10 +83,10 @@ const callAgent = createStep({
       fullAdditionalContext: additionalContext
     });
     
-    if (chatType === 'scenario' && !prompt.includes("senior software engineer")) {
-      const { billPrompt } = await import('../../lib/prompts');
-      modifiedPrompt = `${billPrompt}\n\nUser: ${prompt}`;
-      console.log("Applied Bill prompt in workflow");
+    if (chatType === 'scenario' && !prompt.includes("mid-level full-stack")) {
+      const { bartPrompt } = await import('../../lib/prompts');
+      modifiedPrompt = `${bartPrompt}\n\nUser: ${prompt}`;
+      console.log("Applied bart prompt in workflow");
     } else if (chatType === 'transcript' && !prompt.includes("communication coach")) {
       const { feedbackReplyPrompt } = await import('../../lib/prompts');
       

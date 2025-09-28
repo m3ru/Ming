@@ -26,6 +26,7 @@ import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
 import { Separator } from "@/components/ui/separator";
 import { billPrompt } from "@/lib/prompts";
+import { bartPrompt } from "@/lib/prompts";
 
 // Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -38,14 +39,14 @@ if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
   storeWithPatchFlag.sendMessage = (msg, ...args) => {
     if (typeof msg === "string") {
       let modifiedMsg = msg as string;
-      
+
       // Always get the latest contextDocs and documents from the store
       const state = useCedarStore.getState();
       const contextDocsVal: number[] =
         ((state as any)["contextDocs"] as number[]) || [];
       const documentsVal =
         ((state as any)["documents"] as Array<{ title: string }>) || [];
-      
+
       // Prepend document references if they exist
       if (
         contextDocsVal &&
@@ -60,7 +61,7 @@ if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
           modifiedMsg = `re: (${docNames}) ${modifiedMsg}`;
         }
       }
-      
+
       msg = modifiedMsg as any;
     }
     return origSend(msg as any, ...args);
@@ -137,7 +138,7 @@ export const SidePanelCedarChat: React.FC<
       }
       if (m.role === "user") return `user: ${m.content}`;
       if (m.role === "assistant" || m.role === "bot")
-        return `bill: ${m.content}`;
+        return `bart: ${m.content}`;
       return null;
     })
     .filter(Boolean)
@@ -174,14 +175,14 @@ export const SidePanelCedarChat: React.FC<
 
   // Subscribe scenario context to agent
   useSubscribeStateToAgentContext(
-    'scenarioContext',
+    "scenarioContext",
     (context) => ({
-      chatType: 'scenario',
-      scenarioType: context
+      chatType: "scenario",
+      scenarioType: context,
     }),
     {
       showInChat: false,
-      color: '#8b5cf6',
+      color: "#8b5cf6",
     }
   );
 
@@ -227,7 +228,7 @@ export const SidePanelCedarChat: React.FC<
     "documents",
     (documents) => ({
       chatContext: "scenario",
-      promptType: "bill",
+      promptType: "bart",
       scenarioDocuments: documents,
       resourceId: resourceId,
     }),
@@ -277,7 +278,7 @@ export const SidePanelCedarChat: React.FC<
           transcript: transcript,
           additionalContext: {
             scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
-            participants: ["user", "bill"],
+            participants: ["user", "bart"],
             meetingType: "project_review",
           },
           memory: {
@@ -360,13 +361,13 @@ export const SidePanelCedarChat: React.FC<
           <div className="flex flex-col items-center mt-6">
             <Image
               src="/bill.png.jpeg"
-              alt="Bill walking back to his office"
+              alt="Bart walking back to his office..."
               width={120}
               height={120}
               className="rounded-md shadow"
             />
             <div className="mt-2 text-base text-center text-gray-600">
-              Bill is walking back to his office
+              Bart is walking back to his office
             </div>
           </div>
         </div>
@@ -393,13 +394,13 @@ export const SidePanelCedarChat: React.FC<
               {companyLogo && (
                 <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
               )}
-              <span className="text-lg font-bold truncate">{title}</span>
+              <span className="lg:text-lg font-bold truncate">{title}</span>
             </div>
             <div className="flex items-center flex-shrink-0 gap-2">
               <Button
                 variant="destructive"
                 onClick={handleStop}
-                className="mr-2"
+                className="mr-2 cursor-pointer"
               >
                 End Scenario
               </Button>

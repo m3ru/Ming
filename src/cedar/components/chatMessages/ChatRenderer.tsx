@@ -48,7 +48,7 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
     const roleClasses =
       role === "bot" || role === "assistant"
         ? `dark:text-gray-100 text-[black] w-full`
-        : "text-[white] px-3 py-2";
+        : "text-[white] px-2 py-1 lg:px-3 lg:py-2";
 
     const style =
       role === "bot" || role === "assistant"
@@ -78,21 +78,21 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
       }`}
     >
       <div
-        className={`flex items-end ${message.role === "user" ? "justify-end" : "justify-start"} mb-1 space-x-2`}
+        className={`flex items-end ${message.role === "user" ? "justify-end" : "justify-start"} lg:mb-1 space-x-1 lg:space-x-2`}
       >
         {(message.role === "bot" || message.role === "assistant") && (
           <Avatar>
             <AvatarImage
-              className="rounded-full h-8 w-8"
-              src={Scenarios.demandingClient.npcs[0].pfp}
-              alt={Scenarios.demandingClient.npcs[0].name}
+              className="rounded-full h-6 w-6 g:h-8 lg:w-8"
+              src={Scenarios.negativeReview.npcs[0].pfp}
+              alt={Scenarios.negativeReview.npcs[0].name}
             />
           </Avatar>
         )}
         <div className="text-sm text-gray-500">
           {message.role === "user"
             ? "You"
-            : Scenarios.demandingClient.npcs[0].name}
+            : Scenarios.negativeReview.npcs[0].name}
         </div>
       </div>
       <div {...getMessageStyles(message.role)}>

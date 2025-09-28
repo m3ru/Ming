@@ -7,7 +7,7 @@ import { LibSQLStore } from "@mastra/libsql";
 import { GoogleVoice } from "@mastra/voice-google";
 import { OpenAIVoice } from "@mastra/voice-openai";
 
-const scenario = Scenarios.demandingClient;
+const scenario = Scenarios.negativeReview;
 const npc = scenario.npcs[0]; // Bill
 
 // export const billVoice = new GoogleVoice({
@@ -36,7 +36,7 @@ export const billVoice = new OpenAIVoice({
  * For adapting to CedarOS workflow
  */
 export const defaultAgent = new Agent({
-  name: '',
+  name: 'Bart',
   voice: billVoice,
   instructions:``,
   model: google("gemini-2.5-flash"),

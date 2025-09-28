@@ -12,7 +12,7 @@ const result = await run.start({
     transcript: transcript,
     additionalContext: {
 		scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
-        participants: ['user', 'bill'],
+        participants: ['user', 'bart'],
         meetingType: 'project_review'
     },
   }
