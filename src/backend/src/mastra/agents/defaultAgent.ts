@@ -32,20 +32,17 @@ export const billVoice = new OpenAIVoice({
 });
 
 /**
- * Bill Agent - Developer focused on logic and efficiency
- *
- * Bill is an analytical thinker who values logic and efficiency, sometimes at the expense
- * of interpersonal relationships. As a developer, he focuses on technical challenges
- * and realistic expectations.
+ * Default Agent
+ * For adapting to CedarOS workflow
  */
-export const billAgent = new Agent({
-  name: npc.name,
+export const defaultAgent = new Agent({
+  name: '',
   voice: billVoice,
   instructions:``,
-  model: google("gemini-2.5-flash"),
+  model: google("gemini-2.5-flash-lite"),
   memory: new Memory({
     storage: new LibSQLStore({
-      url: "file:bill-memory.db",
+      url: "file:default-memory.db",
     }),
     options: {
       workingMemory: {
