@@ -6,6 +6,7 @@ import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
 import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import { MessageSquare } from 'lucide-react';
 import { feedbackReplyPrompt } from '@/lib/prompts';
+import './TranscriptChatPanel.css';
 
 interface TranscriptChatPanelProps {
   segments: Array<{ title: string; content: string }>;
@@ -76,13 +77,48 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     }
   );
 
-  // Register mention provider for transcript segments
+  // Transform segments to extract only feedback from comment tags
+  const mentionableFeedback = useMemo(() => {
+    const feedbackItems: Array<{id: string, title: string, comment: string, feedback: string}> = [];
+    
+    segments.forEach((segment, segmentIndex) => {
+      // Extract feedback from comment tags using regex
+      const commentRegex = /<comment[^>]*feedback="([^"]*)"[^>]*>/g;
+      let match;
+      let commentIndex = 0;
+      
+      while ((match = commentRegex.exec(segment.content)) !== null) {
+        const feedbackText = match[1];
+        if (feedbackText && feedbackText.trim()) {
+          feedbackItems.push({
+            id: `feedback-${segmentIndex}-${commentIndex}`,
+            title: feedbackText, // Show and insert only the feedback text
+            comment: segment.title, // Original segment title for context
+            feedback: feedbackText, // Clean feedback text
+          });
+          commentIndex++;
+        }
+      }
+    });
+    
+    return feedbackItems;
+  }, [segments]);
+
+  // Register feedback items as state for mentioning
+  useRegisterState({
+    key: 'transcriptFeedback',
+    description: 'Feedback items from annotated transcript for mentioning in chat',
+    value: mentionableFeedback,
+    setValue: () => {}, // Read-only
+  });
+
+  // Register mention provider for feedback items
   useStateBasedMentionProvider({
-    stateKey: 'transcriptSegments',
-    trigger: '#',
-    labelField: 'title',
-    searchFields: ['title', 'content'],
-    description: 'Transcript Segments',
+    stateKey: 'transcriptFeedback',
+    trigger: '@',
+    labelField: 'title', // Show and insert only the feedback text
+    searchFields: ['feedback', 'comment'], // Search in feedback and comment
+    description: 'Feedback',
     icon: (
       <MessageSquare className="w-4 h-4" />
     ),
@@ -98,7 +134,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
         <h3 className="text-lg font-semibold text-gray-800">Ask About Your Performance</h3>
       </div>
 
-      {/* Welcome Message */}
+      {/* Welcome Message 
       <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex-shrink-0">
         <div className="text-xs text-blue-700 space-y-1">
           <div>• "Why did I get a low empathy score?"</div>
@@ -107,6 +143,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
           <div>• Use <code className="bg-blue-200 px-1 rounded">#</code> to reference specific transcript segments</div>
         </div>
       </div>
+      */}
 
       {/* Chat Messages Area - Fixed height with scroll */}
       <div className="flex-1 overflow-y-auto bg-white">
@@ -115,12 +152,15 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
 
       {/* Chat Input */}
       <div className="flex-shrink-0 p-2 bg-white border-t border-gray-200 rounded-b-lg">
-        <ChatInput
-          handleFocus={() => {}}
-          handleBlur={() => {}}
-          isInputFocused={false}
-          stream={true}
-        />
+        <div className="w-full overflow-hidden">
+          <ChatInput
+            handleFocus={() => {}}
+            handleBlur={() => {}}
+            isInputFocused={false}
+            stream={true}
+            className="mention-input-wrapper"
+          />
+        </div>
       </div>
     </div>
   );
