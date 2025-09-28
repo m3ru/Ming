@@ -1,11 +1,24 @@
 "use client"
 
+import React from "react";
 import { Card, CardHeader, CardContent } from "./ui/card"
 
-export default function ProgressCard({ completedScenarios }: { completedScenarios: number }) {
+export default function ProgressCard() {
     // Progress tracker
+    const [scenariosCompleted, setScenariosCompleted] = React.useState(0);
+    
+    React.useEffect(() => {
+        const numScenesString = localStorage.getItem('numScenariosCompleted');
+        if (!numScenesString) {
+        localStorage.setItem('numScenariosCompleted', "0");
+        }
+        else {
+        setScenariosCompleted(parseInt(numScenesString));
+        }
+    }, []);
     const totalScenarios = 5;
-    const progressPercent = (completedScenarios / totalScenarios) * 100;
+    const progressPercent = (scenariosCompleted / totalScenarios) * 100;
+    console.log('Progress percent:', progressPercent);
 
     return (
         <Card className="w-full shadow-lg border border-gray-200">
@@ -20,7 +33,7 @@ export default function ProgressCard({ completedScenarios }: { completedScenario
                 />
                 </div>
                 <p className="mt-2 text-sm text-gray-600">
-                {completedScenarios} of {totalScenarios} scenarios completed
+                {scenariosCompleted} of {totalScenarios} scenarios completed
                 </p>
             </CardContent>
         </Card>
