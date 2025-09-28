@@ -9,7 +9,7 @@ import { z } from "zod";
 import { helloWorldAgent } from "../agents/helloWorldAgent";
 import { handleTextStream, streamJSONEvent } from "../../utils/streamUtils";
 import { ActionSchema } from "./chatWorkflowTypes";
-import { billAgent } from "../agents/billAgent";
+import { defaultAgent } from "../agents/defaultAgent";
 
 export const ChatInputSchema = z.object({
   prompt: z.string(),
@@ -71,7 +71,7 @@ const callAgent = createStep({
      * streamVNext returns a stream result that we can iterate over to get chunks
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
-    const streamResult = await billAgent.streamVNext(messages, {
+    const streamResult = await defaultAgent.streamVNext(messages, {
       // If system prompt is provided, overwrite the default system prompt for this agent
       ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
       modelSettings: {
