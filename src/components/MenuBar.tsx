@@ -37,7 +37,7 @@ export default function MenuBar() {
           >
             Reports
           </a>
-          <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
+          <div className="pointer-events-none h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium">
             M
           </div>
         </div>

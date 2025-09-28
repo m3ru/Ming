@@ -19,7 +19,7 @@ export default function ScenarioCard({
   role?: string;
 }) {
   return (
-    <Link href={locked ? "#" : "/scenario"} className="w-full flex-1">
+    <Link href={locked ? "#" : "/scenario"} className={`w-full flex-1 ${locked ? "cursor-not-allowed" : ""}`}>
       <Card
         className={`flex-1 flex flex-col p-2 max-w-1md relative ${locked ? "opacity-60" : "hover:shadow-lg hover:scale-[1.02] transition-transform duration-200"}`}
         style={{ backgroundColor: color }}
