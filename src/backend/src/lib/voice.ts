@@ -76,7 +76,7 @@ export async function speechToText(audioBlob: Blob) {
     return transcriptionObj as string;
   } catch (error) {
     console.error("Error during transcription:", error);
-    return "Hi Bill!";
+    return "Hi Bart!";
   }
 }
 
