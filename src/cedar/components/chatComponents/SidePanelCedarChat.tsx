@@ -367,7 +367,7 @@ export const SidePanelCedarChat: React.FC<
               className="rounded-md shadow"
             />
             <div className="mt-2 text-base text-center text-gray-600">
-              Bill is walking back to his office
+              Bart is walking back to his office
             </div>
           </div>
         </div>
