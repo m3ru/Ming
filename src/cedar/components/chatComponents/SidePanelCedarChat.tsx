@@ -26,6 +26,7 @@ import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
 import { Separator } from "@/components/ui/separator";
 import { billPrompt } from "@/lib/prompts";
+import { bartPrompt } from "@/lib/prompts";
 
 // Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -227,7 +228,7 @@ export const SidePanelCedarChat: React.FC<
     "documents",
     (documents) => ({
       chatContext: "scenario",
-      promptType: "bill",
+      promptType: "bart",
       scenarioDocuments: documents,
       resourceId: resourceId,
     }),

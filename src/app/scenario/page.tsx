@@ -15,7 +15,7 @@ import { Sentiment } from "@/lib/googleSentiment";
 import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
 
-const scenario = Scenarios.demandingClient;
+const scenario = Scenarios.negativeReview;
 
 export default function ScenarioPage() {
   const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);

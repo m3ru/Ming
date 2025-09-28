@@ -7,7 +7,7 @@ import { LibSQLStore } from "@mastra/libsql";
 import { GoogleVoice } from "@mastra/voice-google";
 import { OpenAIVoice } from "@mastra/voice-openai";
 
-const scenario = Scenarios.demandingClient;
+const scenario = Scenarios.negativeReview;
 const npc = scenario.npcs[0]; // Bill
 
 // export const billVoice = new GoogleVoice({
