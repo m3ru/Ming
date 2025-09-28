@@ -7,13 +7,15 @@ export default function ScenarioCard({
   title, 
   description, 
   color, 
-  locked = false 
+  locked = false,
+  role 
 }: { 
   imageUrl: string; 
   title: string; 
   description: string; 
   color: string; 
   locked?: boolean;
+  role?: string;
 }) {
     return (
     <Card className={`flex-1 flex flex-col p-2 max-w-1md relative ${locked ? 'opacity-60' : ''}`} style={{ backgroundColor: color }}>
@@ -38,10 +40,17 @@ export default function ScenarioCard({
                 className={`w-full h-48 object-cover rounded ${locked ? 'grayscale' : ''}`}
                 loading="lazy"
                 />
-                {locked && (
-                    <p className="text-sm text-gray-500 mt-2 text-center">
-                        Complete previous scenarios to unlock
-                    </p>
+                
+                {role && (
+                    <div className="mt-2 text-center">
+                        <span className={`text-sm font-semibold uppercase tracking-wide ${
+                            role === 'Intern' ? 'text-green-600' : 
+                            role === 'Manager' ? 'text-blue-800' : 
+                            role === 'CEO' ? 'text-black' : 'text-gray-600'
+                        }`}>
+                            {role}
+                        </span>
+                    </div>
                 )}
             </CardContent>
     </Card>
