@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CedarCopilot, ProviderConfig } from "cedar-os";
 import { messageRenderers } from "@/cedar/messageRenderers";
+import MenuBar from "@/components/MenuBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,11 +16,14 @@ const geistMono = Geist_Mono({
 });
 
 function generateRandomId(): string {
-  return 'xxxxxxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return "xxxxxxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+    /[xy]/g,
+    function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c == "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    }
+  );
 }
 
 export default function RootLayout({
@@ -53,6 +57,7 @@ export default function RootLayout({
             endpoint: "/chat/voice", // Optional: Custom voice endpoint
           }}
         >
+          <MenuBar />
           {children}
         </CedarCopilot>
       </body>
