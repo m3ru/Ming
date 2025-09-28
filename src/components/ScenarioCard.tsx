@@ -44,9 +44,9 @@ export default function ScenarioCard({
                 {role && (
                     <div className="mt-2 text-center">
                         <span className={`text-sm font-semibold uppercase tracking-wide ${
-                            role === 'Intern' ? 'text-green-600' : 
-                            role === 'Manager' ? 'text-blue-800' : 
-                            role === 'CEO' ? 'text-black' : 'text-gray-600'
+                            role === 'Level: Intern' ? 'text-green-600' : 
+                            role === 'Level: Manager' ? 'text-blue-800' : 
+                            role === 'LevelL CEO' ? 'text-black' : 'text-gray-600'
                         }`}>
                             {role}
                         </span>
