@@ -72,7 +72,7 @@ export default function ReportPage() {
       <div
         ref={reportRef}
         id="report-content"
-        className="flex flex-col w-full max-w-5xl p-6 space-y-5"
+        className="flex flex-col w-full max-w-6xl p-5 space-y-5"
       >
         {/* Summary */}
         <Collapsible
@@ -181,7 +181,7 @@ export default function ReportPage() {
         >
           <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
             <h2 className="flex-grow text-2xl font-bold text-center">
-              Annotated Transcript & Performance Q&A
+              Annotated Transcript + Q&A
             </h2>
             {isTranscriptOpen ? (
               <ChevronUp className="w-6 h-6" />
@@ -190,7 +190,7 @@ export default function ReportPage() {
             )}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <div className="flex gap-4 min-h-[500px]">
+            <div className="flex min-h-[500px]">
               {/* Left side - Annotated Transcript */}
 
               <div className="flex-[1] min-w-[300px]">

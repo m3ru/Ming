@@ -163,7 +163,7 @@ export default function AnnotatedTranscript({ segments }: { segments?: { title: 
   React.useEffect(() => {
     if (segments && segments.length > 0) {
       const built = segments
-        .map((s) => `**${s.title}**\n\n${s.content}`)
+        .map((s) => `*${s.title}*\n\n${s.content}`)
         .join("\n\n");
       setMd(built);
       return;
@@ -183,7 +183,7 @@ export default function AnnotatedTranscript({ segments }: { segments?: { title: 
   const blocks = React.useMemo(() => renderMarkdownBlocks(md), [md]);
 
   return (
-    <div className="bg-white p-5 pt-0 rounded-md overflow-auto">
+    <div className="bg-white p-0 pl-5 rounded-md overflow-auto">
       <div>
         {blocks.map((block, i) => (
           <div key={i} className="flex items-start py-1 gap-2 leading-snug">
@@ -192,7 +192,7 @@ export default function AnnotatedTranscript({ segments }: { segments?: { title: 
               {block.transcript}
             </div>
 
-            <div className="w-56 py-1">
+            <div className="w-45 py-1">
               {block.comment && (
                 <div className="bg-gray-50 border-l-4 border-blue-300 rounded px-2 py-1 text-gray-800 break-words">
                   {block.comment}
