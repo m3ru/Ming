@@ -10,7 +10,7 @@ import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
 import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
 import Container3D from "@/cedar/components/containers/Container3D";
 import { useThreadMessages } from "cedar-os";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   useRegisterState,
   useStateBasedMentionProvider,
@@ -24,39 +24,47 @@ import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
+import { billPrompt } from "@/lib/prompts";
 
-// Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
+// Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
 const cedarStoreGlobal = useCedarStore.getState();
 // Use type assertion to allow custom property
 const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & {
-  _sendMessagePatched?: boolean;
+  _sendMessageDocPatchPatched?: boolean;
 };
-if (!storeWithPatchFlag._sendMessagePatched) {
+if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
   const origSend = cedarStoreGlobal.sendMessage;
   storeWithPatchFlag.sendMessage = (msg, ...args) => {
-    // Always get the latest contextDocs and documents from the store
-    const state = useCedarStore.getState();
-    const contextDocsVal: number[] =
-      ((state as any)["contextDocs"] as number[]) || [];
-    const documentsVal =
-      ((state as any)["documents"] as Array<{ title: string }>) || [];
-    if (
-      typeof msg === "string" &&
-      contextDocsVal &&
-      contextDocsVal.length > 0 &&
-      documentsVal.length > 0
-    ) {
-      const docNames = contextDocsVal
-        .map((idx: number) => documentsVal[idx]?.title)
-        .filter(Boolean)
-        .join(", ");
-      if (docNames && !(msg as string).startsWith("re: (")) {
-        msg = `re: (${docNames}) ${msg}` as any;
+    if (typeof msg === "string") {
+      let modifiedMsg = msg as string;
+      
+      // Always get the latest contextDocs and documents from the store
+      const state = useCedarStore.getState();
+      const contextDocsVal: number[] =
+        ((state as any)["contextDocs"] as number[]) || [];
+      const documentsVal =
+        ((state as any)["documents"] as Array<{ title: string }>) || [];
+      
+      // Prepend document references if they exist
+      if (
+        contextDocsVal &&
+        contextDocsVal.length > 0 &&
+        documentsVal.length > 0
+      ) {
+        const docNames = contextDocsVal
+          .map((idx: number) => documentsVal[idx]?.title)
+          .filter(Boolean)
+          .join(", ");
+        if (docNames && !modifiedMsg.startsWith("re: (")) {
+          modifiedMsg = `re: (${docNames}) ${modifiedMsg}`;
+        }
       }
+      
+      msg = modifiedMsg as any;
     }
     return origSend(msg as any, ...args);
   };
-  storeWithPatchFlag._sendMessagePatched = true;
+  storeWithPatchFlag._sendMessageDocPatchPatched = true;
 }
 
 interface SidePanelCedarChatProps {
@@ -155,6 +163,27 @@ export const SidePanelCedarChat: React.FC<
     setValue: setResourceId,
   });
 
+  // Register scenario context marker
+  useRegisterState({
+    key: "scenarioContext",
+    description: "Marker to indicate we're in scenario chat context",
+    value: "bill_scenario",
+    setValue: () => {},
+  });
+
+  // Subscribe scenario context to agent
+  useSubscribeStateToAgentContext(
+    'scenarioContext',
+    (context) => ({
+      chatType: 'scenario',
+      scenarioType: context
+    }),
+    {
+      showInChat: false,
+      color: '#8b5cf6',
+    }
+  );
+
   // Register scenario documents as state for Cedar
   const [cedarDocuments, setCedarDocuments] = useState(documents);
   useRegisterState({
@@ -192,20 +221,7 @@ export const SidePanelCedarChat: React.FC<
     order: 5,
   });
 
-  // Subscribe scenario context to agent - this tells the backend to use billPrompt
-  useSubscribeStateToAgentContext(
-    'documents',
-    (documents) => ({
-      chatContext: 'scenario',
-      promptType: 'bill',
-      scenarioDocuments: documents,
-      resourceId: resourceId
-    }),
-    {
-      showInChat: false,
-      color: '#8b5cf6',
-    }
-  );
+
 
   // Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
 
