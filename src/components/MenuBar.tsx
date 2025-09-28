@@ -9,7 +9,7 @@ export default function MenuBar() {
         {/* Left: Home */}
         <button
           onClick={() => (window.location.href = "/")}
-          className="inline-flex items-center gap-2 text-gray-800 hover:bg-gray-100 rounded-md px-2 py-1 text-sm font-semibold"
+          className="inline-flex items-center gap-2 text-gray-800 hover:bg-gray-100 rounded-md px-2 py-1 text-sm font-semibold cursor-pointer"
           aria-label="Home"
         >
           <svg
