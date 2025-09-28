@@ -399,7 +399,7 @@ export const SidePanelCedarChat: React.FC<
               <Button
                 variant="destructive"
                 onClick={handleStop}
-                className="mr-2"
+                className="mr-2 cursor-pointer"
               >
                 End Scenario
               </Button>
