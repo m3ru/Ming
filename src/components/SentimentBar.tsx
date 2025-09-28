@@ -20,7 +20,7 @@ export default function SentimentBar({
       }}
       className="w-full flex items-center justify-center overflow-x-clip transition-all duration-500 py-1"
     >
-      <Badge className="z-10 text-black bg-white">
+      <Badge className="z-10 text-black bg-white pointer-events-none">
         You are {Math.abs(Math.round((value - 0.5) * 200))}% {descriptor}
       </Badge>
     </span>
