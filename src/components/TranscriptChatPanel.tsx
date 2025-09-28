@@ -105,7 +105,7 @@ Be encouraging, constructive, and specific in your responses. When users ask abo
   });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 border border-gray-200 rounded-lg">
+    <div className="flex flex-col max-h-4xl h-full bg-gray-50 border border-gray-200 rounded-lg max-w-md mr-0">
       {/* Header */}
       <div className="flex items-center px-4 py-3 border-b border-gray-200 bg-white rounded-t-lg">
         <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
