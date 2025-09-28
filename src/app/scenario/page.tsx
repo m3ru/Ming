@@ -11,6 +11,9 @@ import { mastraClient } from "@/lib/mastra-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getScenarioFromLocalStorage } from "@/lib/scenarioUtil";
 import { Scenario } from "@/lib/types";
+import { Sentiment } from "@/lib/googleSentiment";
+import { Progress } from "@/components/ui/progress";
+import SentimentBar from "@/components/SentimentBar";
 
 const scenario = Scenarios.demandingClient;
 
@@ -130,6 +133,10 @@ Success Criteria:
 - Demonstrate effective Scrum Master facilitation skills
     `.trim();
   };
+
+  const [userSentiment, setUserSentiment] = useState<Sentiment>();
+  const [botSentiment, setBotSentiment] = useState<Sentiment>();
+
   return (
     <div className="overflow-y-clip">
       <MenuBar />
@@ -143,8 +150,16 @@ Success Criteria:
               </p>
             </div>
           ) : (
-            <div className="w-full p-2 text-center bg-white">
-              {currentScenario.title}
+            <div className="w-full text-center bg-white z-10">
+              <h1 className="p-2">{currentScenario.title}</h1>
+              <div className="flex flex-col w-full gap-1">
+                {userSentiment && (
+                  <SentimentBar label="You" sentiment={userSentiment.score} />
+                )}
+                {/* {botSentiment && (
+                  <SentimentBar label="Bill" sentiment={botSentiment.score} />
+                )} */}
+              </div>
             </div>
           )}
           {/*<div className="w-full p-2 text-center bg-white">
@@ -159,7 +174,11 @@ Success Criteria:
             style={{ height: "calc(100vh - 3rem)" }}
           >
             {/* <SimpleChatPanel /> */}
-            <SidePanelCedarChat documents={currentScenario.documents} />
+            <SidePanelCedarChat
+              documents={currentScenario.documents}
+              setUserSentiment={setUserSentiment}
+              setBotSentiment={setBotSentiment}
+            />
           </div>
         </div>
       </div>

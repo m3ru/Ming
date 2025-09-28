@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 @import "tailwindcss/preflight";
 @tailwind utilities;
@@ -134,4 +134,17 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+progress {
+  /* style rules */
+}
+progress::-webkit-progress-bar {
+  background-color: transparent;
+}
+progress::-webkit-progress-value {
+  background-color: transparent;
+}
+progress::-moz-progress-bar {
+  background-color: transparent;
 }

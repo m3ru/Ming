@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { X } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { useCedarStore } from "cedar-os";
 import "dotenv/config";
-import { mastraClient } from '@/lib/mastra-client';
+import { mastraClient } from "@/lib/mastra-client";
 import { SidePanelContainer } from "@/cedar/components/structural/SidePanelContainer";
 import { CollapsedButton } from "@/cedar/components/chatMessages/structural/CollapsedChatButton";
 import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
@@ -20,8 +20,9 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Image from "next/image";
-import { contextForAnalysis } from '@/lib/scenarioUtil';
-import { Scenarios } from '@/backend/src/lib/scenarios';
+import { contextForAnalysis } from "@/lib/scenarioUtil";
+import { Scenarios } from "@/backend/src/lib/scenarios";
+import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
 
 // Patch Cedar's sendMessage to prepend doc names if contextDocs is non-empty (patch only once, outside component)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -80,7 +81,12 @@ interface SidePanelCedarChatProps {
   }>;
 }
 
-export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
+export const SidePanelCedarChat: React.FC<
+  SidePanelCedarChatProps & {
+    setUserSentiment: (sentiment: Sentiment) => void;
+    setBotSentiment: (sentiment: Sentiment) => void;
+  }
+> = ({
   children, // Page content
   side = "right",
   title = "Chat",
@@ -97,6 +103,8 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
   topOffset = 0,
   stream = true,
   documents = [],
+  setUserSentiment,
+  setBotSentiment,
 }) => {
   // Get showChat state and setShowChat from store
   const showChat = useCedarStore((state) => state.showChat);
@@ -109,7 +117,12 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
   const transcript = messages
     .map((m) => {
       // Skip messages with undefined/empty content or tool-related messages
-      if (!m.content || m.content.trim() === '' || m.type === 'tool-call' || m.type === 'tool-result') {
+      if (
+        !m.content ||
+        m.content.trim() === "" ||
+        m.type === "tool-call" ||
+        m.type === "tool-result"
+      ) {
         return null;
       }
       if (m.role === "user") return `user: ${m.content}`;
@@ -183,76 +196,112 @@ export const SidePanelCedarChat: React.FC<SidePanelCedarChatProps> = ({
   const [showSpinner, setShowSpinner] = useState(false);
   const [hideCompletely, setHideCompletely] = useState(false);
 
-const handleStop = async () => {
-	setShowSpinner(true);
-	setShowChat(false); // Hide the chat panel so spinner is fully visible
-	setHideCompletely(true); // Hide the collapsed button as well
-	try {
-		// const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
-		// 	method: 'POST',
-		// 	headers: { 'Content-Type': 'application/json' },
-		// 	body: JSON.stringify({
-		// 		messages: [
-		// 			{
-		// 				role: 'user',
-		// 				content: transcript,
-		// 			},
-		// 		],
-		// 		memory: {
-		// 			thread: currentThreadId,
-		// 			resource: resourceId,
-		// 		},
-		// 	}),
-		// });
-		// const data = await response.json();
-		// localStorage.setItem('reportData', JSON.stringify(data));
-		// router.push('/report');
-		const workflow = await mastraClient.getWorkflow("feedbackOrchestratorWorkflow");
-		console.log("Workflow", workflow);
-		const run = await workflow.createRunAsync();
+  const handleStop = async () => {
+    setShowSpinner(true);
+    setShowChat(false); // Hide the chat panel so spinner is fully visible
+    setHideCompletely(true); // Hide the collapsed button as well
+    try {
+      // const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
+      // 	method: 'POST',
+      // 	headers: { 'Content-Type': 'application/json' },
+      // 	body: JSON.stringify({
+      // 		messages: [
+      // 			{
+      // 				role: 'user',
+      // 				content: transcript,
+      // 			},
+      // 		],
+      // 		memory: {
+      // 			thread: currentThreadId,
+      // 			resource: resourceId,
+      // 		},
+      // 	}),
+      // });
+      // const data = await response.json();
+      // localStorage.setItem('reportData', JSON.stringify(data));
+      // router.push('/report');
+      const workflow = await mastraClient.getWorkflow(
+        "feedbackOrchestratorWorkflow"
+      );
+      console.log("Workflow", workflow);
+      const run = await workflow.createRunAsync();
 
-		const result = await run.startAsync({
-		inputData: {
-			transcript: transcript,
-			additionalContext: {
-				scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
-				participants: ['user', 'bill'],
-				meetingType: 'project_review'
-			},
-			memory: {
-				thread: currentThreadId,
-				resource: resourceId
-			}
-		}
-		});
-		
-		console.log("Full workflow result:", result);
-		
-		// Check if the workflow succeeded before accessing the data
-		if (result.status === 'success') {
-			const workflowOutput = result.result;
-			console.log("Workflow output:", workflowOutput);
-			localStorage.setItem('reportData', JSON.stringify({
-				summary: workflowOutput?.summaryAnalysis,
-				detail: workflowOutput?.detailedFeedback,
-				analysis: workflowOutput?.segmentedAnalysis,
-			}));
-			// Mark scenario as completed for new prompt generation
-			localStorage.setItem('scenarioCompleted', 'true');
-			console.log(localStorage.getItem('reportData'));
-			router.push('/report');
-		} else if (result.status === 'failed') {
-			console.error('Workflow failed:', (result as any).error);
-			// Handle the failure case appropriately
-		} else {
-			console.error('Workflow in unexpected state:', result.status);
-		}
-	} catch (e) {
-		console.error('Failed to send transcript to analyzer:', e);
-	} finally {
-		setShowSpinner(false);
-	}
-};
+      const result = await run.startAsync({
+        inputData: {
+          transcript: transcript,
+          additionalContext: {
+            scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
+            participants: ["user", "bill"],
+            meetingType: "project_review",
+          },
+          memory: {
+            thread: currentThreadId,
+            resource: resourceId,
+          },
+        },
+      });
+
+      console.log("Full workflow result:", result);
+
+      // Check if the workflow succeeded before accessing the data
+      if (result.status === "success") {
+        const workflowOutput = result.result;
+        console.log("Workflow output:", workflowOutput);
+        localStorage.setItem(
+          "reportData",
+          JSON.stringify({
+            summary: workflowOutput?.summaryAnalysis,
+            detail: workflowOutput?.detailedFeedback,
+            analysis: workflowOutput?.segmentedAnalysis,
+          })
+        );
+        // Mark scenario as completed for new prompt generation
+        localStorage.setItem("scenarioCompleted", "true");
+        console.log(localStorage.getItem("reportData"));
+        router.push("/report");
+      } else if (result.status === "failed") {
+        console.error("Workflow failed:", (result as any).error);
+        // Handle the failure case appropriately
+      } else {
+        console.error("Workflow in unexpected state:", result.status);
+      }
+    } catch (e) {
+      console.error("Failed to send transcript to analyzer:", e);
+    } finally {
+      setShowSpinner(false);
+    }
+  };
+
+  function updateSentiment(
+    set: (sentiment: Sentiment) => void,
+    messageRole: string
+  ) {
+    const roleMessages = messages.filter((m) => m.role === messageRole);
+
+    const lastMessages = roleMessages.slice(-3); // Get the last 3 messages
+
+    const combinedContent = lastMessages
+      .map((m) => m.content)
+      .filter(Boolean)
+      .join(" ");
+
+    if (combinedContent) {
+      analyzeSentiment(combinedContent).then((data) => {
+        set(data);
+        console.log(
+          `${messageRole} sentiment analysis result:`,
+          data,
+          "for content:",
+          combinedContent
+        );
+      });
+    }
+  }
+
+  useEffect(() => {
+    updateSentiment(setUserSentiment, "user");
+    updateSentiment(setBotSentiment, "assistant");
+  }, [messages]);
 
   return (
     <>
