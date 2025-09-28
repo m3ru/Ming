@@ -14,6 +14,7 @@ import { Scenario } from "@/lib/types";
 import { Sentiment } from "@/lib/googleSentiment";
 import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
+import useOrientation from "@/hooks/useOrientation";
 
 const scenario = Scenarios.negativeReview;
 
@@ -105,26 +106,7 @@ function ScenarioPageContent() {
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
   const [botSentiment, setBotSentiment] = useState<Sentiment>();
 
-  const [orientation, setOrientation] = useState<"landscape" | "portrait">(
-    "landscape"
-  );
-
-  useEffect(() => {
-    const updateOrientation = () => {
-      if (window.innerWidth > window.innerHeight) {
-        setOrientation("landscape");
-      } else {
-        setOrientation("portrait");
-      }
-    };
-
-    window.addEventListener("resize", updateOrientation);
-    updateOrientation(); // Call on mount
-
-    return () => {
-      window.removeEventListener("resize", updateOrientation);
-    };
-  }, []);
+  const orientation = useOrientation();
 
   if (orientation === "portrait") {
     return (
@@ -139,8 +121,8 @@ function ScenarioPageContent() {
   }
 
   return (
-    <div className="overflow-y-clip">
-      <div className="flex w-screen" >
+    <div className="overflow-y-clip" style={{ height: "calc(100vh - 3rem)" }}>
+      <div className="flex w-screen h-full" >
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
           {isLoadingNewScenario ? (
@@ -150,7 +132,7 @@ function ScenarioPageContent() {
               </p>
             </div>
           ) : null}
-          <div className="flex-grow relative flex items-center justify-center bg-black">
+          <div className="flex-grow relative flex items-center justify-center bg-black" style={{ height: "calc(100vh - 3rem)" }}>
             <ScenarioVideo scenario={currentScenario} />
             <div className="absolute bottom-0 left-0 w-full z-20">
               <SentimentBar
@@ -161,8 +143,7 @@ function ScenarioPageContent() {
         </div>
         <div className="w-[350px] flex flex-col items-end">
           <div
-            className="w-full p-2 bg-white border-l"
-            style={{ height: "calc(100vh - 3rem)" }}
+            className="w-full p-2 bg-white border-l h-full"
           >
             <SidePanelCedarChat
               documents={currentScenario.documents}
