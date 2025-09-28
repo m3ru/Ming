@@ -56,6 +56,8 @@ export default function ReportPage() {
     setSegments(data.segments || []);
     setSuggestions(data.suggestions || "No suggestions found.");
     setScores(data.scores || defaultScores);
+    localStorage.setItem("prevScores", localStorage.getItem("scores") || JSON.stringify(defaultScores));
+    localStorage.setItem("scores", JSON.stringify(data.scores));
   }, []);
 
   const [nextScenario, setNextScenario] = useState<Scenario>();
