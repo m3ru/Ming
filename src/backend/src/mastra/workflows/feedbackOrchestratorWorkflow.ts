@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { RuntimeContext } from '@mastra/core/di';
 import { z } from 'zod';
@@ -171,7 +172,7 @@ const analyzeDetails = createStep({
             },
           }
         : {}),
-    });
+    } as any);
 
     return {
       segmentedAnalysis,
