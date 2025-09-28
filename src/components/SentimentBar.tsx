@@ -9,10 +9,12 @@ export default function SentimentBar({
 }) {
   const value = (sentiment + 1) / 2; // Normalize score from [-1, 1] to [0, 1]
 
+  const descriptor = value < 0 ? "negative" : "positive";
+
   return (
     <span className="w-full flex items-center justify-center overflow-x-clip">
       <Badge className="z-10 text-black bg-white">
-        {label} - {Math.round(value * 100)}% positive
+        You are {Math.round((value - 0.5) * 200)}% {descriptor}
       </Badge>
 
       {/* Background bar */}
