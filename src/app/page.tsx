@@ -67,6 +67,7 @@ export default function HomePage() {
 
   const scenarioCards = [
     <ScenarioCard
+      key="negative-review"
       title="Negative Performance Review"
       imageUrl="/performanceReview.webp"
       description="An employee performance review meeting."
@@ -75,6 +76,7 @@ export default function HomePage() {
       role="Level: Intern"
     />,
     <ScenarioCard
+      key="workplace-conflict"
       title="Workplace Conflict"
       imageUrl="/workplaceConflict.jpg"
       description="A tense discussion between coworkers."
@@ -83,6 +85,7 @@ export default function HomePage() {
       role="Level: Manager"
     />,
     <ScenarioCard
+      key="employee-layoff"
       title="Employee Layoff"
       imageUrl="/employeeLayoff.jpg"
       description="A manager informing an employee about layoffs."
