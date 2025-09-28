@@ -138,7 +138,7 @@ export const SidePanelCedarChat: React.FC<
       }
       if (m.role === "user") return `user: ${m.content}`;
       if (m.role === "assistant" || m.role === "bot")
-        return `bill: ${m.content}`;
+        return `bart: ${m.content}`;
       return null;
     })
     .filter(Boolean)
@@ -278,7 +278,7 @@ export const SidePanelCedarChat: React.FC<
           transcript: transcript,
           additionalContext: {
             scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
-            participants: ["user", "bill"],
+            participants: ["user", "bart"],
             meetingType: "project_review",
           },
           memory: {
@@ -361,7 +361,7 @@ export const SidePanelCedarChat: React.FC<
           <div className="flex flex-col items-center mt-6">
             <Image
               src="/bill.png.jpeg"
-              alt="Bill walking back to his office"
+              alt="Bart walking back to his office..."
               width={120}
               height={120}
               className="rounded-md shadow"
