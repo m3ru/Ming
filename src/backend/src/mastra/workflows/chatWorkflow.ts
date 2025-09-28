@@ -59,6 +59,20 @@ const callAgent = createStep({
     runtimeContext.set("additionalContext", additionalContext);
     runtimeContext.set("streamController", streamController);
 
+    // Determine system prompt based on context
+    let contextSystemPrompt = systemPrompt;
+    if (additionalContext?.promptType && !systemPrompt) {
+      if (additionalContext.promptType === 'bill') {
+        // Import and use bill prompt
+        const { prompt: billPrompt } = await import('../../lib/billPrompt');
+        contextSystemPrompt = billPrompt;
+      } else if (additionalContext.promptType === 'feedbackReply') {
+        // Import and use feedback reply prompt  
+        const { prompt: feedbackReplyPrompt } = await import('../../lib/feedbackReplyPrompt');
+        contextSystemPrompt = feedbackReplyPrompt;
+      }
+    }
+
     const messages = [
       "User message: " + prompt,
       "Additional context (for background knowledge): " +
@@ -72,8 +86,8 @@ const callAgent = createStep({
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
     const streamResult = await billAgent.streamVNext(messages, {
-      // If system prompt is provided, overwrite the default system prompt for this agent
-      ...(systemPrompt ? ({ instructions: systemPrompt } as const) : {}),
+      // If context system prompt is provided, overwrite the default system prompt for this agent
+      ...(contextSystemPrompt ? ({ instructions: contextSystemPrompt } as const) : {}),
       modelSettings: {
         temperature,
         maxOutputTokens: maxTokens,

@@ -5,6 +5,7 @@ import { marked } from "marked";
 import MenuBar from "@/components/MenuBar";
 import Parser from "./parser";
 import AnnotatedTranscript from "@/components/AnnotatedTranscript";
+import TranscriptChatPanel from "@/components/TranscriptChatPanel";
 import {
   Collapsible,
   CollapsibleContent,
@@ -170,7 +171,7 @@ export default function ReportPage() {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Annotated Transcript */}
+        {/* Annotated Transcript with Chat */}
         <Collapsible
           open={isTranscriptOpen}
           onOpenChange={setIsTranscriptOpen}
@@ -178,7 +179,7 @@ export default function ReportPage() {
         >
           <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
             <h2 className="flex-grow text-2xl font-bold text-center">
-              Annotated Transcript
+              Annotated Transcript & Performance Q&A
             </h2>
             {isTranscriptOpen ? (
               <ChevronUp className="w-6 h-6" />
@@ -187,7 +188,25 @@ export default function ReportPage() {
             )}
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-4">
-            <AnnotatedTranscript segments={segments} />
+            <div className="flex gap-4 min-h-[500px]">
+              {/* Left side - Annotated Transcript */}
+
+              <div className="flex-[1] min-w-[300px]">
+                <TranscriptChatPanel 
+                  segments={segments}
+                  feedback={feedback}
+                  suggestions={suggestions}
+                  scores={scoring}
+                />
+              </div>
+              
+              <div className="flex-[2] min-w-0">
+                <AnnotatedTranscript segments={segments} />
+              </div>
+              
+              {/* Right side - Transcript Chat */}
+              
+            </div>
           </CollapsibleContent>
         </Collapsible>
 
