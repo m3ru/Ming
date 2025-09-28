@@ -36,7 +36,7 @@ export const billVoice = new OpenAIVoice({
  * For adapting to CedarOS workflow
  */
 export const defaultAgent = new Agent({
-  name: '',
+  name: 'Bart',
   voice: billVoice,
   instructions:``,
   model: google("gemini-2.5-flash"),

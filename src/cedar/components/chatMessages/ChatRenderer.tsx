@@ -84,15 +84,15 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
           <Avatar>
             <AvatarImage
               className="rounded-full h-6 w-6 g:h-8 lg:w-8"
-              src={Scenarios.demandingClient.npcs[0].pfp}
-              alt={Scenarios.demandingClient.npcs[0].name}
+              src={Scenarios.negativeReview.npcs[0].pfp}
+              alt={Scenarios.negativeReview.npcs[0].name}
             />
           </Avatar>
         )}
         <div className="text-sm text-gray-500">
           {message.role === "user"
             ? "You"
-            : Scenarios.demandingClient.npcs[0].name}
+            : Scenarios.negativeReview.npcs[0].name}
         </div>
       </div>
       <div {...getMessageStyles(message.role)}>
