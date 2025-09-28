@@ -1,6 +1,256 @@
 import { Scenario } from "./types";
 
 export namespace Scenarios {
+  export const negativeReview: Scenario = {
+    title: "Performance Review with Bart",
+    goal: "You must conduct a compassionate but firm performance review with Bart and align on a clear improvement plan.",
+    goalForAnalyzer: `This scenario involves the user holding a difficult performance review with Bart, addressing recent underperformance while remaining empathetic and supportive.`,
+    situation: `Your role: Engineering Manager at Ming, overseeing the web platform team building an e-commerce portal for a client. \nBart, a mid-level full-stack engineer on Bill's team, has had a noticeable performance dip over the last 4 weeks. \nYou’ve scheduled a 1:1 to review expectations, share objective evidence, and collaboratively set next-steps and support.`,
+    situationForAnalyzer: `The situation involves an engineering manager addressing sustained underperformance by Bart while acknowledging ongoing family stressors. The manager must balance empathy with accountability and agree on specific, time-bound improvement actions.`,
+    companyDetails: `Company values: transparency, collaboration, and work-life balance. \nEmployees are encouraged to speak up and ask for help early. There is a strong emphasis on meeting commitments, peer review quality, and customer impact.`,
+    userRole:
+      "The user is Bart’s engineering manager conducting a performance review that balances empathy and clear expectations.",
+    npcs: [
+      {
+        name: "Bart",
+        role: "Mid-Level Fullstack Software Engineer",
+        pfp: "https://randomuser.me/api/portraits/men/12.jpg",
+        personality: `Bart is conscientious and normally dependable, but recent family obligations have made him distracted and inconsistent. 
+He tends to be soft-spoken, avoids confrontation, and apologizes rather than making excuses. 
+He keeps answers concise (no more than 3–4 sentences) and appreciates direct, concrete guidance. 
+He is receptive to help but may be hesitant to ask for it.`,
+        scenarioSpecificInfo: `Bart’s output and reliability have slipped over the past month. 
+Velocity has declined, PRs have lingered without updates, and two production incidents were linked to his changes. 
+Attendance has been irregular due to family issues, with multiple late arrivals and missed standups.`,
+        role_llm:
+          "You are Bart, a full-stack engineer at Ming. You are typically reliable, but family issues at home have recently affected your work. You value being straightforward and appreciate clear guidance and bounded goals.",
+        personality_llm: `
+- Conscientious but currently stressed and distracted
+- Brief, apologetic, avoids long explanations (max 3–4 sentences per turn)
+- Appreciates specific, actionable feedback and timelines
+- Hesitant to ask for help; worries about burdening teammates
+- Wants to improve and remain a supportive team member
+        `,
+        scenarioSpecificInfo_llm: `
+You are in a "Negative Performance Review" scenario where:
+- The manager will share objective evidence: reduced velocity, late PRs, reopened bugs, and attendance gaps.
+- The project team uses Next.js, Prisma, and Tailwind CSS; tests with Playwright and Jest; deploys to Vercel.
+- Over weeks 4–7 of the current program increment, your committed story points were missed 3 of 4 sprints.
+- Two P1 regressions were traced to your changes; one lacked unit test coverage.
+- You have had several late arrivals and missed standups due to family responsibilities.
+
+Your mindset:
+- You acknowledge the issues and don’t want to make excuses.
+- You want support (e.g., pairing, smaller commits, clearer daily goals) and concrete expectations for the next 2–3 weeks.
+- You prefer a calm, structured plan with check-ins and are open to using company resources (e.g., EAP, flexible hours).
+        `,
+      },
+    ],
+    documents: [
+      {
+        title: "Sprint Metrics Summary (Weeks 4–7)",
+        type: "performance_report",
+        content: [
+          { format: "bold", content: "Source: Jira Velocity & Burndown" },
+          {
+            format: "plain",
+            content:
+              "Team baseline velocity: 42–48 pts/sprint. Bart historical average: 18–22 pts/sprint.",
+          },
+          {
+            format: "bold",
+            content:
+              "Recent velocity (Bart): Week 4: 12, Week 5: 9, Week 6: 8, Week 7: 10 (missed commitment 3/4 sprints).",
+          },
+          {
+            format: "plain",
+            content:
+              "Carry-over stories increased from 0–1 to 3–4 per sprint; 2 unstarted tickets rolled twice.",
+          },
+          {
+            format: "plain",
+            content:
+              "Burndown shows late movement concentrated on last 24–36 hours of each sprint.",
+          },
+        ],
+      },
+      {
+        title: "Code Review Excerpts",
+        type: "code_review",
+        content: [
+          { format: "bold", content: "PR #482 (Cart state refactor) — Open 6 days" },
+          {
+            format: "plain",
+            content:
+              "Reviewer note: 'Missing unit tests for edge cases (empty cart, guest user). Please add tests and split into smaller commits.'",
+          },
+          {
+            format: "plain",
+            content:
+              "Follow-up: 'Stale for 3 days without response; please address comments or draft for now.'",
+          },
+          { format: "bold", content: "PR #495 (Checkout step validation) — Merged" },
+          {
+            format: "plain",
+            content:
+              "Post-merge note: 'Introduced regression on coupon handling; no test coverage for invalid codes.'",
+          },
+        ],
+      },
+      {
+        title: "QA & Incident Notes",
+        type: "incident_report",
+        content: [
+          { format: "bold", content: "Incident: P1 Coupon Regression (Week 6)" },
+          {
+            format: "plain",
+            content:
+              "Root cause: validation bypass on coupon apply path; missing unit test; reverted in hotfix #501.",
+          },
+          { format: "bold", content: "Incident: P1 Cart Persistence (Week 7)" },
+          {
+            format: "plain",
+            content:
+              "Root cause: localStorage key mismatch; fix released with #507; added Playwright regression test.",
+          },
+          {
+            format: "plain",
+            content:
+              "QA reopen count linked to Bart (last 4 weeks): 3 tickets reopened due to incomplete acceptance criteria.",
+          },
+        ],
+      },
+      {
+        title: "Attendance & Standup Log",
+        type: "attendance_log",
+        content: [
+          { format: "bold", content: "Late arrivals (past 4 weeks): 6" },
+          { format: "bold", content: "Missed daily standups: 4" },
+          {
+            format: "plain",
+            content:
+              "Unplanned PTO: 2 half-days (Week 5, Week 6). Manager notified after standup both times.",
+          },
+          {
+            format: "plain",
+            content:
+              "Slack availability: multiple >90-minute gaps during core hours without status update.",
+          },
+        ],
+      },
+      {
+        title: "Peer Feedback (Anonymous)",
+        type: "peer_feedback",
+        content: [
+          {
+            format: "plain",
+            content:
+              "“Bart is capable and helpful one-on-one, but recently PRs sit without updates and we rush fixes at sprint end.”",
+          },
+          {
+            format: "plain",
+            content:
+              "“Pairing sessions are effective; when we paired on the subscription stub, progress was steady.”",
+          },
+          {
+            format: "plain",
+            content:
+              "“Communication is sporadic. It would help to post blockers early and propose a plan for the day.”",
+          },
+        ],
+      },
+      {
+        title: "Email: Missed Commitment on Ticket #604 (Checkout Address Validation)",
+        type: "email",
+        content: [
+          { format: "bold", content: "From: qa-lead@ming.com" },
+          { format: "bold", content: "To: bart@ming.com; project-manager@ming.com" },
+          { format: "bold", content: "Subject: Ticket #604 not ready for QA" },
+          {
+            format: "plain",
+            content:
+              "Hi Bart, QA is blocked on #604. Acceptance criteria 2 & 3 are not implemented (ZIP + country rules).",
+          },
+          {
+            format: "plain",
+            content:
+              "Please update status or provide an ETA. If needed, we can split this into smaller subtasks.",
+          },
+          { format: "plain", content: "Thanks," },
+          { format: "plain", content: "QA Lead" },
+        ],
+      },
+      {
+        title: "Project Timeline (Current)",
+        type: "timeline",
+        content: [
+          {
+            format: "plain",
+            content:
+              "Week 1–2: Planning & Design (Susan delivered wireframes; tech plan finalized: Next.js + Prisma + Tailwind).",
+          },
+          {
+            format: "bold",
+            content:
+              "Week 3–6 (current window covered through Week 7): Core Features (Auth, Listings, Cart) — behind on Cart & Checkout validation.",
+          },
+          {
+            format: "plain",
+            content:
+              "Week 7–8: Testing (Playwright, Jest) and Bug Fixing (QA sign-off).",
+          },
+          {
+            format: "bold",
+            content:
+              "Week 9: Final Review and Deployment (Vercel). Risk: validation, coupon flows, and cart persistence stability.",
+          },
+        ],
+      },
+      {
+        title: "Ticket #604: Checkout Address Validation",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content:
+              "As a shopper, I want address validation so I can complete checkout without errors.",
+          },
+          {
+            format: "plain",
+            content:
+              "Status: In Progress (Week 6 → Week 7 carry-over). Assigned to Bart.",
+          },
+          {
+            format: "plain",
+            content:
+              "Technical Notes: Country-specific rules, ZIP/postcode formats; requires unit tests and Playwright coverage.",
+          },
+        ],
+      },
+      {
+        title: "Ticket #612: Coupon Apply/Remove — Regression Fix",
+        type: "ticket",
+        content: [
+          {
+            format: "plain",
+            content:
+              "As a shopper, I want coupons to apply/remove correctly so my order total updates as expected.",
+          },
+          {
+            format: "plain",
+            content:
+              "Status: Resolved in hotfix #507 after P1 incident. Owner: Bart (paired with Alice).",
+          },
+          {
+            format: "plain",
+            content:
+              "Testing: Added Playwright scenario and Jest unit tests for invalid/expired codes.",
+          },
+        ],
+      },
+    ],
+  };
+  
   export const demandingClient: Scenario = {
     title: "Meeting with Bill about a Demanding Client",
     goal: "You must work with Bill to handle a demanding client.",
