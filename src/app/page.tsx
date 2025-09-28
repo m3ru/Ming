@@ -34,7 +34,7 @@ export default function HomePage() {
 
   const [showAnalytics, setShowAnalytics] = React.useState(false);
   const analyticsRef = React.useRef<HTMLDivElement>(null);
-
+  
   React.useEffect(() => {
     const stored = localStorage.getItem('reportData');
     if (stored) {
@@ -67,8 +67,16 @@ export default function HomePage() {
   }, []);
 
   React.useEffect(() => {
-    if (showAnalytics && analyticsRef.current) {
-      analyticsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (showAnalytics) {
+        // Use a setTimeout to allow the CSS transition to begin before scrolling
+        const timer = setTimeout(() => {
+            window.scrollTo({
+                top: document.documentElement.scrollHeight,
+                behavior: 'smooth'
+            });
+        }, 300); // A small delay, adjust as needed
+
+        return () => clearTimeout(timer);
     }
   }, [showAnalytics]);
 
@@ -80,7 +88,7 @@ export default function HomePage() {
     <div className="relative min-h-screen w-full overflow-y-auto grid-background">
       <MenuBar />
       {/* Main Section */}
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8 gridBackground">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-6xl font-bold text-gray-800 mb-4">Welcome back</h1>
@@ -121,7 +129,7 @@ export default function HomePage() {
           variant="ghost"
           size="sm"
           onClick={toggleAnalytics}
-          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-50"
+          className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-xl mt-20"
         >
           {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
           {showAnalytics ? <ChevronUp className="h-10 w-10" /> : <ChevronDown className="h-10 w-10" />}
@@ -130,17 +138,15 @@ export default function HomePage() {
         <div
           ref={analyticsRef}
           className={`
-            w-full bg-gray-50 transition-all duration-500 ease-in-out
-            ${showAnalytics ? 'opacity-100 max-h-[2000px] py-6' : 'opacity-0 max-h-0 py-0'}
+            w-full bg-gray-50 overflow-hidden transition-all duration-500 ease-in-out
+            ${showAnalytics ? 'opacity-100 max-h-[2000px] py-6' : 'opacity-0 max-h-0 py-0 pointer-events-none'}
           `}
         >
-          {showAnalytics && (
-            <div className="flex flex-col max-w-5xl mx-auto px-4 space-y-5">
-              <ScoreCard scores={scores} />
-              <AchievementsCard />
-              <ProgressCard scenariosCompleted={scenariosCompleted} />
-            </div>
-          )}
+          <div className="flex flex-col max-w-5xl mx-auto px-4 space-y-5">
+            <ScoreCard scores={scores} />
+            <AchievementsCard />
+            <ProgressCard completedScenarios={scenariosCompleted} />
+          </div>
         </div>
       </div>
     </div>
