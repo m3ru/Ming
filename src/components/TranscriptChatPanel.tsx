@@ -5,6 +5,7 @@ import { useCedarStore, useRegisterState, useStateBasedMentionProvider, useSubsc
 import { ChatInput } from '@/cedar/components/chatInput/ChatInput';
 import ChatBubbles from '@/cedar/components/chatMessages/ChatBubbles';
 import { MessageSquare } from 'lucide-react';
+import { feedbackReplyPrompt } from '@/lib/prompts';
 
 interface TranscriptChatPanelProps {
   segments: Array<{ title: string; content: string }>;
@@ -19,6 +20,31 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
   suggestions,
   scores
 }) => {
+  // Generate a unique thread ID for the transcript chat to separate it from scenario chat
+  const [transcriptThreadId] = useState(() => {
+    return `transcript-${Array.from({ length: 20 }, () =>
+      Math.floor(Math.random() * 36).toString(36)
+    ).join("")}`;
+  });
+
+  // Get Cedar store methods for thread management
+  const createThread = useCedarStore((state) => state.createThread);
+  const switchThread = useCedarStore((state) => state.switchThread);
+  const clearMessages = useCedarStore((state) => state.clearMessages);
+  
+  useEffect(() => {
+    // Create and switch to transcript thread when this component mounts
+    const threadId = createThread(transcriptThreadId, 'Transcript Analysis Chat');
+    switchThread(threadId);
+    
+    // Clear any existing messages to start fresh
+    clearMessages();
+    
+    return () => {
+      // Optional: Could switch back to main thread when unmounting
+      // but probably not necessary since user navigates away
+    };
+  }, [transcriptThreadId, createThread, switchThread, clearMessages]);
   // Memoize the comprehensive context object to prevent infinite re-renders
   const transcriptContext = useMemo(() => ({
     segments,
@@ -50,14 +76,13 @@ Be encouraging, constructive, and specific in your responses. When users ask abo
     setValue: () => {}, // Read-only
   });
 
-  // Subscribe context to agent for backend processing
+  // Subscribe context to agent for backend processing (keeping the analysis context)
   useSubscribeStateToAgentContext(
     'transcriptAnalysisContext', 
     (context) => ({
-      chatContext: 'report',
-      promptType: 'feedbackReply', 
       conversationAnalysis: context,
-      role: 'conversation_coach'
+      role: 'conversation_coach',
+      chatType: 'transcript' // Add explicit marker
     }), 
     {
       showInChat: false,

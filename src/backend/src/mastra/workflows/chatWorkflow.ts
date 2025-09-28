@@ -59,22 +59,52 @@ const callAgent = createStep({
     runtimeContext.set("additionalContext", additionalContext);
     runtimeContext.set("streamController", streamController);
 
-    // Determine system prompt based on context
-    let contextSystemPrompt = systemPrompt;
-    if (additionalContext?.promptType && !systemPrompt) {
-      if (additionalContext.promptType === 'bill') {
-        // Import and use bill prompt
-        const { prompt: billPrompt } = await import('../../lib/billPrompt');
-        contextSystemPrompt = billPrompt;
-      } else if (additionalContext.promptType === 'feedbackReply') {
-        // Import and use feedback reply prompt  
-        const { prompt: feedbackReplyPrompt } = await import('../../lib/feedbackReplyPrompt');
-        contextSystemPrompt = feedbackReplyPrompt;
+    // Check if we need to prepend a system prompt based on context
+    let modifiedPrompt = prompt;
+    
+    console.log("Checking additionalContext for chat type:", {
+      fullContext: additionalContext,
+      hasAdditionalContext: !!additionalContext
+    });
+    
+    // Look for chatType in the subscribed context data
+    let chatType = null;
+    if (additionalContext) {
+      // Cedar sends subscribed context as { data: value, source: 'subscription' }
+      if (additionalContext.chatType && additionalContext.chatType.data) {
+        chatType = additionalContext.chatType.data;
+        console.log(`Found chatType '${chatType}' from Cedar subscription`);
       }
+    }
+    
+    console.log("Prompt modification check:", {
+      originalPrompt: prompt,
+      detectedChatType: chatType,
+      fullAdditionalContext: additionalContext
+    });
+    
+    if (chatType === 'scenario' && !prompt.includes("senior software engineer")) {
+      const { billPrompt } = await import('../../lib/prompts');
+      modifiedPrompt = `${billPrompt}\n\nUser: ${prompt}`;
+      console.log("Applied Bill prompt in workflow");
+    } else if (chatType === 'transcript' && !prompt.includes("communication coach")) {
+      const { feedbackReplyPrompt } = await import('../../lib/prompts');
+      
+      // Check if the combined prompt would be too long
+      const combinedLength = feedbackReplyPrompt.length + prompt.length + JSON.stringify(additionalContext).length;
+      console.log("Combined prompt length would be:", combinedLength);
+      
+      if (combinedLength > 120000) { // Conservative limit
+        console.log("Prompt too long, using shorter version");
+        modifiedPrompt = `You are a communication coach helping analyze workplace performance. Answer questions about communication skills, empathy, and conflict management based on the conversation analysis provided.\n\nUser: ${prompt}`;
+      } else {
+        modifiedPrompt = `${feedbackReplyPrompt}\n\nUser: ${prompt}`;
+      }
+      console.log("Applied feedback prompt in workflow");
     }
 
     const messages = [
-      "User message: " + prompt,
+      "User message: " + modifiedPrompt,
       "Additional context (for background knowledge): " +
         JSON.stringify(additionalContext),
     ];
@@ -103,14 +133,28 @@ const callAgent = createStep({
         : {}),
     });
 
+    console.log("Starting stream processing...");
+    console.log("Modified prompt length:", modifiedPrompt.length);
+    console.log("Modified prompt preview:", modifiedPrompt.substring(0, 300) + "...");
+    
+    // Process streaming chunks from streamVNext
     for await (const chunk of streamResult.fullStream) {
+      console.log("Received chunk type:", chunk.type);
+      
       if (chunk.type === "text-delta") {
+        console.log("Text delta received:", chunk.payload.text);
         await handleTextStream(chunk.payload.text, streamController);
         responseText += chunk.payload.text;
       } else if (chunk.type === "tool-result" || chunk.type === "tool-call") {
+        console.log("Tool chunk received:", chunk.type);
         streamJSONEvent(streamController, chunk.type, chunk);
+      } else {
+        console.log("Other chunk type:", chunk.type);
       }
     }
+
+    console.log("Final responseText length:", responseText.length);
+    console.log("Final responseText preview:", responseText.substring(0, 200));
 
     const usage = await streamResult.usage;
 
