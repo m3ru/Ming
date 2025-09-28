@@ -68,7 +68,6 @@ export default function ReportPage() {
 
   return (
     <div className="flex flex-col items-center min-h-screen font-sans bg-gray-50">
-      <MenuBar />
       <div
         ref={reportRef}
         id="report-content"

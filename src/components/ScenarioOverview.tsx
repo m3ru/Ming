@@ -19,9 +19,9 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
   const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(true);
 
   return (
-    <div className="flex flex-col p-5 w-1/4 gap-2 overflow-y-scroll border-r">
+    <div className="flex flex-col p-5 w-1/2 lg:w-1/4 gap-2 overflow-y-scroll border-r">
       <h1 className="text-2xl font-bold">Scenario</h1>
-      <div className="flex flex-col">
+      <div className="flex flex-col max-lg:text-sm">
         {scenario.situation.split("\n").map((line, i) => (
           <p key={i}>{line}</p>
         ))}
@@ -36,12 +36,12 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
       >
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between">
-            <h2 className="text-lg font-bold">Company Overview</h2>
+            <h2 className="lg:text-lg font-bold">Company Overview</h2>
             {isCompanyCultureOpen ? <ChevronDown /> : <ChevronUp />}
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div>
+          <div className="max-lg:text-sm">
             {scenario.companyDetails.split("\n").map((line, i) => (
               <p key={i}>{line}</p>
             ))}
@@ -51,7 +51,7 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
 
       <Separator />
 
-      <h2 className="text-lg font-bold">Coworkers</h2>
+      <h2 className="lg:text-lg font-bold">Coworkers</h2>
       {scenario.npcs.length === 0 ? (
         <p>No coworkers in this scenario.</p>
       ) : (
@@ -60,7 +60,7 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
 
       <Separator className="mt-2" />
 
-      <h2 className="text-lg font-bold">Documents</h2>
+      <h2 className="lg:text-lg font-bold">Documents</h2>
       {scenario.documents.length === 0 ? (
         <p>No documents in this scenario.</p>
       ) : (
@@ -87,19 +87,22 @@ function NpcOverview({ npc }: { npc: Npc }) {
         <CollapsibleTrigger className="cursor-pointer">
           <div className="flex w-full justify-between items-center px-4 py-1">
             <div className="flex items-center gap-1">
-              <Avatar className="max-lg:hidden rounded-full w-8 h-8">
+              <Avatar className="rounded-full w-8 h-8 max-lg:mr-1">
                 <AvatarImage src={npc.pfp} className="rounded-full" />
                 <AvatarFallback>{npc.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col items-start">
                 <h3 className="font-bold">{npc.name}</h3>
-                <p className="text-sm text-left">{title}</p>
+                <p className="max-lg:hidden text-sm text-left">{title}</p>
               </div>
             </div>
             {isOpen ? <ChevronDown /> : <ChevronUp />}
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="p-4 pt-0 flex flex-col gap-2">
+        <CollapsibleContent className="p-4 pt-0 flex flex-col gap-2 max-lg:text-sm">
+          <p className="lg:hidden">
+            <strong>Title:</strong> {title}
+          </p>
           <p>
             <strong>Scenario:</strong> {npc.scenarioSpecificInfo}
           </p>
@@ -126,12 +129,12 @@ function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
           <div className="flex w-full justify-between px-4 py-1">
             <h3 className="font-bold text-left">{doc.title}</h3>
             <div className="flex">
-              <p>({doc.type})</p>
+              {/* <p className="max-lg:hidden">({doc.type})</p> */}
               {isOpen ? <ChevronDown /> : <ChevronUp />}
             </div>
           </div>
         </CollapsibleTrigger>
-        <CollapsibleContent className="p-4 pt-0">
+        <CollapsibleContent className="p-4 pt-0 max-lg:text-sm">
           {doc.content.map((block, index) => (
             <DocumentContentBlock key={index} block={block} />
           ))}

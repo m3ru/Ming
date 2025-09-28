@@ -15,7 +15,7 @@ import { Sentiment } from "@/lib/googleSentiment";
 import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
 
-const scenario = Scenarios.demandingClient;
+const scenario = Scenarios.negativeReview;
 
 function ScenarioPageContent() {
   const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);
@@ -125,6 +125,18 @@ function ScenarioPageContent() {
       window.removeEventListener("resize", updateOrientation);
     };
   }, []);
+
+  if (orientation === "portrait") {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen p-4 text-center">
+        <h1 className="text-2xl font-bold mb-4">Please Rotate Your Device</h1>
+        <p className="text-lg mb-16">
+          For the best experience, please use this application in landscape
+          mode.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="overflow-y-clip">
