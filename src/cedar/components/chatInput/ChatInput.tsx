@@ -267,28 +267,13 @@ export const ChatInput: React.FC<{
             Hold space to talk
           </div>
         </div>
-        <Container3DButton
+        <div
           id="send-chat"
-          motionProps={{
-            layoutId: "send-chat",
-            animate: {
-              opacity: isEditorEmpty ? 0.5 : 1,
-              backgroundColor: isEditorEmpty ? "transparent" : "#93c5fd",
-            },
-            transition: { type: "spring", stiffness: 300, damping: 20 },
-          }}
           onClick={() => handleSubmit()}
-          color={isEditorEmpty ? undefined : "#93c5fd"}
-          className="flex items-center flex-shrink-0 ml-auto -mt-0.5 rounded-full bg-white dark:bg-gray-800"
-          childClassName="p-1.5"
+          className={`flex items-center flex-shrink-0 rounded-full ${isEditorEmpty ? "opacity-50 cursor-not-allowed" : "hover:shadow-lg cursor-pointer bg-blue-500 hover:bg-blue-600"} transition-all duration-300 p-2`}
         >
-          <motion.div
-            animate={{ rotate: isEditorEmpty ? 0 : -90 }}
-            transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          >
-            <SendHorizonal className="w-4 h-4" />
-          </motion.div>
-        </Container3DButton>
+          <SendHorizonal className="w-4 h-4" />
+        </div>
       </div>
     </div>
   );
