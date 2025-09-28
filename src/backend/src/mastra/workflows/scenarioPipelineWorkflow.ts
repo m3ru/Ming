@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createWorkflow, createStep } from '@mastra/core/workflows';
 import { RuntimeContext } from '@mastra/core/di';
 import { z } from 'zod';
@@ -61,7 +62,7 @@ const createScenario = createStep({
             },
           }
         : {}),
-    });
+    } as any);
 
     return {
       scenario: result.text,
@@ -114,7 +115,7 @@ const createPrompts = createStep({
             },
           }
         : {}),
-    });
+    } as any);
 
     return {
       scenario,
@@ -168,7 +169,7 @@ const createReports = createStep({
             },
           }
         : {}),
-    });
+    } as any);
 
     return {
       scenario,
