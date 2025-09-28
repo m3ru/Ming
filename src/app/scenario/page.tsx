@@ -58,14 +58,16 @@ export default function ScenarioPage() {
     const reportData = localStorage.getItem("reportData");
     const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
 
-    const scenesString = localStorage.getItem('numScenariosCompleted');
+    const scenesString = localStorage.getItem("numScenariosCompleted");
     if (scenesString) {
-      localStorage.setItem('numScenariosCompleted', (parseInt(scenesString) + 1).toString());
+      localStorage.setItem(
+        "numScenariosCompleted",
+        (parseInt(scenesString) + 1).toString()
+      );
+    } else {
+      localStorage.setItem("numScenariosCompleted", "1");
     }
-    else {
-      localStorage.setItem('numScenariosCompleted', "1");
-    }
-    
+
     if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
       console.log("User has completed a scenario, generating new prompt...");
       setScenarioCompleted(true);
@@ -145,9 +147,29 @@ Success Criteria:
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
   const [botSentiment, setBotSentiment] = useState<Sentiment>();
 
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">(
+    "landscape"
+  );
+
+  useEffect(() => {
+    const updateOrientation = () => {
+      if (window.innerWidth > window.innerHeight) {
+        setOrientation("landscape");
+      } else {
+        setOrientation("portrait");
+      }
+    };
+
+    window.addEventListener("resize", updateOrientation);
+    updateOrientation(); // Call on mount
+
+    return () => {
+      window.removeEventListener("resize", updateOrientation);
+    };
+  }, []);
+
   return (
     <div className="overflow-y-clip">
-      <MenuBar />
       <div className="flex w-screen" style={{ height: "calc(100vh - 3rem)" }}>
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
