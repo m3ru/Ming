@@ -129,7 +129,7 @@ function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
           <div className="flex w-full justify-between px-4 py-1">
             <h3 className="font-bold text-left">{doc.title}</h3>
             <div className="flex">
-              <p className="max-lg:hidden">({doc.type})</p>
+              {/* <p className="max-lg:hidden">({doc.type})</p> */}
               {isOpen ? <ChevronDown /> : <ChevronUp />}
             </div>
           </div>
