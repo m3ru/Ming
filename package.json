@@ -9,8 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pretty": "npx prettier --write ."
-  },
+    "pretty": "npx prettier --write .",
+	"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+	"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+	"cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"},
   "dependencies": {
     "@google/genai": "^1.21.0",
     "@mastra/client-js": "^0.13.2",
