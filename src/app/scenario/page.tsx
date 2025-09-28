@@ -194,7 +194,9 @@ Success Criteria:
           ) : (
             <div className="w-full text-center bg-white z-10">
               <div className="flex flex-col w-full gap-1">
-                <SentimentBar sentiment={userSentiment ? userSentiment.score : 0} />
+                <SentimentBar
+                  sentiment={userSentiment ? userSentiment.score : 0}
+                />
 
                 {/* {botSentiment && (
                   <SentimentBar label="Bill" sentiment={botSentiment.score} />

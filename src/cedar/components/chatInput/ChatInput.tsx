@@ -187,7 +187,7 @@ export const ChatInput: React.FC<{
   return (
     <div
       className={cn(
-        "bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-3 text-sm",
+        "bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-2 lg:p-3 text-sm",
         className
       )}
     >
@@ -195,9 +195,12 @@ export const ChatInput: React.FC<{
       <ContextBadgeRow editor={editor} />
 
       {/* Chat editor row */}
-      <div className="relative w-full h-fit" id="cedar-chat-input">
+      <div
+        className="max-lg:hidden relative w-full h-fit"
+        id="cedar-chat-input"
+      >
         {voice.isListening || voice.isSpeaking ? (
-          <div className="py-2 items-center justify-center w-full">
+          <div className="py-1 lg:py-2 items-center justify-center w-full">
             <VoiceIndicator
               voiceState={{
                 isListening: voice.isListening,
@@ -240,10 +243,10 @@ export const ChatInput: React.FC<{
         id="input-tools"
         className="flex items-center  space-x-2  justify-between"
       >
-        <div className="flex items-center gap-1">
+        <div>
           <button
             type="button"
-            className={getMicButtonClass()}
+            className={`${getMicButtonClass()} flex items-center gap-1`}
             onClick={handleVoiceToggle}
             disabled={
               voice.voicePermissionStatus === "denied" ||
@@ -262,15 +265,18 @@ export const ChatInput: React.FC<{
             }
           >
             <Mic className="w-4 h-4" />
+            <div className="text-sm text-gray-500 animate-pulse">
+              <span className="lg:hidden">
+                Press to {voice.isListening ? "stop" : "start"} speaking
+              </span>
+              <span className="max-lg:hidden">Hold space to talk</span>
+            </div>
           </button>
-          <div className="text-sm text-gray-500 animate-pulse">
-            Hold space to talk
-          </div>
         </div>
         <div
           id="send-chat"
           onClick={() => handleSubmit()}
-          className={`flex items-center flex-shrink-0 rounded-full ${isEditorEmpty ? "opacity-50 cursor-not-allowed" : "hover:shadow-lg cursor-pointer bg-blue-500 hover:bg-blue-600"} transition-all duration-300 p-2`}
+          className={`max-lg:hidden flex items-center flex-shrink-0 rounded-full ${isEditorEmpty ? "opacity-50 cursor-not-allowed" : "hover:shadow-lg cursor-pointer bg-blue-500 hover:bg-blue-600"} transition-all duration-300 p-2`}
         >
           <SendHorizonal className="w-4 h-4" />
         </div>

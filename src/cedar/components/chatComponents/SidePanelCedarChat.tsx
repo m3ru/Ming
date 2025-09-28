@@ -38,14 +38,14 @@ if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
   storeWithPatchFlag.sendMessage = (msg, ...args) => {
     if (typeof msg === "string") {
       let modifiedMsg = msg as string;
-      
+
       // Always get the latest contextDocs and documents from the store
       const state = useCedarStore.getState();
       const contextDocsVal: number[] =
         ((state as any)["contextDocs"] as number[]) || [];
       const documentsVal =
         ((state as any)["documents"] as Array<{ title: string }>) || [];
-      
+
       // Prepend document references if they exist
       if (
         contextDocsVal &&
@@ -60,7 +60,7 @@ if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
           modifiedMsg = `re: (${docNames}) ${modifiedMsg}`;
         }
       }
-      
+
       msg = modifiedMsg as any;
     }
     return origSend(msg as any, ...args);
@@ -174,14 +174,14 @@ export const SidePanelCedarChat: React.FC<
 
   // Subscribe scenario context to agent
   useSubscribeStateToAgentContext(
-    'scenarioContext',
+    "scenarioContext",
     (context) => ({
-      chatType: 'scenario',
-      scenarioType: context
+      chatType: "scenario",
+      scenarioType: context,
     }),
     {
       showInChat: false,
-      color: '#8b5cf6',
+      color: "#8b5cf6",
     }
   );
 
@@ -393,7 +393,7 @@ export const SidePanelCedarChat: React.FC<
               {companyLogo && (
                 <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
               )}
-              <span className="text-lg font-bold truncate">{title}</span>
+              <span className="lg:text-lg font-bold truncate">{title}</span>
             </div>
             <div className="flex items-center flex-shrink-0 gap-2">
               <Button
