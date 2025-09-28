@@ -131,7 +131,7 @@ export default function HomePage() {
             description="An employee performance review meeting."
             color="#ffffff97"
             locked={false}
-            role="Intern"
+            role="Level: Intern"
           />
           <ScenarioCard
             title="Workplace Conflict"
@@ -139,7 +139,7 @@ export default function HomePage() {
             description="A tense discussion between coworkers."
             color="#1f1c1897"
             locked={true}
-            role="Manager"
+            role="Level: Manager"
           />
           
           
@@ -149,7 +149,7 @@ export default function HomePage() {
             description="A manager informing an employee about layoffs."
             color="#1f1c1897"
             locked={true}
-            role="CEO"
+            role="Level: CEO"
           />
         </div>
 
