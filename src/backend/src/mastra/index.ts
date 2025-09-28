@@ -5,7 +5,7 @@ import { scenarioPipelineWorkflow } from './workflows/scenarioPipelineWorkflow';
 import { apiRoutes } from './apiRegistry';
 import { helloWorldAgent } from './agents/helloWorldAgent';
 import { storage } from './memory';
-import { billAgent } from './agents/billAgent';
+import { defaultAgent } from './agents/defaultAgent';
 import { workingMemoryAgent } from './agents/workingMemoryAgent';
 import { transcriptSummaryAnalyzerAgent } from './agents/transcriptSummaryAnalyzerAgent';
 import { transcriptAnalyzerAgent } from './agents/transcriptAnalyzerAgent';
@@ -29,7 +29,7 @@ import { feedbackReplyAgent } from './agents/feedbackReplyAgent';
 export const mastra = new Mastra({
   agents: {
     helloWorldAgent,
-    billAgent,
+    defaultAgent,
     workingMemoryAgent,
     transcriptSummaryAnalyzerAgent,
     transcriptAnalyzerAgent,
