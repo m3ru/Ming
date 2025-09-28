@@ -139,4 +139,9 @@ progress::-webkit-progress-value {
 
 progress::-moz-progress-bar {
   background-color: transparent;
+  border-right: 2px solid;
+}
+
+progress::-moz-progress-bar {
+  background-color: transparent;
 }

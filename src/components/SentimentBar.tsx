@@ -54,6 +54,12 @@ export default function SentimentBar({
             displayValue * 100
           )}%);
         }
+
+        progress::-moz-progress-bar {
+          border-color: color-mix(in srgb, red ${Math.round((1 - displayValue) * 100)}%, lime ${Math.round(
+            displayValue * 100
+          )}%);
+        }
       `}</style>
       <progress className="w-full" value={displayValue} max={1} />
       <span>☺</span>
