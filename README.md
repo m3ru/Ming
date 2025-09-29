@@ -1,4 +1,4 @@
-# Cedar-OS + Mastra Starter Template
+# Ming Management Training
 
 A blank starter template combining [Cedar-OS](https://cedar.ai) for the frontend AI interface and [Mastra](https://mastra.ai) for the backend agent orchestration.
 
