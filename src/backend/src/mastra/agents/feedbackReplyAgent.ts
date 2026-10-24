@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 
 /**
@@ -95,5 +95,5 @@ Always consider:
 - Focus on professional development and workplace communication effectiveness
 </important_guidelines>
   `,
-  model: google("gemini-2.5-flash"),
+  model: textModel,
 });

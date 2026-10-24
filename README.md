@@ -68,15 +68,24 @@ npm i
 # 3) Back to project root
 cd ../../
 
-# 4) Run dev servers
+# 4) Configure the project root .env (see variables below)
+
+# 5) Run dev servers
 npm run dev
 ```
 
+Keep environment variables in the project root `.env`. The frontend and backend
+both use this file; `src/backend/.env` is not needed. The backend `dev` and
+`start` scripts explicitly select the root file, including when run from
+`src/backend` or through `npm --prefix src/backend`.
+
 > Environment variables (example):
 >
-> * `GOOGLE_GENERATIVE_AI_API_KEY`, and `NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY` — required for LLM + sentiment
-> * `OPENAI_API_KEY`, — for real-time STT and TTS
+> * `OPENAI_API_KEY` — required for text generation (GPT-5.4 Mini), speech transcription, and speech synthesis
+> * `NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY` — for Google Cloud Natural Language sentiment analysis
 > * `NEXT_PUBLIC_URL*` — (optional) for connecting Frontend to Mastra Backend in production by providing Mastra Backend URL
+
+All backend text agents use the shared model in `src/backend/src/mastra/models.ts`.
 
 ---
 

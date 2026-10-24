@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 
 /**
@@ -67,5 +67,5 @@ Include specific instructions for how the LLM should embody these traits in dial
 - Provide enough detail for consistent character portrayal across long conversations
 </guidelines>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: textModel,
 });

@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 
 /**
@@ -89,5 +89,5 @@ Provide specific examples from the transcript to support each assessment.]
 - Ensure segment titles are descriptive and meaningful
 </important_guidelines>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: textModel,
 });

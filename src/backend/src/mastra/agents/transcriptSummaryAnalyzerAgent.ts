@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 import { contextForAnalysis } from "../../lib/scenarioUtil";
 import { Scenarios } from "../../lib/scenarios";
@@ -122,5 +122,5 @@ The user demonstrated a clear communication style, articulating their concerns a
 4. Do not put markdown formatting in RATING section.
 </important>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: textModel,
 });

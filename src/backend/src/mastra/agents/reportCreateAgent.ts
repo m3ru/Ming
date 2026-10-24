@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 
 /**
@@ -77,5 +77,5 @@ You must structure your response using this exact format with formatting:
 - Include subtle details that reveal character motivations and organizational dynamics
 </guidelines>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: textModel,
 });

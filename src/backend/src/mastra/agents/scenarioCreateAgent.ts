@@ -1,4 +1,4 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 
 /**
@@ -77,5 +77,5 @@ Additional relevant details specific to this scenario including:
 - Consider different types of workplace conflicts (technical, procedural, interpersonal, resource-based)
 </guidelines>
   `,
-  model: google("gemini-2.5-flash-lite"),
+  model: textModel,
 });

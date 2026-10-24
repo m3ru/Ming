@@ -1,24 +1,13 @@
-import { google } from "@ai-sdk/google";
+import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 import { Scenarios } from "../../lib/scenarios";
 import { documentToString } from "../../lib/scenarioUtil";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
-import { GoogleVoice } from "@mastra/voice-google";
 import { OpenAIVoice } from "@mastra/voice-openai";
 
 const scenario = Scenarios.negativeReview;
 const npc = scenario.npcs[0]; // Bill
-
-// export const billVoice = new GoogleVoice({
-//   speechModel: {
-//     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-//   },
-//   listeningModel: {
-//     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-//   },
-//   speaker: "en-US-Chirp3-HD-Rasalgethi",
-// });
 
 export const billVoice = new OpenAIVoice({
   listeningModel: {
@@ -39,7 +28,7 @@ export const defaultAgent = new Agent({
   name: 'Bart',
   voice: billVoice,
   instructions:``,
-  model: google("gemini-2.5-flash"),
+  model: textModel,
   memory: new Memory({
     storage: new LibSQLStore({
       url: "file:default-memory.db",
