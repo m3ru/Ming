@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import ScoreBar from "@/components/ScoreBar";
+import EvaluationGrid from "@/components/EvaluationGrid";
+import { buildEvaluation } from "@/lib/evaluation";
 import { marked } from "marked";
 import MenuBar from "@/components/MenuBar";
 import Parser from "./parser";
@@ -28,17 +29,19 @@ const defaultScores = [
 export default function ReportPage() {
   const reportRef = useRef<HTMLDivElement | null>(null);
 
-  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(true);
-  const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
   const [isNextScenarioOpen, setIsNextScenarioOpen] = useState(false);
 
   const [summary, setSummary] = useState<string>("Loading AI Summary...");
   const [feedback, setFeedback] = useState<string>("Loading AI Feedback...");
   const [scoring, setScores] = useState<typeof defaultScores>(defaultScores);
+  const [evaluation, setEvaluation] = useState(() =>
+    buildEvaluation("", "", []),
+  );
   const [suggestions, setSuggestions] = useState<string>(
-    "Loading AI Suggestions..."
+    "Loading AI Suggestions...",
   );
   const [segments, setSegments] = useState<
     { title: string; content: string }[]
@@ -56,9 +59,10 @@ export default function ReportPage() {
     setSegments(data.segments || []);
     setSuggestions(data.suggestions || "No suggestions found.");
     setScores(data.scores || defaultScores);
+    setEvaluation(data.evaluation);
     localStorage.setItem(
       "prevScores",
-      localStorage.getItem("scores") || JSON.stringify(defaultScores)
+      localStorage.getItem("scores") || JSON.stringify(defaultScores),
     );
     localStorage.setItem("scores", JSON.stringify(data.scores));
   }, []);
@@ -113,65 +117,8 @@ export default function ReportPage() {
               <ChevronDown className="w-6 h-6" />
             )}
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4 max-h-[500px] overflow-auto break-words">
-            <div
-              className="mb-3"
-              dangerouslySetInnerHTML={{ __html: marked.parse(feedback) }}
-            />
-
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <ScoreBar
-                  category={scoring[0].category}
-                  score={scoring[0].score}
-                />
-                <ScoreBar
-                  category={scoring[2].category}
-                  score={scoring[2].score}
-                />
-                <ScoreBar
-                  category={scoring[4].category}
-                  score={scoring[4].score}
-                />
-              </div>
-              <div className="flex-1">
-                <ScoreBar
-                  category={scoring[1].category}
-                  score={scoring[1].score}
-                />
-                <ScoreBar
-                  category={scoring[3].category}
-                  score={scoring[3].score}
-                />
-                <ScoreBar
-                  category={scoring[5].category}
-                  score={scoring[5].score}
-                />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Suggestions */}
-        <Collapsible
-          open={isSuggestionsOpen}
-          onOpenChange={setIsSuggestionsOpen}
-          className="p-3 bg-white rounded-md shadow-md"
-        >
-          <CollapsibleTrigger className="flex items-center justify-between w-full cursor-pointer">
-            <h2 className="flex-grow text-2xl font-bold text-center">
-              Suggested Improvements
-            </h2>
-            {isSuggestionsOpen ? (
-              <ChevronUp className="w-6 h-6" />
-            ) : (
-              <ChevronDown className="w-6 h-6" />
-            )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-4 max-h-[450px] overflow-auto break-words">
-            <div
-              dangerouslySetInnerHTML={{ __html: marked.parse(suggestions) }}
-            />
+          <CollapsibleContent className="mt-4">
+            <EvaluationGrid criteria={evaluation} />
           </CollapsibleContent>
         </Collapsible>
 
@@ -252,7 +199,6 @@ export default function ReportPage() {
         onClick={() => {
           setIsEvaluationOpen(true);
           setIsTranscriptOpen(false);
-          setIsSuggestionsOpen(true);
           setIsSummaryOpen(true);
           setTimeout(() => {
             window.print();

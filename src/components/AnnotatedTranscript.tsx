@@ -196,11 +196,11 @@ export default function AnnotatedTranscript({
 }) {
   const [md, setMd] = React.useState("");
 
-  // If segments prop provided, build markdown from segments (title + content)
+  // Show transcript content without the generated internal segment labels.
   React.useEffect(() => {
     if (segments && segments.length > 0) {
       const built = segments
-        .map((s) => `*${s.title}*\n\n${s.content}`)
+        .map((s) => s.content)
         .join("\n\n");
       setMd(built);
       return;
@@ -228,7 +228,6 @@ export default function AnnotatedTranscript({
             className="flex max-md:flex-col items-start py-1 gap-2 leading-snug"
           >
             <div className="flex-1 py-0 mr-3 whitespace-pre-wrap">
-              {/* Render transcript; for segment titles we added bold markup earlier */}
               {block.transcript}
             </div>
 

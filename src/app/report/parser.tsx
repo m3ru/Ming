@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  buildEvaluation,
+  normalizeEvaluationCategory,
+  type EvaluationCriterion,
+} from "@/lib/evaluation";
+
 type Segment = {
   title: string;
   content: string; // Markdown with bolded speaker labels and comment/highlight tags
@@ -11,6 +17,7 @@ type ParsedResult = {
   suggestions: string | null;
   segments: Segment[];
   scores: { category: string; score: number }[];
+  evaluation: EvaluationCriterion[];
 };
 
 const defaultScores: ParsedResult["scores"] = [
@@ -22,20 +29,6 @@ const defaultScores: ParsedResult["scores"] = [
   { category: "Conflict Management", score: 99 },
 ];
 
-const CATEGORY_ALIASES: Record<string, string> = {
-  empathy: "Empathy",
-  clarity: "Clarity",
-  "openmindness": "Open-mindedness",
-  "openmindedness": "Open-mindedness",
-  "open mindness": "Open-mindedness",
-  "open mind": "Open-mindedness",
-  assertiveness: "Assertiveness",
-  activelistening: "Active Listening",
-  "active listening": "Active Listening",
-  conflictmanagement: "Conflict Management",
-  "conflict management": "Conflict Management",
-};
-
 export default function Parser(rawText: string): ParsedResult {
   const result: ParsedResult = {
     summary: null,
@@ -43,6 +36,7 @@ export default function Parser(rawText: string): ParsedResult {
     suggestions: null,
     segments: [],
     scores: defaultScores.map((s) => ({ ...s })),
+    evaluation: buildEvaluation("", "", []),
   };
 
   let parsed: any;
@@ -58,36 +52,36 @@ export default function Parser(rawText: string): ParsedResult {
 
   // --- Summary ---
   const summaryMatch = summaryText.match(
-    /##\s*CONVERSATION OVERVIEW\s*([\s\S]*?)(?=##|$)/i
+    /##\s*CONVERSATION OVERVIEW\s*([\s\S]*?)(?=##|$)/i,
   );
   if (summaryMatch) result.summary = summaryMatch[1].trim();
 
   // --- Feedback ---
   const feedbackMatch = summaryText.match(
-    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=(?:##|$))/i
+    /##\s*USER PERFORMANCE ANALYSIS\s*([\s\S]*?)(?=(?:##|$))/i,
   );
   result.feedback = feedbackMatch ? feedbackMatch[1].trim() : null;
 
   // --- Suggestions ---
   const suggestionsMatch = summaryText.match(
-    /##\s*IMPROVEMENT RECOMMENDATIONS\s*([\s\S]*?)(?=##|$)/i
+    /##\s*IMPROVEMENT RECOMMENDATIONS\s*([\s\S]*?)(?=##|$)/i,
   );
   result.suggestions = suggestionsMatch ? suggestionsMatch[1].trim() : null;
 
   // --- Scores ---
   const ratingMatch = summaryText.match(/##\s*RATING\s*([\s\S]*?)(?=##|$)/i);
+  const parsedScores: { category: string; score: number }[] = [];
   if (ratingMatch) {
     const lines = ratingMatch[1]
       .split("\n")
       .map((l: string) => l.replace(/^\*+/g, "").trim())
       .filter(Boolean);
 
-    const parsedScores: { category: string; score: number }[] = [];
     for (const line of lines) {
       const m = line.match(/-?\s*([^:]+):\s*(\d+)/i);
       if (m) {
-        const rawCat = m[1].trim().toLowerCase().replace(/[\s\-_]+/g, "");
-        const canonicalCat = CATEGORY_ALIASES[rawCat] || m[1].trim();
+        const canonicalCat =
+          normalizeEvaluationCategory(m[1].trim()) || m[1].trim();
         parsedScores.push({ category: canonicalCat, score: Number(m[2]) });
       }
     }
@@ -105,6 +99,12 @@ export default function Parser(rawText: string): ParsedResult {
     }
   }
 
+  result.evaluation = buildEvaluation(
+    summaryText,
+    result.feedback || "",
+    parsedScores,
+  );
+
   // --- Segments ---
   const segRegex = /<segment:\s*([^>]+)>([\s\S]*?)<\/segment:\s*\1>/gi;
   let segMatch;
@@ -117,7 +117,7 @@ export default function Parser(rawText: string): ParsedResult {
     content = content.replace(
       /^(\s*)(\w+):/gim,
       (_, ws, speaker) =>
-        `${ws}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`
+        `${ws}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`,
     );
 
     result.segments.push({ title, content });
