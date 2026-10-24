@@ -245,12 +245,19 @@ export class LiveVoiceController {
         analyser.fftSize = 256;
         source.connect(analyser);
         const samples = new Uint8Array(analyser.fftSize);
+        let lastAudibleAt = -Infinity;
         const monitor = () => {
           if (this.active !== active) return;
           analyser.getByteTimeDomainData(samples);
           const loud = samples.some((sample) => Math.abs(sample - 128) > 3);
+          const playing = !active.audio.paused && !active.audio.muted;
+          const now = performance.now();
+          if (!playing) lastAudibleAt = -Infinity;
+          else if (loud) lastAudibleAt = now;
+          // Keep the indicator through word and sentence pauses, but clear it
+          // promptly when playback is paused, muted, or the session ends.
           this.update({
-            speaking: loud && !active.audio.paused && !active.audio.muted,
+            speaking: playing && now - lastAudibleAt < 800,
           });
           active.frame = requestAnimationFrame(monitor);
         };

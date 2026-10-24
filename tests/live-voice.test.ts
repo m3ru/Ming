@@ -207,7 +207,7 @@ class FakePeer extends EventTarget {
   connectionState = "connected";
   localDescription = { sdp: "offer" };
   closed = false;
-  ontrack?: unknown;
+  ontrack?: (event: { track: { stop: () => void } }) => void;
   onconnectionstatechange?: () => void;
   constructor() {
     super();
@@ -331,6 +331,83 @@ test("microphone denial shows an error and releases the connection", async (t) =
   assert.equal(voice.getSnapshot().status, "idle");
   assert.match(voice.getSnapshot().error!, /Microphone access denied/);
   assert.ok(FakePeer.latest.closed);
+});
+
+test("speaking stays visible through short pauses and clears after silence or stopped playback", async (t) => {
+  const fixture = controller(t);
+  let now = 0;
+  let loud = false;
+  let frame!: FrameRequestCallback;
+  let playback!: FakeAudio;
+  t.mock.method(performance, "now", () => now);
+  t.mock.method(FakeAudio.prototype, "play", async function (this: FakeAudio) {
+    playback = this;
+    this.paused = false;
+  });
+  const prior = new Map<string, PropertyDescriptor | undefined>();
+  for (const [key, value] of Object.entries({
+    MediaStream: class {},
+    AudioContext: class {
+      createMediaStreamSource() {
+        return { connect() {} };
+      }
+      createAnalyser() {
+        return {
+          fftSize: 256,
+          getByteTimeDomainData(samples: Uint8Array) {
+            samples.fill(loud ? 140 : 128);
+          },
+        };
+      }
+      async close() {}
+    },
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  })) {
+    prior.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, {
+      value,
+      configurable: true,
+      writable: true,
+    });
+  }
+  t.after(() => {
+    for (const [key, descriptor] of prior) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  const sample = (time: number, audible: boolean) => {
+    now = time;
+    loud = audible;
+    frame(now);
+    return fixture.voice.getSnapshot().speaking;
+  };
+
+  await fixture.voice.start();
+  FakePeer.latest.ontrack?.({ track: { stop() {} } });
+  assert.equal(fixture.voice.getSnapshot().speaking, false);
+  assert.equal(sample(100, true), true);
+  assert.equal(sample(450, false), true);
+  assert.equal(sample(600, true), true);
+  assert.equal(sample(1300, false), true);
+  assert.equal(sample(1500, false), false);
+  assert.equal(sample(1600, true), true);
+  playback.paused = true;
+  assert.equal(sample(1601, true), false);
+  playback.paused = false;
+  assert.equal(sample(1602, false), false);
+  assert.equal(sample(1700, true), true);
+  playback.muted = true;
+  assert.equal(sample(1701, true), false);
+  playback.muted = false;
+  assert.equal(sample(1702, false), false);
+  assert.equal(sample(1800, true), true);
+  await fixture.voice.stop();
+  assert.equal(fixture.voice.getSnapshot().speaking, false);
 });
 
 test("stopping during permission setup stops tracks even when permission resolves late", async (t) => {
