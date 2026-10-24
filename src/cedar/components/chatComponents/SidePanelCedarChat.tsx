@@ -27,6 +27,8 @@ import { useSubscribeStateToAgentContext } from "cedar-os";
 import { Separator } from "@/components/ui/separator";
 import { billPrompt } from "@/lib/prompts";
 import { bartPrompt } from "@/lib/prompts";
+import { useVoiceSession } from "@/hooks/useVoiceSession";
+import type { Scenario } from "@/lib/types";
 
 // Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
 const cedarStoreGlobal = useCedarStore.getState();
@@ -85,6 +87,7 @@ interface SidePanelCedarChatProps {
   className?: string; // Additional CSS classes for positioning
   topOffset?: number; // Top offset in pixels (e.g., for navbar height)
   stream?: boolean; // Whether to use streaming for responses
+  scenario?: Scenario;
   documents?: Array<{
     title: string;
     type: string;
@@ -114,6 +117,7 @@ export const SidePanelCedarChat: React.FC<
   topOffset = 0,
   stream = true,
   documents = [],
+  scenario,
   setUserSentiment,
   setBotSentiment,
 }) => {
@@ -121,7 +125,9 @@ export const SidePanelCedarChat: React.FC<
   const showChat = useCedarStore((state) => state.showChat);
   const setShowChat = useCedarStore((state) => state.setShowChat);
   const router = useRouter();
-  const currentThreadId = useCedarStore((state) => state.getCurrentThreadId);
+  const voiceSession = useVoiceSession();
+  const [stopError, setStopError] = useState<string | null>(null);
+  const currentThreadId = useCedarStore((state) => state.mainThreadId);
   const { messages } = useThreadMessages();
 
   // Generate transcript string in the format: user: .../bill: ...
@@ -150,7 +156,7 @@ export const SidePanelCedarChat: React.FC<
     let id = localStorage.getItem("cedar_resourceId");
     if (!id) {
       id = Array.from({ length: 20 }, () =>
-        Math.floor(Math.random() * 36).toString(36)
+        Math.floor(Math.random() * 36).toString(36),
       ).join("");
       localStorage.setItem("cedar_resourceId", id);
     }
@@ -183,11 +189,25 @@ export const SidePanelCedarChat: React.FC<
     {
       showInChat: false,
       color: "#8b5cf6",
-    }
+    },
   );
 
   // Register scenario documents as state for Cedar
   const [cedarDocuments, setCedarDocuments] = useState(documents);
+  useEffect(() => {
+    setCedarDocuments(documents);
+  }, [documents]);
+  useRegisterState({
+    key: "scenarioDetails",
+    description: "The active training scenario",
+    value: scenario,
+    setValue: () => {},
+  });
+  useSubscribeStateToAgentContext(
+    "scenarioDetails",
+    (value) => ({ scenarioDetails: value }),
+    { showInChat: false },
+  );
   useRegisterState({
     key: "documents",
     description: "Scenario documents available for mention in chat",
@@ -235,7 +255,7 @@ export const SidePanelCedarChat: React.FC<
     {
       showInChat: false,
       color: "#8b5cf6",
-    }
+    },
   );
 
   // Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
@@ -245,39 +265,30 @@ export const SidePanelCedarChat: React.FC<
 
   const handleStop = async () => {
     setShowSpinner(true);
-    setShowChat(false); // Hide the chat panel so spinner is fully visible
-    setHideCompletely(true); // Hide the collapsed button as well
+    setStopError(null);
     try {
-      // const response = await fetch('http://localhost:4111/api/agents/transcriptSummaryAnalyzerAgent/generate/vnext', {
-      // 	method: 'POST',
-      // 	headers: { 'Content-Type': 'application/json' },
-      // 	body: JSON.stringify({
-      // 		messages: [
-      // 			{
-      // 				role: 'user',
-      // 				content: transcript,
-      // 			},
-      // 		],
-      // 		memory: {
-      // 			thread: currentThreadId,
-      // 			resource: resourceId,
-      // 		},
-      // 	}),
-      // });
-      // const data = await response.json();
-      // localStorage.setItem('reportData', JSON.stringify(data));
-      // router.push('/report');
+      await voiceSession.stop();
+      // Read after final transcript events, rather than using the render's snapshot.
+      const finalTranscript = useCedarStore
+        .getState()
+        .getThreadMessages(currentThreadId)
+        .filter((message) => message.type === "text" && message.content?.trim())
+        .map(
+          (message) =>
+            (message.role === "user" ? "user: " : "bart: ") + message.content,
+        )
+        .join("\n");
       const workflow = await mastraClient.getWorkflow(
-        "feedbackOrchestratorWorkflow"
+        "feedbackOrchestratorWorkflow",
       );
       console.log("Workflow", workflow);
       const run = await workflow.createRunAsync();
 
       const result = await run.startAsync({
         inputData: {
-          transcript: transcript,
+          transcript: finalTranscript,
           additionalContext: {
-            scenario: `${contextForAnalysis(Scenarios.demandingClient)}`,
+            scenario: `${contextForAnalysis(scenario ?? Scenarios.demandingClient)}`,
             participants: ["user", "bart"],
             meetingType: "project_review",
           },
@@ -300,13 +311,14 @@ export const SidePanelCedarChat: React.FC<
             summary: workflowOutput?.summaryAnalysis,
             detail: workflowOutput?.detailedFeedback,
             analysis: workflowOutput?.segmentedAnalysis,
-          })
+          }),
         );
         // Mark scenario as completed for new prompt generation
         localStorage.setItem("scenarioCompleted", "true");
         console.log(localStorage.getItem("reportData"));
         router.push("/report");
       } else if (result.status === "failed") {
+        setStopError("Report generation failed. Please try again.");
         console.error("Workflow failed:", (result as any).error);
         // Handle the failure case appropriately
       } else {
@@ -314,6 +326,11 @@ export const SidePanelCedarChat: React.FC<
       }
     } catch (e) {
       console.error("Failed to send transcript to analyzer:", e);
+      setStopError(
+        e instanceof Error
+          ? e.message
+          : "Could not finish the scenario. Please try again.",
+      );
     } finally {
       setShowSpinner(false);
     }
@@ -321,7 +338,7 @@ export const SidePanelCedarChat: React.FC<
 
   function updateSentiment(
     set: (sentiment: Sentiment) => void,
-    messageRole: string
+    messageRole: string,
   ) {
     const roleMessages = messages.filter((m) => m.role === messageRole);
 
@@ -333,21 +350,28 @@ export const SidePanelCedarChat: React.FC<
       .join(" ");
 
     if (combinedContent) {
-      analyzeSentiment(combinedContent).then((data) => {
-        set(data);
-        console.log(
-          `${messageRole} sentiment analysis result:`,
-          data,
-          "for content:",
-          combinedContent
-        );
-      });
+      analyzeSentiment(combinedContent)
+        .then((data) => {
+          set(data);
+          console.log(
+            `${messageRole} sentiment analysis result:`,
+            data,
+            "for content:",
+            combinedContent,
+          );
+        })
+        .catch(() => {
+          /* Sentiment failure must not stop voice or reports. */
+        });
     }
   }
 
   useEffect(() => {
-    updateSentiment(setUserSentiment, "user");
-    updateSentiment(setBotSentiment, "assistant");
+    const timer = setTimeout(() => {
+      updateSentiment(setUserSentiment, "user");
+      updateSentiment(setBotSentiment, "assistant");
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   return (
@@ -400,6 +424,7 @@ export const SidePanelCedarChat: React.FC<
               <Button
                 variant="destructive"
                 onClick={handleStop}
+                disabled={showSpinner}
                 className="mr-2 cursor-pointer"
               >
                 End Scenario
@@ -413,6 +438,11 @@ export const SidePanelCedarChat: React.FC<
                 </button> */}
             </div>
           </div>
+          {stopError && (
+            <p role="alert" className="p-2 text-sm text-red-600">
+              {stopError}
+            </p>
+          )}
           <Separator />
         </div>
 

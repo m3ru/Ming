@@ -1,15 +1,14 @@
-import { useVoice, cn, useCedarStore, HumanInTheLoopMessage } from "cedar-os";
+import { cn, useCedarStore, HumanInTheLoopMessage } from "cedar-os";
 
 import { CedarEditorContent as EditorContent } from "cedar-os";
-import { Code, Image, Mic, SendHorizonal } from "lucide-react";
+import { Mic, MicOff, PhoneOff, SendHorizonal } from "lucide-react";
 import { motion } from "motion/react";
-import React, { useCallback, useEffect } from "react";
+import React, { useEffect } from "react";
 
 import "./ChatInput.css";
 import { ContextBadgeRow } from "@/cedar/components/chatInput/ContextBadgeRow";
 import { useCedarEditor } from "cedar-os";
-import Container3DButton from "@/cedar/components/containers/Container3DButton";
-import { VoiceIndicator } from "@/cedar/components/voice/VoiceIndicator";
+import { useVoiceSession } from "@/hooks/useVoiceSession";
 import { KeyboardShortcut } from "@/cedar/components/ui/KeyboardShortcut";
 import { HumanInTheLoopIndicator } from "@/cedar/components/chatInput/HumanInTheLoopIndicator";
 
@@ -32,8 +31,35 @@ export const ChatInput: React.FC<{
   stream = true,
 }) => {
   const [isFocused, setIsFocused] = React.useState(false);
+  const [sendError, setSendError] = React.useState<string | null>(null);
+  const submitting = React.useRef(false);
+  const voice = useVoiceSession();
+  const threadId = useCedarStore((state) => state.mainThreadId);
+  const userId = useCedarStore((state) => state.getCedarState("userId"));
+  const { start } = voice;
+
+  // Connect as soon as Cedar has initialized the chat. Input starts muted;
+  // holding Space only opens the live microphone, without a connection delay.
+  useEffect(() => {
+    if (threadId && userId) void start();
+  }, [start, threadId, userId]);
 
   const { editor, isEditorEmpty, handleSubmit } = useCedarEditor({
+    onSubmit: async (_text, _editor, clearEditor) => {
+      if (submitting.current) return;
+      submitting.current = true;
+      setSendError(null);
+      try {
+        await voice.flush();
+        const response = useCedarStore.getState().sendMessage({ stream });
+        clearEditor?.();
+        await response;
+      } catch {
+        setSendError("Could not send your message. Please try again.");
+      } finally {
+        submitting.current = false;
+      }
+    },
     onFocus: () => {
       setIsFocused(true);
       handleFocus?.();
@@ -45,50 +71,12 @@ export const ChatInput: React.FC<{
     stream,
   });
 
-  // Initialize voice functionality
-  const voice = useVoice();
-
   // Get latest message to check for human-in-the-loop state
   const messages = useCedarStore((state) => state.messages);
   const latestMessage = messages[messages.length - 1];
   const isHumanInTheLoopSuspended =
     latestMessage?.type === "humanInTheLoop" &&
     (latestMessage as HumanInTheLoopMessage).state === "suspended";
-
-  // Handle voice toggle
-  const handleVoiceToggle = useCallback(async () => {
-    // Check if voice is supported
-    if (!voice.checkVoiceSupport()) {
-      console.error("Voice features are not supported in this browser");
-      return;
-    }
-
-    // Request permission if needed
-    if (voice.voicePermissionStatus === "prompt") {
-      await voice.requestVoicePermission();
-    }
-
-    // Toggle voice if permission is granted
-    if (voice.voicePermissionStatus === "granted") {
-      voice.toggleVoice();
-    } else if (voice.voicePermissionStatus === "denied") {
-      console.error("Microphone access denied");
-    }
-  }, [voice]);
-
-  // Get mic button appearance based on voice state
-  const getMicButtonClass = () => {
-    if (voice.isListening) {
-      return "p-1 text-red-500 hover:text-red-600 cursor-pointer animate-pulse";
-    }
-    if (voice.isSpeaking) {
-      return "p-1 text-green-500 hover:text-green-600 cursor-pointer";
-    }
-    if (voice.voicePermissionStatus === "denied") {
-      return "p-1 text-gray-400 cursor-not-allowed";
-    }
-    return "p-1 text-gray-600 dark:text-gray-200 hover:text-black dark:hover:text-white cursor-pointer";
-  };
 
   // Focus the editor when isInputFocused changes to allow for controlled focusing
   useEffect(() => {
@@ -111,9 +99,6 @@ export const ChatInput: React.FC<{
           editor.commands.blur();
           setIsFocused(false);
         }
-      } else if (e.key === " " && !editor?.isFocused && !voice.isListening) {
-        console.log("Enabling voice");
-        voice.startListening();
       }
     };
 
@@ -124,71 +109,70 @@ export const ChatInput: React.FC<{
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [editor, isFocused, voice]);
+  }, [editor, isFocused]);
 
+  // Keep the connection open between presses, but transmit only while held.
+  const { beginTalking, endTalking } = voice;
   useEffect(() => {
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === " " && !editor?.isFocused && voice.isListening) {
-        console.log("Disabling voice");
-        voice.stopListening();
+    let spaceHeld = false;
+    const release = () => {
+      spaceHeld = false;
+      endTalking();
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" && event.key !== " ") return;
+      if (spaceHeld) {
+        event.preventDefault();
+        return;
+      }
+      const target = event.target;
+      if (
+        editor?.isFocused ||
+        (target instanceof HTMLElement &&
+          target.closest(
+            'input, textarea, select, button, a[href], [contenteditable="true"], [role="textbox"]',
+          ))
+      )
+        return;
+      if (
+        event.repeat ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.metaKey ||
+        event.shiftKey
+      )
+        return;
+      event.preventDefault();
+      spaceHeld = true;
+      void beginTalking();
+    };
+    const keyUp = (event: KeyboardEvent) => {
+      if ((event.code === "Space" || event.key === " ") && spaceHeld) {
+        event.preventDefault();
+        release();
       }
     };
-
-    // Add the event listener
-    window.addEventListener("keyup", handleKeyUp);
-
-    // Clean up
+    const visibility = () => {
+      if (document.hidden) release();
+    };
+    window.addEventListener("keydown", keyDown);
+    window.addEventListener("keyup", keyUp);
+    window.addEventListener("blur", release);
+    document.addEventListener("visibilitychange", visibility);
     return () => {
-      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("keydown", keyDown);
+      window.removeEventListener("keyup", keyUp);
+      window.removeEventListener("blur", release);
+      document.removeEventListener("visibilitychange", visibility);
+      release();
     };
-  }, [editor, voice]);
-  // Handle global keyboard shortcuts
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Check if user is currently typing in an input, textarea, or contenteditable element
-      const target = e.target as HTMLElement;
-      const isTypingInInput =
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.getAttribute("contenteditable") === "true" ||
-        target.closest('[contenteditable="true"]') !== null;
-
-      // Handle M key for microphone (only when not typing)
-      if (e.key === "m" || e.key === "M") {
-        if (
-          !isTypingInInput &&
-          !e.shiftKey &&
-          !e.ctrlKey &&
-          !e.altKey &&
-          !e.metaKey
-        ) {
-          e.preventDefault();
-          handleVoiceToggle();
-          return;
-        }
-      }
-    };
-
-    // Add the event listener
-    window.addEventListener("keydown", handleGlobalKeyDown);
-
-    // Clean up
-    return () => {
-      window.removeEventListener("keydown", handleGlobalKeyDown);
-    };
-  }, [handleVoiceToggle]);
-
-  useEffect(() => {
-    if (voice.voicePermissionStatus === "prompt") {
-      voice.toggleVoice();
-    }
-  }, [voice.voicePermissionStatus]); // Only run when permission status changes
+  }, [editor, beginTalking, endTalking]);
 
   return (
     <div
       className={cn(
         "bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-2 lg:p-3 text-sm",
-        className
+        className,
       )}
     >
       {/* Input context row showing selected context nodes */}
@@ -199,18 +183,7 @@ export const ChatInput: React.FC<{
         className="max-lg:hidden relative w-full h-fit"
         id="cedar-chat-input"
       >
-        {voice.isListening || voice.isSpeaking ? (
-          <div className="py-1 lg:py-2 items-center justify-center w-full">
-            <VoiceIndicator
-              voiceState={{
-                isListening: voice.isListening,
-                isSpeaking: voice.isSpeaking,
-                voiceError: voice.voiceError,
-                voicePermissionStatus: voice.voicePermissionStatus,
-              }}
-            />
-          </div>
-        ) : isHumanInTheLoopSuspended ? (
+        {isHumanInTheLoopSuspended ? (
           <div className="py-2 items-center justify-center w-full">
             <HumanInTheLoopIndicator
               state={(latestMessage as HumanInTheLoopMessage).state}
@@ -238,40 +211,102 @@ export const ChatInput: React.FC<{
         )}
       </div>
 
+      <div className="text-xs space-y-1" aria-live="polite">
+        {voice.status === "connected" && (
+          <p>
+            {voice.muted
+              ? "Hold Space or the microphone to talk"
+              : "Listening…"}
+            {voice.speaking ? " · Speaking" : ""}
+            {voice.working ? " · Checking scenario…" : ""}
+          </p>
+        )}
+        {voice.playbackBlocked && (
+          <button
+            type="button"
+            onClick={() => {
+              void voice.resumePlayback();
+            }}
+            className="underline"
+          >
+            Enable audio playback
+          </button>
+        )}
+        {voice.error && (
+          <p role="alert" className="text-red-600">
+            {voice.error}
+          </p>
+        )}
+        {sendError && (
+          <p role="alert" className="text-red-600">
+            {sendError}
+          </p>
+        )}
+      </div>
+
       {/* Bottom rows. Contains tools and send chat button */}
       <div
         id="input-tools"
         className="flex items-center  space-x-2  justify-between"
       >
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={`${getMicButtonClass()} flex items-center gap-1`}
-            onClick={handleVoiceToggle}
-            disabled={
-              voice.voicePermissionStatus === "denied" ||
-              voice.voicePermissionStatus === "not-supported"
-            }
-            title={
-              voice.isListening
-                ? "Stop recording"
-                : voice.isSpeaking
-                  ? "Speaking..."
-                  : voice.voicePermissionStatus === "denied"
-                    ? "Microphone access denied"
-                    : voice.voicePermissionStatus === "not-supported"
-                      ? "Voice not supported"
-                      : "Start voice chat (M)"
-            }
+            className="flex items-center gap-1 p-1 cursor-pointer disabled:opacity-50"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              void voice.beginTalking();
+            }}
+            onPointerUp={voice.endTalking}
+            onPointerCancel={voice.endTalking}
+            onLostPointerCapture={voice.endTalking}
+            onKeyDown={(event) => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                if (!event.repeat) void voice.beginTalking();
+              }
+            }}
+            onKeyUp={(event) => {
+              if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                voice.endTalking();
+              }
+            }}
+            onBlur={voice.endTalking}
+            disabled={voice.status === "closing"}
+            aria-label="Push to talk"
+            aria-pressed={!voice.muted}
+            title="Hold Space or hold this button to talk"
           >
-            <Mic className="w-4 h-4" />
-            <div className="text-sm text-gray-500 animate-pulse">
-              <span className="lg:hidden">
-                Press to {voice.isListening ? "stop" : "start"} speaking
-              </span>
-              <span className="max-lg:hidden">Hold space to talk</span>
-            </div>
+            {voice.muted ? (
+              <MicOff className="w-4 h-4" />
+            ) : (
+              <Mic className="w-4 h-4 text-red-500" />
+            )}
+            <span>
+              {voice.status === "connecting"
+                ? "Connecting…"
+                : voice.status === "closing"
+                  ? "Finishing…"
+                  : !voice.muted
+                    ? "Microphone live"
+                    : "Hold Space to talk"}
+            </span>
           </button>
+          {(voice.status === "connected" || voice.status === "connecting") && (
+            <button
+              type="button"
+              onClick={() => {
+                void voice.stop().catch(() => {});
+              }}
+              aria-label="End conversation"
+              className="p-1 cursor-pointer"
+            >
+              <PhoneOff className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <div
           id="send-chat"

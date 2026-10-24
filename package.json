@@ -9,6 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:voice": "node scripts/test-voice.mjs",
     "pretty": "npx prettier --write .",
 	"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
 	"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

@@ -87,6 +87,21 @@ both use this file; `src/backend/.env` is not needed. The backend `dev` and
 
 All backend text agents use the shared model in `src/backend/src/mastra/models.ts`.
 
+Voice conversations use OpenAI GPT-Live (`gpt-live-1`) over WebRTC. The root
+`OPENAI_API_KEY` must belong to a project with GPT-Live access. Run on localhost
+or HTTPS and allow microphone access when the chat opens. The voice connection
+starts automatically with the microphone muted. Hold **Space** (outside the text
+editor) or hold the microphone button to stream speech immediately; release only
+mutes the microphone. Sending does not wait for release. The connection stays
+open between presses. Use the phone button to end it.
+**End Scenario** finishes voice transcription before generating the report.
+The browser receives no OpenAI API key. Mastra supplies scenario facts and saves
+the spoken transcript; typed chat continues to use the text model.
+
+Set `NEXT_PUBLIC_URL` to the Mastra backend URL in deployments. Local development
+defaults to `http://localhost:4111`. Run `npm run test:voice` for the voice protocol
+and lifecycle regression checks.
+
 ---
 
 ## Features (highlights)

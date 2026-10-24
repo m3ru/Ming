@@ -1,33 +1,14 @@
 import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
-import { Scenarios } from "../../lib/scenarios";
-import { documentToString } from "../../lib/scenarioUtil";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
-import { OpenAIVoice } from "@mastra/voice-openai";
-
-const scenario = Scenarios.negativeReview;
-const npc = scenario.npcs[0]; // Bill
-
-export const billVoice = new OpenAIVoice({
-  listeningModel: {
-    apiKey: process.env.OPENAI_API_KEY!,
-    // model: "whisper-1",
-  },
-  speechModel: {
-    apiKey: process.env.OPENAI_API_KEY!,
-    // model: "tts-1",
-  },
-});
-
 /**
  * Default Agent
  * For adapting to CedarOS workflow
  */
 export const defaultAgent = new Agent({
-  name: 'Bart',
-  voice: billVoice,
-  instructions:``,
+  name: "Bart",
+  instructions: ``,
   model: textModel,
   memory: new Memory({
     storage: new LibSQLStore({

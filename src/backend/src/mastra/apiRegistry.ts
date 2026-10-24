@@ -6,8 +6,14 @@ import {
 } from "./workflows/chatWorkflow";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createSSEStream } from "../utils/streamUtils";
-import { handleVoiceRequest } from "../lib/voice";
-import { defaultAgent } from "./agents/defaultAgent";
+import { liveVoice } from "./liveVoice";
+import {
+  VoiceError,
+  voiceSessionSchema,
+  voiceDelegationSchema,
+  voiceUpdateSchema,
+} from "../lib/voice";
+import { z } from "zod";
 
 // Helper function to convert Zod schema to OpenAPI schema
 function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
@@ -72,77 +78,60 @@ export const apiRoutes = [
         console.error(error);
         return c.json(
           { error: error instanceof Error ? error.message : "Internal error" },
-          500
+          500,
         );
       }
     },
   }),
-  registerApiRoute("/chat/voice", {
-    method: "POST",
-    openapi: {
-      requestBody: {
-        content: {
-          "application/form-data": {
-            schema: {
-              type: "object",
-              properties: {
-                audio: {
-                  type: "string",
-                  format: "binary",
-                  description: "Audio file (WAV or MP3 format)",
-                },
-                context: {
-                  type: "string",
-                  description:
-                    "JSON string with additional context for the conversation",
-                },
-              },
-              required: ["audio", "context"],
-            },
-          },
-        },
-      },
+  ...[
+    {
+      path: "/voice/session",
+      schema: voiceSessionSchema,
+      run: async (body: unknown, _token: string) =>
+        liveVoice.create(voiceSessionSchema.parse(body)),
     },
-    handler: async (c) => {
-      try {
-        // const voiceOptions = await defaultAgent.voice.getSpeakers();
-        // console.log("Available voice options:", voiceOptions);
-
-        const formData = await c.req.formData();
-
-        console.log("Received form data:", formData);
-
-        const audioFile = formData.get("audio") as File | null;
-        const context = formData.get("context") as string | null;
-
-        const resourceId = formData.get("resourceId") as string | null;
-        const threadId = formData.get("threadId") as string | null;
-
-        const audioBlob = audioFile
-          ? audioFile.slice(0, audioFile.size, audioFile.type)
-          : null;
-
-        if (!audioBlob || !context) {
+    {
+      path: "/voice/delegate",
+      schema: voiceDelegationSchema,
+      run: async (body: unknown, token: string) =>
+        liveVoice.delegate(voiceDelegationSchema.parse(body), token),
+    },
+    {
+      path: "/voice/sync",
+      schema: voiceUpdateSchema,
+      run: async (body: unknown, token: string) =>
+        liveVoice.sync(voiceUpdateSchema.parse(body), token),
+    },
+  ].map(({ path, run }) =>
+    registerApiRoute(path, {
+      method: "POST",
+      handler: async (c) => {
+        try {
+          const raw = await c.req.text();
+          if (Buffer.byteLength(raw) > 512000)
+            return c.json({ error: "Voice request is too large" }, 413);
+          const body = JSON.parse(raw);
+          const token =
+            c.req.header("Authorization")?.replace(/^Bearer /, "") ?? "";
+          return c.json(await run(body, token));
+        } catch (error) {
+          if (error instanceof z.ZodError || error instanceof SyntaxError)
+            return c.json({ error: "Invalid voice request" }, 400);
+          if (error instanceof VoiceError)
+            return c.json({ error: error.message }, error.status);
+          console.error(
+            "Voice request failed",
+            error instanceof Error ? error.name : "Unknown error",
+          );
           return c.json(
-            { error: "Missing 'audio' file or 'context' in form data" },
-            400
+            {
+              error:
+                "Voice request failed. Check the server configuration and try again.",
+            },
+            502,
           );
         }
-
-        // console.log("Audio blob:", audioBlob);
-
-        const result = await handleVoiceRequest(audioBlob, context, {
-          resourceId: resourceId!,
-          threadId: threadId!,
-        });
-        return c.json(result);
-      } catch (error) {
-        console.error(error);
-        return c.json(
-          { error: error instanceof Error ? error.message : "Internal error" },
-          500
-        );
-      }
-    },
-  }),
+      },
+    }),
+  ),
 ];

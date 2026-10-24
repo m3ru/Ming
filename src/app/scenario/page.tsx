@@ -59,7 +59,7 @@ function ScenarioPageContent() {
     if (scenesString) {
       localStorage.setItem(
         "numScenariosCompleted",
-        (parseInt(scenesString) + 1).toString()
+        (parseInt(scenesString) + 1).toString(),
       );
     } else {
       localStorage.setItem("numScenariosCompleted", "1");
@@ -94,7 +94,7 @@ function ScenarioPageContent() {
           prompts: (result as any).result.prompts,
           reports: (result as any).result.reports,
           scenario: (result as any).result.scenario,
-        })
+        }),
       );
     } catch (error) {
       console.error("Failed to generate new scenario prompt:", error);
@@ -122,7 +122,7 @@ function ScenarioPageContent() {
 
   return (
     <div className="overflow-y-clip" style={{ height: "calc(100vh - 3rem)" }}>
-      <div className="flex w-full h-full" >
+      <div className="flex w-full h-full">
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
           {isLoadingNewScenario ? (
@@ -132,7 +132,10 @@ function ScenarioPageContent() {
               </p>
             </div>
           ) : null}
-          <div className="flex-grow relative flex items-center justify-center bg-black" style={{ height: "calc(100vh - 3rem)" }}>
+          <div
+            className="flex-grow relative flex items-center justify-center bg-black"
+            style={{ height: "calc(100vh - 3rem)" }}
+          >
             <ScenarioVideo scenario={currentScenario} />
             <div className="absolute bottom-0 left-0 w-full z-20">
               <SentimentBar
@@ -142,10 +145,9 @@ function ScenarioPageContent() {
           </div>
         </div>
         <div className="w-[350px] flex flex-col items-end">
-          <div
-            className="w-full p-2 bg-white border-l h-full"
-          >
+          <div className="w-full p-2 bg-white border-l h-full">
             <SidePanelCedarChat
+              scenario={currentScenario}
               documents={currentScenario.documents}
               setUserSentiment={setUserSentiment}
               setBotSentiment={setBotSentiment}
