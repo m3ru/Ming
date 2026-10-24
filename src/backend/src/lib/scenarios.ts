@@ -15,13 +15,10 @@ export namespace Scenarios {
         name: "Bart",
         role: "Mid-Level Fullstack Software Engineer",
         pfp: "https://randomuser.me/api/portraits/men/12.jpg",
-        personality: `Bart is conscientious and normally dependable, but recent family obligations have made him distracted and inconsistent. 
-He tends to be soft-spoken, avoids confrontation, and apologizes rather than making excuses. 
-He keeps answers concise (no more than 3–4 sentences) and appreciates direct, concrete guidance. 
-He is receptive to help but may be hesitant to ask for it.`,
-        scenarioSpecificInfo: `Bart’s output and reliability have slipped over the past month. 
-Velocity has declined, PRs have lingered without updates, and two production incidents were linked to his changes. 
-Attendance has been irregular due to family issues, with multiple late arrivals and missed standups.`,
+        personality:
+          "Soft-spoken and hesitant to ask for help, he responds well to clear, supportive feedback.",
+        scenarioSpecificInfo:
+          "Usually dependable, Bart has fallen behind over the past month while juggling family responsibilities.",
         role_llm:
           "You are Bart, a full-stack engineer at Ming. You are typically reliable, but family issues at home have recently affected your work. You value being straightforward and appreciate clear guidance and bounded goals.",
         personality_llm: `
@@ -48,203 +45,92 @@ Your mindset:
     ],
     documents: [
       {
-        title: "Sprint Metrics Summary (Weeks 4–7)",
+        title: "Performance & Attendance",
         type: "performance_report",
         content: [
-          { format: "bold", content: "Source: Jira Velocity & Burndown" },
+          { format: "bold", content: "Sprint metrics · Weeks 4–7" },
           {
             format: "plain",
             content:
-              "Team baseline velocity: 42–48 pts/sprint. Bart historical average: 18–22 pts/sprint.",
-          },
-          {
-            format: "bold",
-            content:
-              "Recent velocity (Bart): Week 4: 12, Week 5: 9, Week 6: 8, Week 7: 10 (missed commitment 3/4 sprints).",
+              "Bart delivered 12, 9, 8, and 10 points, down from his usual 18–22. He missed commitments in 3 of 4 sprints; team baseline is 42–48 points.",
           },
           {
             format: "plain",
             content:
-              "Carry-over stories increased from 0–1 to 3–4 per sprint; 2 unstarted tickets rolled twice.",
+              "Carry-over rose from 0–1 to 3–4 stories per sprint. Two unstarted tickets rolled twice, with most progress recorded in the final 24–36 hours.",
           },
+          { format: "bold", content: "Attendance & communication" },
           {
             format: "plain",
             content:
-              "Burndown shows late movement concentrated on last 24–36 hours of each sprint.",
+              "In four weeks: 6 late arrivals, 4 missed standups, and 2 unplanned half-days of PTO. Notices came after standup; Slack availability included gaps over 90 minutes without a status update.",
+          },
+          { format: "bold", content: "Peer feedback" },
+          {
+            format: "plain",
+            content:
+              "Teammates describe Bart as capable and helpful, especially when pairing. They report stale PRs, rushed fixes, and sporadic communication, and ask for earlier blocker updates and a daily plan.",
           },
         ],
       },
       {
-        title: "Code Review Excerpts",
-        type: "code_review",
-        content: [
-          { format: "bold", content: "PR #482 (Cart state refactor) — Open 6 days" },
-          {
-            format: "plain",
-            content:
-              "Reviewer note: 'Missing unit tests for edge cases (empty cart, guest user). Please add tests and split into smaller commits.'",
-          },
-          {
-            format: "plain",
-            content:
-              "Follow-up: 'Stale for 3 days without response; please address comments or draft for now.'",
-          },
-          { format: "bold", content: "PR #495 (Checkout step validation) — Merged" },
-          {
-            format: "plain",
-            content:
-              "Post-merge note: 'Introduced regression on coupon handling; no test coverage for invalid codes.'",
-          },
-        ],
-      },
-      {
-        title: "QA & Incident Notes",
+        title: "Code Quality & Incidents",
         type: "incident_report",
         content: [
-          { format: "bold", content: "Incident: P1 Coupon Regression (Week 6)" },
+          { format: "bold", content: "Code reviews" },
           {
             format: "plain",
             content:
-              "Root cause: validation bypass on coupon apply path; missing unit test; reverted in hotfix #501.",
-          },
-          { format: "bold", content: "Incident: P1 Cart Persistence (Week 7)" },
-          {
-            format: "plain",
-            content:
-              "Root cause: localStorage key mismatch; fix released with #507; added Playwright regression test.",
+              "PR #482 (cart refactor) stayed open 6 days, including 3 without a response. Reviewers requested smaller commits and tests for empty carts and guest users.",
           },
           {
             format: "plain",
             content:
-              "QA reopen count linked to Bart (last 4 weeks): 3 tickets reopened due to incomplete acceptance criteria.",
+              "PR #495 (checkout validation) introduced a coupon regression without test coverage for invalid codes.",
+          },
+          { format: "bold", content: "Production & QA" },
+          {
+            format: "plain",
+            content:
+              "Week 6: P1 coupon regression caused by a validation bypass and missing unit test; reverted in hotfix #501.",
+          },
+          {
+            format: "plain",
+            content:
+              "Week 7: P1 cart persistence incident caused by a localStorage key mismatch; fixed in #507 with a Playwright regression test.",
+          },
+          {
+            format: "plain",
+            content:
+              "QA reopened 3 of Bart’s tickets in the past four weeks because acceptance criteria were incomplete.",
           },
         ],
       },
       {
-        title: "Attendance & Standup Log",
-        type: "attendance_log",
+        title: "Delivery & Timeline",
+        type: "project_report",
         content: [
-          { format: "bold", content: "Late arrivals (past 4 weeks): 6" },
-          { format: "bold", content: "Missed daily standups: 4" },
+          { format: "bold", content: "Open commitments" },
           {
             format: "plain",
             content:
-              "Unplanned PTO: 2 half-days (Week 5, Week 6). Manager notified after standup both times.",
-          },
-          {
-            format: "plain",
-            content:
-              "Slack availability: multiple >90-minute gaps during core hours without status update.",
-          },
-        ],
-      },
-      {
-        title: "Peer Feedback (Anonymous)",
-        type: "peer_feedback",
-        content: [
-          {
-            format: "plain",
-            content:
-              "“Bart is capable and helpful one-on-one, but recently PRs sit without updates and we rush fixes at sprint end.”",
+              "Ticket #604 (checkout address validation) carried from Week 6 into Week 7. QA is blocked by missing ZIP and country rules; unit and Playwright tests are still required. The QA lead requested an ETA or smaller subtasks.",
           },
           {
             format: "plain",
             content:
-              "“Pairing sessions are effective; when we paired on the subscription stub, progress was steady.”",
+              "Ticket #612 (coupon apply/remove) was resolved with Alice’s help. Playwright and Jest coverage was added for invalid and expired codes.",
+          },
+          { format: "bold", content: "Project milestones" },
+          {
+            format: "plain",
+            content:
+              "Weeks 1–2: design and technical planning completed. Core features were planned for Weeks 3–6, but cart and checkout validation remain behind through Week 7.",
           },
           {
             format: "plain",
             content:
-              "“Communication is sporadic. It would help to post blockers early and propose a plan for the day.”",
-          },
-        ],
-      },
-      {
-        title: "Email: Missed Commitment on Ticket #604 (Checkout Address Validation)",
-        type: "email",
-        content: [
-          { format: "bold", content: "From: qa-lead@ming.com" },
-          { format: "bold", content: "To: bart@ming.com; project-manager@ming.com" },
-          { format: "bold", content: "Subject: Ticket #604 not ready for QA" },
-          {
-            format: "plain",
-            content:
-              "Hi Bart, QA is blocked on #604. Acceptance criteria 2 & 3 are not implemented (ZIP + country rules).",
-          },
-          {
-            format: "plain",
-            content:
-              "Please update status or provide an ETA. If needed, we can split this into smaller subtasks.",
-          },
-          { format: "plain", content: "Thanks," },
-          { format: "plain", content: "QA Lead" },
-        ],
-      },
-      {
-        title: "Project Timeline (Current)",
-        type: "timeline",
-        content: [
-          {
-            format: "plain",
-            content:
-              "Week 1–2: Planning & Design (Susan delivered wireframes; tech plan finalized: Next.js + Prisma + Tailwind).",
-          },
-          {
-            format: "bold",
-            content:
-              "Week 3–6 (current window covered through Week 7): Core Features (Auth, Listings, Cart) — behind on Cart & Checkout validation.",
-          },
-          {
-            format: "plain",
-            content:
-              "Week 7–8: Testing (Playwright, Jest) and Bug Fixing (QA sign-off).",
-          },
-          {
-            format: "bold",
-            content:
-              "Week 9: Final Review and Deployment (Vercel). Risk: validation, coupon flows, and cart persistence stability.",
-          },
-        ],
-      },
-      {
-        title: "Ticket #604: Checkout Address Validation",
-        type: "ticket",
-        content: [
-          {
-            format: "plain",
-            content:
-              "As a shopper, I want address validation so I can complete checkout without errors.",
-          },
-          {
-            format: "plain",
-            content:
-              "Status: In Progress (Week 6 → Week 7 carry-over). Assigned to Bart.",
-          },
-          {
-            format: "plain",
-            content:
-              "Technical Notes: Country-specific rules, ZIP/postcode formats; requires unit tests and Playwright coverage.",
-          },
-        ],
-      },
-      {
-        title: "Ticket #612: Coupon Apply/Remove — Regression Fix",
-        type: "ticket",
-        content: [
-          {
-            format: "plain",
-            content:
-              "As a shopper, I want coupons to apply/remove correctly so my order total updates as expected.",
-          },
-          {
-            format: "plain",
-            content:
-              "Status: Resolved in hotfix #507 after P1 incident. Owner: Bart (paired with Alice).",
-          },
-          {
-            format: "plain",
-            content:
-              "Testing: Added Playwright scenario and Jest unit tests for invalid/expired codes.",
+              "Weeks 7–8: testing, fixes, and QA sign-off. Week 9: final review and Vercel deployment. Key risks are validation, coupons, and cart persistence.",
           },
         ],
       },

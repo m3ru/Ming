@@ -1,163 +1,171 @@
 "use client";
 
-import {
+import type {
   Npc,
   Scenario,
   ScenarioDocument,
   ScenarioDocumentBlock,
 } from "@/lib/types";
-import { Collapsible, CollapsibleContent } from "./ui/collapsible";
-import { useState } from "react";
-import { CollapsibleTrigger } from "@radix-ui/react-collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import { Card } from "./ui/card";
-import { Avatar } from "@radix-ui/react-avatar";
-import { AvatarFallback, AvatarImage } from "./ui/avatar";
-import { Separator } from "./ui/separator";
+import {
+  Bug,
+  CalendarDays,
+  ChartColumn,
+  ChevronDown,
+  FileText,
+  type LucideIcon,
+} from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+
+const summaryClassName =
+  "flex cursor-pointer list-none items-center justify-between gap-3 rounded-md py-3 text-sm font-medium text-slate-700 outline-none hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-blue-500 [&::-webkit-details-marker]:hidden";
 
 export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
-  const [isCompanyCultureOpen, setIsCompanyCultureOpen] = useState(false);
-
   return (
-    <div className="flex flex-col p-5 w-1/2 lg:w-1/4 gap-2 overflow-y-scroll border-r">
-      <h1 className="text-2xl font-bold">Scenario</h1>
-      <div className="flex flex-col max-lg:text-sm">
-        {scenario.situation.split("\n").map((line, i) => (
-          <p key={i}>{line}</p>
-        ))}
+    <aside
+      key={scenario.title}
+      aria-label="Scenario brief"
+      className="flex w-64 shrink-0 flex-col gap-6 overflow-y-auto border-r bg-slate-50/60 px-5 py-6 lg:w-72"
+    >
+      <header className="space-y-5">
+        <h1 className="text-lg font-semibold leading-snug text-slate-950">
+          {scenario.title}
+        </h1>
+        <div className="space-y-2">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
+            Your goal
+          </h2>
+          <p className="text-sm leading-relaxed text-slate-700">
+            {scenario.goal}
+          </p>
+        </div>
+      </header>
+
+      {scenario.npcs.length > 0 && (
+        <section aria-label="People" className="space-y-1 border-t pt-3">
+          {scenario.npcs.map((npc, index) => (
+            <NpcOverview key={`${npc.name}-${index}`} npc={npc} />
+          ))}
+        </section>
+      )}
+
+      <div className="divide-y border-t">
+        <details className="group/background">
+          <summary className={summaryClassName}>
+            Background
+            <ChevronDown
+              aria-hidden="true"
+              className="size-4 shrink-0 text-slate-400 transition-transform group-open/background:rotate-180"
+            />
+          </summary>
+          <div className="space-y-4 pb-4 text-sm leading-relaxed text-slate-600">
+            <p className="whitespace-pre-line">{scenario.situation}</p>
+            {scenario.companyDetails && (
+              <div className="space-y-1">
+                <h2 className="text-xs font-medium text-slate-500">Company</h2>
+                <p className="whitespace-pre-line">{scenario.companyDetails}</p>
+              </div>
+            )}
+          </div>
+        </details>
+
+        {scenario.documents.length > 0 && (
+          <details open className="group/documents">
+            <summary className={summaryClassName}>
+              <span className="flex items-center gap-2">
+                Documents
+                <span className="text-xs font-normal text-slate-400">
+                  {scenario.documents.length}
+                </span>
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className="size-4 shrink-0 text-slate-400 transition-transform group-open/documents:rotate-180"
+              />
+            </summary>
+            <div className="space-y-1 pb-3">
+              {scenario.documents.map((doc, index) => (
+                <DocumentOverview key={`${doc.title}-${index}`} doc={doc} />
+              ))}
+            </div>
+          </details>
+        )}
       </div>
-
-      <Separator />
-
-      <Collapsible
-        open={isCompanyCultureOpen}
-        onOpenChange={setIsCompanyCultureOpen}
-        className="flex flex-col"
-      >
-        <CollapsibleTrigger className="cursor-pointer">
-          <div className="flex w-full justify-between">
-            <h2 className="lg:text-lg font-bold">Company Overview</h2>
-            {isCompanyCultureOpen ? <ChevronDown /> : <ChevronUp />}
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="max-lg:text-sm">
-            {scenario.companyDetails.split("\n").map((line, i) => (
-              <p key={i}>{line}</p>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-
-      <Separator />
-
-      <h2 className="lg:text-lg font-bold">Coworkers</h2>
-      {scenario.npcs.length === 0 ? (
-        <p>No coworkers in this scenario.</p>
-      ) : (
-        scenario.npcs.map((npc, index) => <NpcOverview key={index} npc={npc} />)
-      )}
-
-      <Separator className="mt-2" />
-
-      <h2 className="lg:text-lg font-bold">Documents</h2>
-      {scenario.documents.length === 0 ? (
-        <p>No documents in this scenario.</p>
-      ) : (
-        scenario.documents.map((doc, index) => (
-          <DocumentOverview key={index} doc={doc} />
-        ))
-      )}
-    </div>
+    </aside>
   );
 }
 
 function NpcOverview({ npc }: { npc: Npc }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const title = npc.role.includes(".") ? npc.role.split(".")[0] : npc.role;
+  const title = npc.role.split(".")[0];
 
   return (
-    <Card>
-      <Collapsible
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="flex flex-col"
-      >
-        <CollapsibleTrigger className="cursor-pointer">
-          <div className="flex w-full justify-between items-center px-4 py-1">
-            <div className="flex items-center gap-1">
-              <Avatar className="rounded-full w-8 h-8 max-lg:mr-1">
-                <AvatarImage src={npc.pfp} className="rounded-full" />
-                <AvatarFallback>{npc.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col items-start">
-                <h3 className="font-bold">{npc.name}</h3>
-                <p className="max-lg:hidden text-sm text-left">{title}</p>
-              </div>
-            </div>
-            {isOpen ? <ChevronDown /> : <ChevronUp />}
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="p-4 pt-0 flex flex-col gap-2 max-lg:text-sm">
-          <p className="lg:hidden">
-            <strong>Title:</strong> {title}
-          </p>
-          <p>
-            <strong>Scenario:</strong> {npc.scenarioSpecificInfo}
-          </p>
-          <p>
-            <strong>Personality:</strong> {npc.personality}
-          </p>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+    <details className="group/person">
+      <summary className={`${summaryClassName} py-2`}>
+        <span className="flex min-w-0 items-center gap-3">
+          <Avatar className="size-9 shrink-0">
+            <AvatarImage src={npc.pfp} alt="" />
+            <AvatarFallback>{npc.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0">
+            <span className="block text-sm font-medium text-slate-900">
+              {npc.name}
+            </span>
+            <span className="mt-0.5 block text-xs font-normal leading-relaxed text-slate-500">
+              {title}
+            </span>
+          </span>
+        </span>
+        <ChevronDown
+          aria-hidden="true"
+          className="size-4 shrink-0 text-slate-400 transition-transform group-open/person:rotate-180"
+        />
+      </summary>
+      <div className="space-y-3 py-3 text-sm leading-relaxed text-slate-600">
+        <p className="whitespace-pre-line">{npc.scenarioSpecificInfo}</p>
+        <p className="whitespace-pre-line">{npc.personality}</p>
+      </div>
+    </details>
   );
 }
 
+const documentIcons: Record<string, LucideIcon> = {
+  performance_report: ChartColumn,
+  incident_report: Bug,
+  project_report: CalendarDays,
+};
+
 function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const Icon = documentIcons[doc.type] ?? FileText;
 
   return (
-    <Card>
-      <Collapsible
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="flex flex-col"
+    <details className="group/document">
+      <summary
+        className={`${summaryClassName} items-start gap-2 px-2 py-2 text-xs font-normal hover:bg-slate-100`}
       >
-        <CollapsibleTrigger className="cursor-pointer">
-          <div className="flex w-full justify-between px-4 py-1">
-            <h3 className="font-bold text-left">{doc.title}</h3>
-            <div className="flex">
-              {/* <p className="max-lg:hidden">({doc.type})</p> */}
-              {isOpen ? <ChevronDown /> : <ChevronUp />}
-            </div>
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="p-4 pt-0 max-lg:text-sm">
-          {doc.content.map((block, index) => (
-            <DocumentContentBlock key={index} block={block} />
-          ))}
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
+        <Icon
+          aria-hidden="true"
+          className="mt-0.5 size-3.5 shrink-0 text-slate-400"
+        />
+        <span className="min-w-0 flex-1 leading-relaxed">{doc.title}</span>
+        <ChevronDown
+          aria-hidden="true"
+          className="mt-0.5 size-3.5 shrink-0 text-slate-400 transition-transform group-open/document:rotate-180"
+        />
+      </summary>
+      <div className="space-y-3 px-2 pb-4 pt-2 text-xs leading-relaxed text-slate-600">
+        {doc.content.map((block, index) => (
+          <DocumentContentBlock key={index} block={block} />
+        ))}
+      </div>
+    </details>
   );
 }
 
 function DocumentContentBlock({ block }: { block: ScenarioDocumentBlock }) {
-  let className = "";
-  if (block.format === "bold") className = "font-bold";
-  else if (block.format === "italic") className = "italic";
+  let className = "whitespace-pre-line";
+  if (block.format === "bold") className += " font-medium text-slate-800";
+  else if (block.format === "italic") className += " italic";
   else if (block.format === "code")
-    className = "font-mono bg-gray-100 p-1 rounded-md";
+    className += " break-words rounded bg-slate-100 p-2 font-mono";
 
-  const lines = block.content.split("\n");
-
-  return (
-    <div className={className}>
-      {lines.map((line, index) => (
-        <p key={index}>{line}</p>
-      ))}
-    </div>
-  );
+  return <p className={className}>{block.content}</p>;
 }

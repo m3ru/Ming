@@ -130,7 +130,7 @@ export const ChatInput: React.FC<{
         editor?.isFocused ||
         (target instanceof HTMLElement &&
           target.closest(
-            'input, textarea, select, button, a[href], [contenteditable="true"], [role="textbox"]',
+            'input, textarea, select, button, summary, a[href], [contenteditable="true"], [role="textbox"]',
           ))
       )
         return;
