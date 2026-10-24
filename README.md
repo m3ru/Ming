@@ -81,8 +81,7 @@ both use this file; `src/backend/.env` is not needed. The backend `dev` and
 
 > Environment variables (example):
 >
-> * `OPENAI_API_KEY` — required for text generation (GPT-5.4 Mini), speech transcription, and speech synthesis
-> * `NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY` — for Google Cloud Natural Language sentiment analysis
+> * `OPENAI_API_KEY` — required for text generation and the sentiment meter (GPT-5.4 Mini), speech transcription, and speech synthesis
 > * `NEXT_PUBLIC_URL*` — (optional) for connecting Frontend to Mastra Backend in production by providing Mastra Backend URL
 
 All backend text agents use the shared model in `src/backend/src/mastra/models.ts`.

@@ -1,7 +1,8 @@
 import { ShimmerText } from "@/cedar/components/text/ShimmerText";
+import { groupConversationMessages } from "@/lib/groupConversationMessages";
 import { cn, useCedarStore, useThreadMessages } from "cedar-os";
 import { AnimatePresence, motion } from "motion/react";
-import React, { useEffect, useLayoutEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import ChatRenderer from "./ChatRenderer";
 
 interface ChatBubblesProps {
@@ -17,6 +18,10 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
   const isProcessing = useCedarStore((state) => state.isProcessing);
   // Use useThreadMessages hook to get messages for current thread
   const { messages } = useThreadMessages();
+  const displayMessages = useMemo(
+    () => groupConversationMessages(messages),
+    [messages],
+  );
 
   // Immediate scroll to bottom on initial render (before paint)
   useLayoutEffect(() => {
@@ -35,12 +40,6 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
     }
   }, [messages]);
 
-  // Function to check if a message is consecutive (same sender as previous)
-  const isConsecutiveMessage = (index: number): boolean => {
-    if (index === 0) return false;
-    return messages[index].role === messages[index - 1].role;
-  };
-
   // Determine container classes based on maxHeight with proper className merging
   const containerClasses = maxHeight
     ? cn("overflow-x-hidden overflow-y-auto px-3", className)
@@ -55,7 +54,7 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
       ref={containerRef}
       className={cn(
         "w-full h-full mb-0 flex flex-col space-y-1 pb-2 lg:pb-3 relative",
-        containerClasses
+        containerClasses,
       )}
       style={{
         ...containerStyle,
@@ -66,7 +65,7 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
       {/* Messages container */}
       <div className="relative z-20 lg:px-1 lg:py-1">
         <AnimatePresence initial={false}>
-          {messages.map((message, index) => (
+          {displayMessages.map((message) => (
             <motion.div
               key={message.id}
               initial={{
@@ -85,7 +84,7 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
               }}
               className={`flex ${
                 message.role === "user" ? "justify-end" : "justify-start"
-              } ${isConsecutiveMessage(index) ? "mt-1" : "mt-2"}`}
+              } mt-2`}
             >
               <ChatRenderer message={message} />
             </motion.div>

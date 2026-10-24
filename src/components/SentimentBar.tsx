@@ -1,11 +1,7 @@
 import React from "react";
 import { Badge } from "./ui/badge";
 
-export default function SentimentBar({
-  sentiment
-}: {
-  sentiment: number;
-}) {
+export default function SentimentBar({ sentiment }: { sentiment: number }) {
   const value = (sentiment + 1) / 2; // Normalize score from [-1, 1] to [0, 1]
 
   const [displayValue, setDisplayValue] = React.useState(0.5);
@@ -35,7 +31,7 @@ export default function SentimentBar({
       <div
         className="w-full h-10 relative overflow-hidden justify-center"
         style={{
-          backgroundColor: 'black',
+          backgroundColor: "black",
         }}
       >
         {/* The color bar, which changes width based on sentiment */}
@@ -43,7 +39,7 @@ export default function SentimentBar({
           className="h-full transition-all duration-500 ease-out"
           style={{
             width: `${displayValue * 100}%`,
-            background: `linear-gradient(to right, #ef4444, #f59e0b, #22c55e)`,
+            backgroundColor: `hsl(${displayValue * 120} 75% 45%)`,
           }}
         />
         {/* The moving white cursor */}
@@ -54,13 +50,15 @@ export default function SentimentBar({
           }}
         />
         {/* The emojis on the ends of the bar */}
-        <span className="absolute my-0.3 text-white text-3xl font-extrabold left-2 top-1/2 -translate-y-1/2 z-30">☹</span>
-        <span className="absolute my-0.3 text-white text-3xl font-extrabold right-2 top-1/2 -translate-y-1/2 z-30">☺</span>
+        <span className="absolute my-0.3 text-white text-3xl font-extrabold left-2 top-1/2 -translate-y-1/2 z-30">
+          ☹
+        </span>
+        <span className="absolute my-0.3 text-white text-3xl font-extrabold right-2 top-1/2 -translate-y-1/2 z-30">
+          ☺
+        </span>
 
         {/* The "Mood" text, centered over the bar */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 text-white font-medium">
-          
-        </div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 text-white font-medium"></div>
       </div>
     </div>
   );

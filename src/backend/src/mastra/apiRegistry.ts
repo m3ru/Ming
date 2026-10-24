@@ -7,6 +7,8 @@ import {
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { createSSEStream } from "../utils/streamUtils";
 import { liveVoice } from "./liveVoice";
+import { scoreSentiment } from "./sentiment";
+import { sentimentRequestSchema } from "../lib/sentiment";
 import {
   VoiceError,
   voiceSessionSchema,
@@ -30,6 +32,35 @@ function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
  * - /chat/stream: Server-sent events (SSE) endpoint for streaming responses
  */
 export const apiRoutes = [
+  registerApiRoute("/sentiment", {
+    method: "POST",
+    handler: async (c) => {
+      try {
+        const request = sentimentRequestSchema.safeParse(await c.req.json());
+        if (!request.success)
+          return c.json({ error: "Invalid sentiment request." }, 400);
+        if (!process.env.OPENAI_API_KEY)
+          return c.json(
+            { error: "OpenAI is not configured on the server." },
+            503,
+          );
+        return c.json(
+          await scoreSentiment(
+            request.data.text,
+            AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(20000)]),
+          ),
+        );
+      } catch (error) {
+        if (error instanceof SyntaxError)
+          return c.json({ error: "Invalid sentiment request." }, 400);
+        console.error(
+          "Sentiment scoring failed",
+          error instanceof Error ? error.name : "Unknown error",
+        );
+        return c.json({ error: "Sentiment scoring is unavailable." }, 502);
+      }
+    },
+  }),
   registerApiRoute("/chat/stream", {
     method: "POST",
     openapi: {

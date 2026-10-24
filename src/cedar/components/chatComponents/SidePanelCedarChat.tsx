@@ -22,7 +22,7 @@ import { Spinner } from "@/components/ui/shadcn-io/spinner";
 import Image from "next/image";
 import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
-import { analyzeSentiment, Sentiment } from "@/lib/googleSentiment";
+import { analyzeSentiment, type Sentiment } from "@/lib/sentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
 import { Separator } from "@/components/ui/separator";
 import { billPrompt } from "@/lib/prompts";
@@ -98,7 +98,6 @@ interface SidePanelCedarChatProps {
 export const SidePanelCedarChat: React.FC<
   SidePanelCedarChatProps & {
     setUserSentiment: (sentiment: Sentiment) => void;
-    setBotSentiment: (sentiment: Sentiment) => void;
   }
 > = ({
   children, // Page content
@@ -119,7 +118,6 @@ export const SidePanelCedarChat: React.FC<
   documents = [],
   scenario,
   setUserSentiment,
-  setBotSentiment,
 }) => {
   // Get showChat state and setShowChat from store
   const showChat = useCedarStore((state) => state.showChat);
@@ -336,43 +334,32 @@ export const SidePanelCedarChat: React.FC<
     }
   };
 
-  function updateSentiment(
-    set: (sentiment: Sentiment) => void,
-    messageRole: string,
-  ) {
-    const roleMessages = messages.filter((m) => m.role === messageRole);
-
-    const lastMessages = roleMessages.slice(-3); // Get the last 3 messages
-
-    const combinedContent = lastMessages
-      .map((m) => m.content)
-      .filter(Boolean)
-      .join(" ");
-
-    if (combinedContent) {
-      analyzeSentiment(combinedContent)
-        .then((data) => {
-          set(data);
-          console.log(
-            `${messageRole} sentiment analysis result:`,
-            data,
-            "for content:",
-            combinedContent,
-          );
-        })
-        .catch(() => {
-          /* Sentiment failure must not stop voice or reports. */
-        });
-    }
-  }
+  const sentimentText = messages
+    .filter((message) => message.role === "user" && message.type === "text")
+    .slice(-3)
+    .map((message) => message.content)
+    .filter(Boolean)
+    .join(" ")
+    .slice(-12000)
+    .trim();
 
   useEffect(() => {
+    if (!sentimentText) return;
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      updateSentiment(setUserSentiment, "user");
-      updateSentiment(setBotSentiment, "assistant");
+      void analyzeSentiment(sentimentText, controller.signal)
+        .then((sentiment) => {
+          if (!controller.signal.aborted) setUserSentiment(sentiment);
+        })
+        .catch(() => {
+          /* Keep the last score if scoring fails; voice and reports continue. */
+        });
     }, 1000);
-    return () => clearTimeout(timer);
-  }, [messages]);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [sentimentText, setUserSentiment]);
 
   return (
     <>

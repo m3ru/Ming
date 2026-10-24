@@ -11,7 +11,7 @@ import { mastraClient } from "@/lib/mastra-client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getScenarioFromLocalStorage } from "@/lib/scenarioUtil";
 import { Scenario } from "@/lib/types";
-import { Sentiment } from "@/lib/googleSentiment";
+import type { Sentiment } from "@/lib/sentiment";
 import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
 import useOrientation from "@/hooks/useOrientation";
@@ -104,7 +104,6 @@ function ScenarioPageContent() {
   };
 
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
-  const [botSentiment, setBotSentiment] = useState<Sentiment>();
 
   const orientation = useOrientation();
 
@@ -150,7 +149,6 @@ function ScenarioPageContent() {
               scenario={currentScenario}
               documents={currentScenario.documents}
               setUserSentiment={setUserSentiment}
-              setBotSentiment={setBotSentiment}
             />
           </div>
         </div>
