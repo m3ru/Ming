@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Scenario } from "@/lib/types";
 import type { Sentiment } from "@/lib/sentiment";
 import SentimentBar from "@/components/SentimentBar";
+import { CircleAlert } from "lucide-react";
 
 const scenario = Scenarios.negativeReview;
 
@@ -23,8 +24,7 @@ function ScenarioPageContent() {
       setLoaded({ scenario: readActiveScenario() ?? scenario });
     } catch {
       setLoaded({
-        error:
-          "This browser could not load the active scenario. Return home and start a new session, or allow site storage and reload this page.",
+        error: "Your saved scenario could not be loaded. Start a new session from home.",
       });
     }
   }, []);
@@ -34,25 +34,34 @@ function ScenarioPageContent() {
   // Do not mount chat or voice with the default context while saved context is loading.
   if (!loaded)
     return (
-      <p className="p-6 text-ink-soft" role="status">
-        Loading your scenario…
-      </p>
+      <div className="mx-auto max-w-xs space-y-3 p-6 pt-16" role="status">
+        <p className="text-ink-soft">Loading your scenario…</p>
+        <div aria-hidden className="loading-sweep" />
+      </div>
     );
   if ("error" in loaded)
     return (
-      <section className="m-4 max-w-2xl rounded-xl border border-rule bg-white p-6 sm:mx-auto sm:mt-8">
-        <h1 className="text-2xl font-extrabold tracking-tight">
+      <section className="rise m-4 max-w-2xl sm:mx-auto sm:mt-10">
+        <h1 className="text-4xl font-extrabold tracking-tight">
           Scenario unavailable
         </h1>
-        <p role="alert" className="mt-3 text-ink-soft">
-          {loaded.error}
-        </p>
-        <Link
-          href="/"
-          className="mt-4 inline-block font-semibold text-pencil underline underline-offset-4"
+        <div
+          role="alert"
+          className="alert-note mt-5"
+          style={{ animationDelay: "120ms" }}
         >
-          Return home
-        </Link>
+          <CircleAlert
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 text-red-pencil"
+          />
+          <p className="min-w-0 flex-1">{loaded.error}</p>
+          <Link
+            href="/"
+            className="shrink-0 font-semibold text-pencil underline-offset-4 hover:underline"
+          >
+            Return home
+          </Link>
+        </div>
       </section>
     );
   const currentScenario = loaded.scenario;

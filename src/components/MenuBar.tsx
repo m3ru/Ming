@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { usePathname } from "next/navigation";
+import { CircleAlert } from "lucide-react";
 import { useSessionActions } from "@/components/SessionActionsProvider";
 
 // Plain anchors on purpose: a full document load gives the next page a fresh Cedar session.
@@ -32,13 +33,20 @@ export default function MenuBar() {
               key={href}
               href={href}
               aria-current={current === href ? "page" : undefined}
-              className={`flex items-center border-b-2 px-2 text-sm font-semibold sm:px-3 ${
-                current === href
-                  ? "border-pencil text-ink"
-                  : "border-transparent text-ink-soft hover:text-ink"
+              className={`group relative flex items-center px-2 text-sm font-semibold transition-colors sm:px-3 ${
+                current === href ? "text-ink" : "text-ink-soft hover:text-ink"
               }`}
             >
               {label}
+              {/* The active underline draws in on load; others preview it on hover. */}
+              <span
+                aria-hidden
+                className={`absolute inset-x-1 bottom-0 h-0.5 rounded-full transition-[scale] duration-200 ease-out sm:inset-x-2 ${
+                  current === href
+                    ? "nav-underline bg-pencil"
+                    : "scale-x-0 bg-ink/25 group-hover:scale-x-100"
+                }`}
+              />
             </a>
           ))}
         </div>
@@ -60,8 +68,17 @@ export default function MenuBar() {
         </div>
       </div>
       {error && (
-        <div id="new-session-error" role="alert" className="absolute right-3 top-full z-50 mt-2 max-w-sm rounded-lg border border-red-pencil/40 bg-white px-4 py-3 text-sm text-red-pencil shadow-md sm:right-4">
-          {error}
+        <div id="new-session-error" role="alert" className="alert-note absolute right-3 top-full z-50 mt-2 max-w-sm shadow-md sm:right-4">
+          <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-red-pencil" />
+          <p className="min-w-0 flex-1">{error}</p>
+          <button
+            type="button"
+            onClick={() => { void startNewSession().catch(() => {}); }}
+            disabled={isStarting}
+            className="shrink-0 cursor-pointer font-semibold text-pencil underline-offset-4 hover:underline disabled:cursor-wait disabled:opacity-60"
+          >
+            Try again
+          </button>
         </div>
       )}
     </nav>

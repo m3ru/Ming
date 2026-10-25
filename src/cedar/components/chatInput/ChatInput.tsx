@@ -1,7 +1,7 @@
 import { cn, useCedarStore, HumanInTheLoopMessage } from "cedar-os";
 
 import { CedarEditorContent as EditorContent } from "cedar-os";
-import { Mic, PhoneOff, SendHorizonal } from "lucide-react";
+import { CircleAlert, Mic, PhoneOff, SendHorizonal, VolumeX } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect } from "react";
 
@@ -17,6 +17,12 @@ import { observeNextChatStream } from "@/lib/chatStreamObserver";
 export type ChatContainerPosition = "bottom-center" | "embedded" | "custom";
 
 // Inlined mention items removed; using external suggestion module
+
+// Failures where sending the same draft again is the recovery.
+const NO_REPLY = "No reply came back. Your draft is still here.";
+const SEND_FAILED = "Couldn't send your message. Your draft is still here.";
+const NOTE_ACTION =
+  "-my-2 min-h-11 shrink-0 cursor-pointer self-center rounded-lg px-2.5 font-semibold text-pencil transition-colors hover:bg-pencil/10 disabled:cursor-not-allowed disabled:opacity-50";
 
 export const ChatInput: React.FC<{
   handleFocus?: () => void;
@@ -72,7 +78,7 @@ export const ChatInput: React.FC<{
           state.getCedarState("userId") !== requestedUserId
         )
           throw new Error(
-            "The conversation changed before your message was sent. Review your draft in the current conversation.",
+            "The conversation changed before sending. Check your draft.",
           );
         const submittedThreadId = state.getCurrentThreadId();
         const previousIds = new Set(
@@ -111,9 +117,7 @@ export const ChatInput: React.FC<{
             submittedThreadId,
             previousIds,
           );
-          setSendError(
-            "The AI could not respond. Your draft is still here; select Send message to try again.",
-          );
+          setSendError(NO_REPLY);
         } else if (
           JSON.stringify(submittedEditor.getJSON()) === submittedContent
         ) {
@@ -130,7 +134,7 @@ export const ChatInput: React.FC<{
         setSendError(
           !submission && error instanceof Error
             ? error.message
-            : "Could not send your message. Your draft is still here; select Send message to try again.",
+            : SEND_FAILED,
         );
       } finally {
         // Cedar clears its input state after resolving. Keep the visible draft
@@ -181,6 +185,15 @@ export const ChatInput: React.FC<{
 
   // Keep the connection open between presses, but transmit only while held.
   const { beginTalking, endTalking } = voice;
+  // Honest states only: the mic is open, or a released turn is being worked on.
+  const live = voice.status === "connected" && !voice.muted;
+  const voiceLabel = live
+    ? "Listening…"
+    : voice.working
+      ? voice.provider === "deepgram"
+        ? "Processing your voice…"
+        : "Checking the scenario…"
+      : null;
   useEffect(() => {
     let spaceHeld = false;
     const release = () => {
@@ -277,84 +290,118 @@ export const ChatInput: React.FC<{
         )}
       </div>
 
-      <div className="mb-2 space-y-1 px-1 text-xs text-ink-soft" aria-live="polite">
-        {voice.status === "connecting" && (
+      <div className="mb-2 space-y-2 px-1 text-xs text-ink-soft" aria-live="polite">
+        {voiceLabel ? (
+          <div className="flex min-h-5 items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`voice-wave ${live ? "is-listening text-red-pencil" : "is-working text-pencil"}`}
+            >
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </span>
+            <p
+              key={voiceLabel}
+              className={`enter-pop text-sm font-semibold ${live ? "text-red-pencil" : "text-ink"}`}
+            >
+              {voiceLabel}
+            </p>
+          </div>
+        ) : voice.status === "connecting" ? (
+          <p>Connecting voice… Allow the microphone if asked.</p>
+        ) : voice.status === "closing" ? (
+          <p>Saving voice conversation… You can still type.</p>
+        ) : voice.status === "connected" ? (
           <p>
-            Connecting voice… Allow microphone access if prompted. You can type
-            while you wait.
-          </p>
-        )}
-        {voice.status === "idle" && !voice.error && (
-          <p>
-            Voice is off. Hold the microphone to connect, or type a message.
-          </p>
-        )}
-        {voice.status === "closing" && (
-          <p>Saving voice conversation… You can still type a message.</p>
-        )}
-        {voice.status === "connected" && (
-          <p>
-            {voice.muted
-              ? "Hold Space or the microphone to talk"
-              : "Listening…"}
+            Hold Space or the microphone to talk
             {voice.speaking ? " · Speaking" : ""}
-            {voice.working
-              ? voice.provider === "deepgram"
-                ? " · Processing voice…"
-                : " · Checking scenario…"
-              : ""}
           </p>
+        ) : (
+          !voice.error && (
+            <p>
+              Voice is off. Hold the microphone to connect, or type a message.
+            </p>
+          )
         )}
         {voice.playbackBlocked && (
-          <button
-            type="button"
-            onClick={() => {
-              void voice.resumePlayback();
-            }}
-            className="font-medium text-pencil underline underline-offset-2"
-          >
-            Enable audio playback
-          </button>
-        )}
-        {voice.error && (
-          <p role="alert" className="text-red-pencil">
-            {voice.error}
-          </p>
-        )}
-        {voice.canContinueByText && (
-          <div>
+          <div className="alert-note">
+            <VolumeX
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-red-pencil"
+            />
+            <p className="min-w-0 flex-1">The browser blocked audio.</p>
             <button
               type="button"
-              className="min-h-11 cursor-pointer rounded-lg px-2 font-medium text-pencil underline underline-offset-2 disabled:opacity-50"
-              disabled={isSending || isProcessing}
               onClick={() => {
-                void voice
-                  .continueByText?.()
-                  .then(() => {
-                    setSendError(null);
-                    editor?.commands.focus();
-                  })
-                  .catch((error: unknown) => {
-                    setSendError(
-                      error instanceof Error
-                        ? error.message
-                        : "Could not continue by text. Please try again.",
-                    );
-                  });
+                void voice.resumePlayback();
               }}
+              className={NOTE_ACTION}
             >
-              Continue by text
+              Enable audio
             </button>
-            <p>
-              Discards the failed recording. Saved messages stay in the
-              conversation. Then send your draft or select End conversation.
-            </p>
+          </div>
+        )}
+        {(voice.error || voice.canContinueByText) && (
+          <div role="alert" className="alert-note">
+            <CircleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-red-pencil"
+            />
+            <div className="min-w-0 flex-1">
+              <p>{voice.error ?? "Your last recording didn't send."}</p>
+              {voice.canContinueByText && (
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  Continue by text drops it. Saved messages stay.
+                </p>
+              )}
+            </div>
+            {voice.canContinueByText && (
+              <button
+                type="button"
+                className={NOTE_ACTION}
+                disabled={isSending || isProcessing}
+                onClick={() => {
+                  void voice
+                    .continueByText?.()
+                    .then(() => {
+                      setSendError(null);
+                      editor?.commands.focus();
+                    })
+                    .catch((error: unknown) => {
+                      setSendError(
+                        error instanceof Error
+                          ? error.message
+                          : "Couldn't switch to text. Try again.",
+                      );
+                    });
+                }}
+              >
+                Continue by text
+              </button>
+            )}
           </div>
         )}
         {sendError && (
-          <p role="alert" className="text-red-pencil">
-            {sendError}
-          </p>
+          <div role="alert" className="alert-note">
+            <CircleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-red-pencil"
+            />
+            <p className="min-w-0 flex-1">{sendError}</p>
+            {(sendError === NO_REPLY || sendError === SEND_FAILED) && (
+              <button
+                type="button"
+                className={NOTE_ACTION}
+                disabled={isEditorEmpty || isSending || isProcessing}
+                onClick={() => void handleSubmit()}
+              >
+                Send again
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -366,11 +413,11 @@ export const ChatInput: React.FC<{
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={`flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full px-4 font-semibold text-white transition-colors disabled:opacity-50 ${
+            className={`flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full px-4 font-semibold text-white transition-[background-color,scale] duration-150 ease-out disabled:opacity-50 ${
               voice.muted
                 ? "bg-pencil enabled:hover:bg-pencil/90"
-                : "bg-red-pencil"
-            }`}
+                : "scale-[1.04] bg-red-pencil"
+            } ${live ? "mic-live" : ""}`}
             onPointerDown={(event) => {
               if (event.button !== 0) return;
               event.preventDefault();
@@ -409,7 +456,7 @@ export const ChatInput: React.FC<{
                 : voice.status === "closing"
                   ? "Finishing…"
                   : !voice.muted
-                    ? "Microphone live"
+                    ? "Release to send"
                     : voice.status === "connected"
                       ? "Hold to talk"
                       : "Hold to connect voice"}

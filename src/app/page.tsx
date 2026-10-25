@@ -11,14 +11,17 @@ export default function HomePage() {
     <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-10 sm:px-6 lg:px-8 lg:pt-14">
       <header>
         <div className="flex items-end gap-10">
-          <h1 className="swipe text-5xl font-black leading-none tracking-tight text-ink sm:text-7xl lg:text-8xl">
+          <h1 className="swipe swipe-draw rise text-5xl font-black leading-none tracking-tight text-ink sm:text-7xl lg:text-8xl">
             Welcome back
           </h1>
-          <p className="hand hidden -rotate-3 pb-4 text-[34px] text-pencil lg:block">
+          <p
+            className="hand write-in hidden -rotate-3 pb-4 text-[34px] text-pencil lg:block"
+            style={{ animationDelay: "520ms" }}
+          >
             rehearse it here first
           </p>
         </div>
-        <p className="mt-5 text-lg text-ink-soft sm:text-xl">
+        <p className="rise mt-5 text-lg text-ink-soft sm:text-xl" style={{ animationDelay: "90ms" }}>
           Practice hard management conversations with an AI employee.
         </p>
       </header>
@@ -53,7 +56,7 @@ export default function HomePage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="rise mt-6 grid gap-6 lg:grid-cols-[2fr_1fr]" style={{ animationDelay: "380ms" }}>
         <ScoreCard />
         <div className="flex flex-col gap-4">
           <AchievementsCard />

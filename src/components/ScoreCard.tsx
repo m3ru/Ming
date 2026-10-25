@@ -40,8 +40,8 @@ export default function ScoreCard() {
         </p>
       ) : null}
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {scores.map(({ category, score }) => (
-          <ScoreBar key={category} category={category} score={score} />
+        {scores.map(({ category, score }, index) => (
+          <ScoreBar key={category} category={category} score={score} delay={460 + index * 50} />
         ))}
       </div>
     </section>

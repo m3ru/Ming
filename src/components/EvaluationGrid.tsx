@@ -10,7 +10,7 @@ export default function EvaluationGrid({
       className="grid grid-cols-1 gap-4 sm:grid-cols-2"
       aria-label="Evaluation criteria"
     >
-      {criteria.map((criterion) => {
+      {criteria.map((criterion, index) => {
         const strength = criterion.noteType === "strength";
         return (
           <article
@@ -39,8 +39,11 @@ export default function EvaluationGrid({
               className="h-1.5 overflow-hidden rounded-full bg-paper"
             >
               <div
-                className="h-full rounded-full bg-sage"
-                style={{ width: `${criterion.score ?? 0}%` }}
+                className="grow-bar h-full rounded-full bg-sage"
+                style={{
+                  width: `${criterion.score ?? 0}%`,
+                  animationDelay: `${520 + index * 60}ms`,
+                }}
               />
             </div>
             <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-soft">
@@ -52,7 +55,10 @@ export default function EvaluationGrid({
               >
                 {strength ? "What went well" : "Try next time"}
               </p>
-              <p className="hand mt-1 text-[26px] text-pencil">
+              <p
+                className="hand write-in mt-1 text-[26px] text-pencil"
+                style={{ animationDelay: `${650 + index * 90}ms` }}
+              >
                 {criterion.note}
               </p>
             </div>

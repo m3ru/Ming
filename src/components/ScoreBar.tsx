@@ -23,9 +23,12 @@ const icons = new Map<string, LucideIcon>([
 export default function ScoreBar({
   category,
   score,
+  delay = 0,
 }: {
   category: string;
   score: number | null;
+  /** Entrance delay in ms, to stagger a row of tiles. */
+  delay?: number;
 }) {
   const value =
     typeof score === "number" &&
@@ -36,7 +39,10 @@ export default function ScoreBar({
       : null;
   const Icon = icons.get(category) ?? Gauge;
   return (
-    <div className="flex flex-col rounded-xl border border-rule bg-white p-4">
+    <div
+      className="rise flex flex-col rounded-xl border border-rule bg-white p-4"
+      style={{ animationDelay: `${delay}ms` }}
+    >
       <div className="flex flex-1 items-start gap-2 text-sm font-medium leading-snug text-ink">
         <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-ink-soft" />
         <span>{category}</span>
@@ -60,8 +66,8 @@ export default function ScoreBar({
         className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted"
       >
         <div
-          className="h-full rounded-full bg-sage"
-          style={{ width: `${value ?? 0}%` }}
+          className="grow-bar h-full rounded-full bg-sage"
+          style={{ width: `${value ?? 0}%`, animationDelay: `${delay + 150}ms`, transitionDelay: `${delay + 150}ms` }}
         />
       </div>
     </div>

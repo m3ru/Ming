@@ -201,7 +201,9 @@ const renderMarkdownBlocks = (text: string) => {
           {commentTexts.map((c) => (
             <li key={c.idx} className={`flex items-start gap-2 ${c.note}`}>
               <span className={`${circled} mt-0.5 text-xs`}>{c.idx}</span>
-              <span className="hand break-words text-[26px]">{c.text}</span>
+              <span className="hand write-in-view break-words text-[26px]">
+                {c.text}
+              </span>
             </li>
           ))}
         </ol>

@@ -301,7 +301,6 @@ function renderPage(state, hooks = {}) {
   const states = [
     true,
     true,
-    true,
     state,
     hooks.followUpState || { status: "idle" },
   ];

@@ -15,14 +15,17 @@ import {
 } from "cedar-os";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/shadcn-io/spinner";
-import Image from "next/image";
+import { CircleAlert } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, type Sentiment } from "@/lib/sentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
 import type { Scenario } from "@/lib/types";
+
+// The one ending error that retrying cannot fix.
+const NEEDS_TRANSCRIPT = "Talk with Bart first, then end the conversation.";
 
 interface SidePanelCedarChatProps {
   children?: React.ReactNode; // Page content to wrap
@@ -67,7 +70,12 @@ export const SidePanelCedarChat: React.FC<
   const { messages } = useThreadMessages();
   const isProcessing = useCedarStore((state) => state.isProcessing);
   const finishing = useRef<AbortController | null>(null);
+  const reduceMotion = useReducedMotion();
   useEffect(() => () => finishing.current?.abort(), []);
+  // The "talk first" hint is stale as soon as the conversation moves on.
+  useEffect(() => {
+    setStopError((error) => (error === NEEDS_TRANSCRIPT ? null : error));
+  }, [messages.length]);
 
   // Persistent resourceId per session (like SimpleChatPanel)
   const [resourceId, setResourceId] = useState(() => {
@@ -191,15 +199,15 @@ export const SidePanelCedarChat: React.FC<
         await voiceSession.stop();
       } catch {
         setStopError(voiceSession.provider === "deepgram"
-          ? "Voice could not finish. Retry the recording, or select Continue by text to discard the failed recording before ending the conversation."
-          : "The voice transcript could not finish saving. Your conversation is still here. Select End conversation to try saving it again.");
+          ? "Your last recording didn't send. Try again, or continue by text."
+          : "Couldn't save the voice transcript. Your conversation is safe.");
         return;
       }
       const finalTranscript = buildReportTranscript(
         useCedarStore.getState().getThreadMessages(currentThreadId),
       );
       if (!finalTranscript) {
-        setStopError("Talk with Bart before ending the conversation. Send a message and wait for his reply.");
+        setStopError(NEEDS_TRANSCRIPT);
         return;
       }
       const response = await fetch("/api/backend/feedback", {
@@ -223,7 +231,7 @@ export const SidePanelCedarChat: React.FC<
       };
       if (controller.signal.aborted) return;
       if (result.status !== "success") {
-        setStopError("The report could not be generated. Your conversation is still here. Select End conversation to try again.");
+        setStopError("Couldn't write the debrief. Your conversation is safe.");
         return;
       }
       const savedReport = JSON.stringify({
@@ -236,21 +244,21 @@ export const SidePanelCedarChat: React.FC<
       });
       const parsedReport = Parser(savedReport);
       if (parsedReport.status === "invalid" || !parsedReport.summary || !parsedReport.segments.length) {
-        setStopError("The report was incomplete. Your conversation is still here. Select End conversation to try again.");
+        setStopError("The debrief came back incomplete. Your conversation is safe.");
         return;
       }
       try {
         localStorage.setItem("reportData", savedReport);
         recordCompletedScenario(localStorage, currentThreadId);
       } catch {
-        setStopError("The report could not be saved in this browser. Allow site storage, then select End conversation to try again.");
+        setStopError("Couldn't save the debrief here. Allow site storage, then try again.");
         return;
       }
       router.push("/report");
     } catch {
       setStopError(controller.signal.aborted
-        ? "Report generation stopped. Your conversation is still here. Select End conversation to try again."
-        : "The report service is unavailable. Your conversation is still here. Select End conversation to try again.");
+        ? "Debrief stopped. Your conversation is safe."
+        : "Couldn't reach the debrief service. Your conversation is safe.");
     } finally {
       clearTimeout(timeout);
       if (finishing.current === controller) finishing.current = null;
@@ -287,33 +295,74 @@ export const SidePanelCedarChat: React.FC<
 
   return (
     <>
-      {showSpinner && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-paper/80 p-4">
-          <div className="flex w-full max-w-sm flex-col items-center rounded-xl border border-rule bg-white px-6 py-8 text-center shadow-xl shadow-ink/10">
-            <Spinner size={40} className="text-pencil" />
-            <p role="status" className="mt-4 text-lg font-bold text-ink">
-              Writing your debrief…
-            </p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => finishing.current?.abort()}
+      <AnimatePresence>
+        {showSpinner && (
+          <motion.div
+            key="debrief"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-paper/80 p-4 backdrop-blur-[2px]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            <motion.div
+              className="flex w-full max-w-sm flex-col items-center rounded-xl border border-rule bg-white px-6 py-8 text-center shadow-xl shadow-ink/10"
+              initial={{ opacity: 0, y: 24, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
             >
-              Cancel report
-            </Button>
-            <Image
-              src="/bill.png.jpeg"
-              alt=""
-              width={120}
-              height={120}
-              className="mt-6 rounded-lg"
-            />
-            <p className="hand mt-2 -rotate-2 text-[28px] text-ink-soft">
-              Bart is walking back to his office
-            </p>
-          </div>
-        </div>
-      )}
+              {/* Indeterminate: the client cannot see which report step is running. */}
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 160 40"
+                className="h-10 w-40 text-pencil"
+                fill="none"
+              >
+                <motion.path
+                  d="M6 26c14-14 26-16 32-6s14 14 24 2 22-16 30-4 14 14 26 2 18-12 30-6"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: reduceMotion ? 1 : 0 }}
+                  animate={
+                    reduceMotion
+                      ? undefined
+                      : { pathLength: [0, 1, 1], opacity: [1, 1, 0] }
+                  }
+                  transition={{
+                    duration: 1.8,
+                    times: [0, 0.7, 1],
+                    ease: "easeInOut",
+                    repeat: Infinity,
+                    repeatDelay: 0.15,
+                  }}
+                />
+              </svg>
+              <p role="status" className="mt-4 text-lg font-bold text-ink">
+                Writing your debrief…
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => finishing.current?.abort()}
+              >
+                Cancel report
+              </Button>
+              <div aria-hidden className="bart-rig mt-6">
+                <span className="bart-rig-leg bart-rig-leg-back" />
+                <span className="bart-rig-leg bart-rig-leg-front" />
+                <span className="bart-rig-body" />
+                <span className="bart-rig-ground" />
+              </div>
+              <p className="hand mt-2 -rotate-2 text-[28px] text-ink-soft">
+                Bart is walking back to his office
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex h-[70vh] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-rule bg-white lg:h-auto lg:min-h-0">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-rule px-4 py-3">
@@ -335,12 +384,23 @@ export const SidePanelCedarChat: React.FC<
           </Button>
         </div>
         {stopError && (
-          <p
-            role="alert"
-            className="shrink-0 border-b border-rule bg-red-pencil/5 px-4 py-2 text-sm text-red-pencil"
-          >
-            {stopError}
-          </p>
+          <div role="alert" className="alert-note mx-3 mt-3 shrink-0">
+            <CircleAlert
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-red-pencil"
+            />
+            <p className="min-w-0 flex-1">{stopError}</p>
+            {stopError !== NEEDS_TRANSCRIPT && (
+              <button
+                type="button"
+                onClick={handleStop}
+                disabled={showSpinner || isProcessing}
+                className="-my-2 min-h-11 shrink-0 cursor-pointer self-center rounded-lg px-2.5 font-semibold text-pencil transition-colors hover:bg-pencil/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Try again
+              </button>
+            )}
+          </div>
         )}
 
         {/* Chat messages - takes up remaining space */}

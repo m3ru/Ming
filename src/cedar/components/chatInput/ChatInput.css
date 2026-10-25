@@ -29,3 +29,90 @@
     font-size: 16px;
   }
 }
+
+/* Voice states. State-driven motion, not real audio levels.
+   The global reduced-motion rule settles these to their resting frame. */
+.voice-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+}
+.voice-wave > span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transform: scaleY(0.3);
+  transition: color 0.3s ease-out;
+}
+.voice-wave.is-listening > span {
+  animation: ming-wave 0.9s ease-in-out infinite;
+}
+.voice-wave.is-listening > span:nth-child(2) {
+  animation-duration: 0.7s;
+  animation-delay: -0.2s;
+}
+.voice-wave.is-listening > span:nth-child(3) {
+  animation-duration: 1.05s;
+  animation-delay: -0.45s;
+}
+.voice-wave.is-listening > span:nth-child(4) {
+  animation-duration: 0.8s;
+  animation-delay: -0.1s;
+}
+.voice-wave.is-listening > span:nth-child(5) {
+  animation-duration: 0.95s;
+  animation-delay: -0.6s;
+}
+/* After release: the bars settle into one calm wave travelling across. */
+.voice-wave.is-working > span {
+  animation: ming-settle 1.4s ease-in-out infinite;
+}
+.voice-wave.is-working > span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+.voice-wave.is-working > span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+.voice-wave.is-working > span:nth-child(4) {
+  animation-delay: 0.42s;
+}
+.voice-wave.is-working > span:nth-child(5) {
+  animation-delay: 0.56s;
+}
+
+/* Soft ring around the live microphone pill. */
+.mic-live {
+  animation: ming-mic-ring 1.4s ease-out infinite;
+}
+
+@keyframes ming-wave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes ming-settle {
+  0%,
+  60%,
+  100% {
+    transform: scaleY(0.3);
+    opacity: 0.45;
+  }
+  30% {
+    transform: scaleY(0.6);
+    opacity: 1;
+  }
+}
+@keyframes ming-mic-ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--red-pencil) 45%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--red-pencil) 0%, transparent);
+  }
+}

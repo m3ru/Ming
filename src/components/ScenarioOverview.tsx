@@ -20,16 +20,16 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 const summaryClassName =
-  "flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-3 text-sm font-bold text-ink hover:text-pencil [&::-webkit-details-marker]:hidden";
+  "flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg py-3 text-sm font-bold text-ink transition-colors hover:text-pencil [&::-webkit-details-marker]:hidden";
 const chevronClassName =
-  "size-4 shrink-0 text-ink-soft transition-transform";
+  "size-4 shrink-0 text-ink-soft transition-transform duration-200 ease-out";
 
 export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
   return (
     <aside
       key={scenario.title}
       aria-label="Scenario brief"
-      className="flex flex-col gap-5 overflow-y-auto rounded-xl border border-rule bg-white p-5 lg:min-h-0"
+      className="rise flex flex-col gap-5 overflow-y-auto rounded-xl border border-rule bg-white p-5 lg:min-h-0"
     >
       <header className="space-y-4">
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-ink">
@@ -56,7 +56,7 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
       )}
 
       <div className="divide-y divide-rule border-t border-rule">
-        <details className="group/background">
+        <details className="smooth-details group/background">
           <summary className={summaryClassName}>
             <span className="flex items-center gap-2">
               <ScrollText aria-hidden="true" className="size-4 text-ink-soft" />
@@ -79,7 +79,7 @@ export default function ScenarioOverview({ scenario }: { scenario: Scenario }) {
         </details>
 
         {scenario.documents.length > 0 && (
-          <details open className="group/documents">
+          <details open className="smooth-details group/documents">
             <summary className={summaryClassName}>
               <span className="flex items-center gap-2">
                 <Paperclip aria-hidden="true" className="size-4 text-ink-soft" />
@@ -109,7 +109,7 @@ function NpcOverview({ npc }: { npc: Npc }) {
   const title = npc.role.split(".")[0];
 
   return (
-    <details className="group/person">
+    <details className="smooth-details group/person">
       <summary className={`${summaryClassName} font-normal`}>
         <span className="flex min-w-0 items-center gap-3">
           <Avatar className="size-12 shrink-0 rounded-lg">
@@ -152,7 +152,7 @@ function DocumentOverview({ doc }: { doc: ScenarioDocument }) {
   const { Icon, tone } = documentIcons[doc.type] ?? defaultDocumentIcon;
 
   return (
-    <details className="group/document">
+    <details className="smooth-details group/document">
       <summary
         className={`${summaryClassName} items-start gap-2.5 px-2 py-2 font-normal hover:bg-paper hover:text-ink`}
       >

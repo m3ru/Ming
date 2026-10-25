@@ -30,6 +30,9 @@ export default function SentimentBar({ sentiment }: { sentiment: number }) {
       : value < displayValue
         ? "cooling off"
         : null;
+  // Keep the last words on screen while the note fades out.
+  const shownNote = React.useRef(note);
+  if (note) shownNote.current = note;
   // Keep the note on the side of the needle with more room.
   const noteSide =
     displayValue < 0.5 ? "left-full ml-3 -rotate-3" : "right-0 mr-3 rotate-3";
@@ -49,15 +52,29 @@ export default function SentimentBar({ sentiment }: { sentiment: number }) {
             aria-hidden="true"
             className="absolute right-0 top-1/2 size-5 -translate-y-1/2 translate-x-1/2 rounded-full border-[3px] border-ink bg-white shadow-sm"
           />
-          {note && (
-            <span
-              className={`hand absolute bottom-full mb-2 whitespace-nowrap text-[27px] ${noteSide} ${
-                note === "warming up" ? "text-pencil" : "text-red-pencil"
-              }`}
-            >
-              {note}
-            </span>
-          )}
+          {/* Written in left to right, then faded out before the clip resets. */}
+          <span
+            aria-hidden={!note}
+            className={`hand absolute bottom-full mb-2 whitespace-nowrap text-[27px] ${noteSide} ${
+              shownNote.current === "warming up" ? "text-pencil" : "text-red-pencil"
+            }`}
+            style={
+              note
+                ? {
+                    opacity: 1,
+                    clipPath: "inset(-0.5em -0.5em -0.5em -0.25em)",
+                    transition:
+                      "opacity 150ms ease-out, clip-path 450ms ease-out",
+                  }
+                : {
+                    opacity: 0,
+                    clipPath: "inset(-0.5em 100% -0.5em -0.25em)",
+                    transition: "opacity 300ms ease-out, clip-path 0s 300ms",
+                  }
+            }
+          >
+            {shownNote.current}
+          </span>
         </div>
         <h2 className="col-start-1 row-start-1 mb-10 text-base font-bold text-ink">
           Your tone

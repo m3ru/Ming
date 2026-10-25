@@ -24,7 +24,7 @@ export default function AchievementsCard() {
             className="flex items-center gap-3 rounded-lg border border-rule px-3 py-2.5"
           >
             <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+              className={`flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors duration-300 ${
                 ach.unlocked ? "bg-sage/15 text-sage" : "bg-muted text-ink-soft"
               }`}
             >

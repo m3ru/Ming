@@ -154,6 +154,87 @@
   }
 }
 
+/* Bart's walk: a cut-out rig (one body, one leg, one arm drawn once), so nothing
+   redraws between frames. Parts in /bart-rig are 2x; sizes below are display px. */
+.bart-rig {
+  position: relative;
+  width: 112px;
+  height: 172px;
+  --step: 0.9s;
+}
+.bart-rig > span {
+  position: absolute;
+}
+.bart-rig-body {
+  left: 12px;
+  top: 0;
+  width: 77px;
+  height: 120px;
+  background: url("/bart-rig/body.webp") 0 0 / 100% 100% no-repeat;
+  z-index: 3;
+  animation: bart-bob calc(var(--step) / 2) ease-in-out infinite;
+}
+.bart-rig-leg {
+  left: 47px;
+  top: 108px;
+  width: 28px;
+  height: 49.5px;
+  background: url("/bart-rig/leg.webp") 0 0 / 100% 100% no-repeat;
+  transform-origin: 9px 5px;
+  animation: bart-swing var(--step) ease-in-out infinite;
+}
+.bart-rig-leg-front {
+  z-index: 2;
+}
+.bart-rig-leg-back {
+  z-index: 1;
+  filter: brightness(0.78);
+  animation-delay: calc(var(--step) / -2);
+}
+/* A pencil-dash floor sliding backwards sells forward motion. */
+.bart-rig-ground {
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 2px;
+  background-image: repeating-linear-gradient(90deg, var(--rule) 0 10px, transparent 10px 18px);
+  background-size: 18px 2px;
+  background-repeat: repeat-x;
+  animation: bart-ground calc(var(--step) / 2) linear infinite;
+}
+@keyframes bart-swing {
+  0%,
+  100% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+/* Print the final state: a reopened section must not print mid-entrance. */
+@media print {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+  }
+}
+@keyframes bart-bob {
+  0%,
+  100% {
+    transform: translateY(1px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes bart-ground {
+  to {
+    background-position: -18px 0;
+  }
+}
+
 /* Cross-fade full-page navigations (the top bar uses plain links). */
 @view-transition {
   navigation: auto;
@@ -171,5 +252,149 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Motion: page entrances, write-ins, growing bars, interactions ---- */
+@layer components {
+  /* Page-level fade for client-side navigations. Opacity only: a lingering
+     transform here would re-anchor the call screen's position: fixed overlay. */
+  .page-fade {
+    animation: ming-fade 0.22s ease-out backwards;
+  }
+  /* Rise in; pair with an inline animationDelay to stagger. `backwards` leaves no transform behind. */
+  .rise {
+    animation: ming-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  }
+  /* The highlighter swipe draws in left to right. */
+  .swipe-draw::before {
+    transform-origin: left center;
+    animation: ming-swipe 0.45s cubic-bezier(0.65, 0, 0.25, 1) 0.15s backwards;
+  }
+  /* Handwriting "writes in" left to right. */
+  .write-in {
+    animation: ming-write 0.45s cubic-bezier(0.45, 0, 0.25, 1) backwards;
+  }
+  /* Score bars grow from 0 on mount, and glide when their value arrives later. */
+  .grow-bar {
+    animation: ming-grow 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* Quiet lift for interactive cards (translate composes with any transform animation). */
+  .lift {
+    transition:
+      border-color 0.18s ease-out,
+      translate 0.18s ease-out;
+  }
+  .lift:hover,
+  .lift:focus-within {
+    translate: 0 -2px;
+  }
+  /* Indeterminate loading: a highlighter stroke sweeping along a rule. */
+  .loading-sweep {
+    position: relative;
+    height: 0.375rem;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--muted);
+  }
+  .loading-sweep::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 40%;
+    border-radius: inherit;
+    background: var(--highlight);
+    animation: ming-sweep 1.1s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+  /* Neutral variant of .alert-note for empty states that are not failures. */
+  .alert-note[data-tone="info"] {
+    border-color: color-mix(in srgb, var(--pencil) 25%, transparent);
+    background: color-mix(in srgb, var(--pencil) 5%, white);
+  }
+  /* <details> open and close smoothly where the browser supports it; elsewhere they snap. */
+  details.smooth-details {
+    interpolate-size: allow-keywords;
+  }
+  details.smooth-details::details-content {
+    block-size: 0;
+    overflow-y: clip;
+    transition:
+      block-size 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+      content-visibility 0.28s allow-discrete;
+  }
+  details.smooth-details[open]::details-content {
+    block-size: auto;
+  }
+}
+
+@keyframes ming-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes ming-swipe {
+  from {
+    transform: rotate(-1.2deg) scaleX(0);
+  }
+}
+@keyframes ming-write {
+  from {
+    clip-path: inset(-0.3em 100% -0.4em -0.3em);
+  }
+  to {
+    clip-path: inset(-0.3em -0.3em -0.4em -0.3em);
+  }
+}
+@keyframes ming-grow {
+  from {
+    width: 0;
+  }
+}
+@keyframes ming-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+/* Transcript margin notes write in as they scroll into view, where supported. */
+.write-in-view {
+  animation: ming-write 0.45s cubic-bezier(0.45, 0, 0.25, 1) backwards;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .write-in-view {
+      animation: ming-write linear backwards;
+      animation-timeline: view();
+      /* Finish once fully on screen: notes near the page end can't scroll further. */
+      animation-range: entry 10% entry 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Staggered entrances must not hold content hidden for their delay. */
+  *,
+  ::before,
+  ::after {
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
+  }
+  .loading-sweep::before {
+    animation: none !important;
+    left: 30%;
+  }
+}
+
+/* Top bar: the active page's underline draws out from the centre. */
+.nav-underline {
+  animation: ming-underline 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) 0.1s backwards;
+}
+@keyframes ming-underline {
+  from {
+    transform: scaleX(0);
   }
 }

@@ -12,7 +12,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CircleAlert, Info } from "lucide-react";
 import ScoreBar from "@/components/ScoreBar";
 import { documentToString } from "@/lib/scenarioUtil";
 import {
@@ -31,9 +31,6 @@ type ReportState =
   | { status: "loaded"; report: ParsedResult; source?: FollowUpSource };
 
 export default function ReportPage() {
-  // The summary now sits in the header and no longer collapses; this slot keeps
-  // the useState call order the report regression test mocks.
-  useState(true);
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(true);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
 
@@ -81,7 +78,7 @@ export default function ReportPage() {
       setReportState({
         status: "error",
         message:
-          "This browser could not read the saved report. Check that browser storage is available, then try loading it again.",
+          "This browser could not read the saved report.",
       });
     }
   }, []);
@@ -105,7 +102,7 @@ export default function ReportPage() {
     return (
       <div className="min-h-screen bg-paper p-5 text-ink">
         <section
-          className="mx-auto w-full max-w-3xl rounded-xl border border-rule bg-white p-6 md:p-8"
+          className="mx-auto w-full max-w-3xl pt-6 md:pt-10"
           aria-live="polite"
         >
           {reportState.status === "loading" ? (
@@ -113,41 +110,52 @@ export default function ReportPage() {
               Loading your report...
             </p>
           ) : (
-            <>
-              <h1 className="text-3xl font-extrabold">
+            <div key={reportState.status} className="rise">
+              <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">
                 {isError ? "Report unavailable" : "No report yet"}
               </h1>
-              <p className="mt-3 max-w-2xl text-ink-soft">
-                {isError
-                  ? reportState.message
-                  : "Complete a scenario to see feedback from your conversation here."}
-              </p>
-              {isError ? (
-                <p className="mt-2 max-w-2xl text-ink-soft">
-                  Return to the scenario to retry End conversation, or choose
-                  another scenario from Home.
-                </p>
-              ) : null}
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button asChild className="rounded-lg">
-                  <Link href="/scenario">
-                    {isError ? "Return to scenario" : "Start scenario"}
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="rounded-lg">
-                  <Link href="/">Go home</Link>
-                </Button>
+              <div
+                className="alert-note mt-6"
+                data-tone={isError ? undefined : "info"}
+                style={{ animationDelay: "120ms" }}
+              >
                 {isError ? (
-                  <Button
-                    variant="outline"
-                    className="rounded-lg"
-                    onClick={loadReport}
-                  >
-                    Try loading again
-                  </Button>
-                ) : null}
+                  <CircleAlert
+                    aria-hidden
+                    className="mt-0.5 size-4 shrink-0 text-red-pencil"
+                  />
+                ) : (
+                  <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-pencil" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p>
+                    {isError
+                      ? `${reportState.message} Return to the scenario to retry End conversation.`
+                      : "Finish a conversation and your debrief lands here."}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button asChild size="sm" className="rounded-lg">
+                      <Link href="/scenario">
+                        {isError ? "Return to scenario" : "Start scenario"}
+                      </Link>
+                    </Button>
+                    {isError ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg"
+                        onClick={loadReport}
+                      >
+                        Try loading again
+                      </Button>
+                    ) : null}
+                    <Button asChild variant="ghost" size="sm" className="rounded-lg">
+                      <Link href="/">Go home</Link>
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </>
+            </div>
           )}
         </section>
       </div>
@@ -174,28 +182,31 @@ export default function ReportPage() {
       >
         <header className="space-y-6 lg:col-span-2">
           {status === "partial" ? (
-            <section
-              className="rounded-xl border border-red-pencil/30 bg-red-pencil/5 p-4"
-              role="status"
-            >
-              <h2 className="text-lg font-semibold text-red-pencil">
-                Partial report
-              </h2>
-              <p className="mt-1">Available feedback is shown below.</p>
-              <ul className="mt-2 list-disc pl-5 text-ink-soft">
-                {issues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
+            <section className="alert-note" role="status">
+              <CircleAlert
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-red-pencil"
+              />
+              <div className="min-w-0 flex-1">
+                <p>
+                  <strong className="font-semibold">Partial report</strong>
+                  {". "}Some sections could not be read; the rest is below.
+                </p>
+                <ul className="mt-1 text-xs text-ink-soft">
+                  {issues.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
               <Link
                 href="/scenario"
-                className="mt-3 inline-block font-medium text-pencil underline underline-offset-4"
+                className="shrink-0 font-semibold text-pencil underline-offset-4 hover:underline"
               >
                 Return to scenario
               </Link>
             </section>
           ) : null}
-          <h1 className="text-4xl font-extrabold md:text-5xl">
+          <h1 className="rise text-4xl font-extrabold tracking-tight md:text-5xl">
             {verdict ? (
               <>
                 Strongest: {verdict.strongest}.
@@ -212,15 +223,19 @@ export default function ReportPage() {
             )}
           </h1>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            {evaluation.map((criterion) => (
+            {evaluation.map((criterion, index) => (
               <ScoreBar
                 key={criterion.category}
                 category={criterion.category}
                 score={criterion.score}
+                delay={120 + index * 50}
               />
             ))}
           </div>
-          <div className="max-w-3xl break-words text-lg leading-relaxed text-ink-soft">
+          <div
+            className="rise max-w-3xl break-words text-lg leading-relaxed text-ink-soft"
+            style={{ animationDelay: "380ms" }}
+          >
             {summary ? (
               <ReportMarkdown>{summary}</ReportMarkdown>
             ) : (
@@ -229,7 +244,10 @@ export default function ReportPage() {
           </div>
         </header>
 
-        <aside className="space-y-6 print:hidden lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+        <aside
+          className="rise space-y-6 print:hidden lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto"
+          style={{ animationDelay: "300ms" }}
+        >
           <section
             className="rounded-xl border border-rule bg-white p-5"
             aria-labelledby="follow-up-heading"
@@ -245,14 +263,18 @@ export default function ReportPage() {
               before starting.
             </p>
             {!reportState.source ? (
-              <p className="mt-3 text-ink-soft">
-                This report does not contain the session and analysis needed for
-                a follow-up. Complete another scenario to generate one.
-              </p>
+              <div className="alert-note mt-3" data-tone="info">
+                <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-pencil" />
+                <p className="min-w-0 flex-1">
+                  This report cannot seed a follow-up. Finish a new
+                  conversation to get one.
+                </p>
+              </div>
             ) : null}
             {followUpState.status === "loading" ? (
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div key="loading" className="enter-pop mt-4 space-y-3">
                 <p role="status">Generating your follow-up…</p>
+                <div aria-hidden className="loading-sweep" />
                 <Button
                   variant="outline"
                   className="rounded-lg"
@@ -262,7 +284,7 @@ export default function ReportPage() {
                 </Button>
               </div>
             ) : followUpState.status === "ready" ? (
-              <div className="mt-4 space-y-3">
+              <div key="ready" className="enter-up mt-4 space-y-3">
                 <h3 className="text-lg font-bold">
                   {followUpState.scenario.title}
                 </h3>
@@ -274,7 +296,7 @@ export default function ReportPage() {
                   <strong>Your role:</strong> {followUpState.scenario.userRole}
                 </p>
                 {followUpState.scenario.documents.length ? (
-                  <details className="rounded-lg border border-rule p-3">
+                  <details className="smooth-details rounded-lg border border-rule p-3">
                     <summary className="cursor-pointer font-medium">
                       Preview supporting documents (
                       {followUpState.scenario.documents.length})
@@ -318,13 +340,19 @@ export default function ReportPage() {
                 </div>
               </div>
             ) : (
-              <div className="mt-4 space-y-3">
+              <div key={followUpState.status} className="enter-pop mt-4 space-y-3">
                 {followUpState.status === "error" ? (
-                  <p role="alert" className="text-red-pencil">
+                  <div role="alert" className="alert-note">
+                    <CircleAlert
+                      aria-hidden
+                      className="mt-0.5 size-4 shrink-0 text-red-pencil"
+                    />
+                    <p className="min-w-0 flex-1">{followUpState.message}</p>
+                  </div>
+                ) : followUpState.message ? (
+                  <p role="status" className="text-sm text-ink-soft">
                     {followUpState.message}
                   </p>
-                ) : followUpState.message ? (
-                  <p role="status">{followUpState.message}</p>
                 ) : null}
                 <Button
                   className="w-full rounded-lg"
@@ -340,9 +368,13 @@ export default function ReportPage() {
               </div>
             )}
             {sessionError ? (
-              <p role="alert" className="mt-3 text-red-pencil">
-                {sessionError}
-              </p>
+              <div role="alert" className="alert-note mt-3">
+                <CircleAlert
+                  aria-hidden
+                  className="mt-0.5 size-4 shrink-0 text-red-pencil"
+                />
+                <p className="min-w-0 flex-1">{sessionError}</p>
+              </div>
             ) : null}
           </section>
 
@@ -359,26 +391,32 @@ export default function ReportPage() {
         <Collapsible
           open={isEvaluationOpen}
           onOpenChange={setIsEvaluationOpen}
-          className="min-w-0 rounded-xl border border-rule bg-white p-5 lg:col-start-1 lg:row-start-2"
+          className="rise min-w-0 rounded-xl border border-rule bg-white p-5 lg:col-start-1 lg:row-start-2"
+          style={{ animationDelay: "420ms" }}
         >
           <SectionHeading open={isEvaluationOpen}>
             Skill by skill
           </SectionHeading>
-          <CollapsibleContent className="mt-4">
-            <EvaluationGrid criteria={evaluation} />
+          <CollapsibleContent className={collapsibleMotion}>
+            <div className="pt-4">
+              <EvaluationGrid criteria={evaluation} />
+            </div>
           </CollapsibleContent>
         </Collapsible>
 
         <Collapsible
           open={isTranscriptOpen}
           onOpenChange={setIsTranscriptOpen}
-          className="min-w-0 self-start rounded-xl border border-rule bg-white p-5 lg:col-start-1 lg:row-start-3"
+          className="rise min-w-0 self-start rounded-xl border border-rule bg-white p-5 lg:col-start-1 lg:row-start-3"
+          style={{ animationDelay: "480ms" }}
         >
           <SectionHeading open={isTranscriptOpen}>
             Annotated transcript
           </SectionHeading>
-          <CollapsibleContent className="mt-4">
-            <AnnotatedTranscript segments={segments} />
+          <CollapsibleContent className={collapsibleMotion}>
+            <div className="pt-4">
+              <AnnotatedTranscript segments={segments} />
+            </div>
           </CollapsibleContent>
         </Collapsible>
 
@@ -389,9 +427,10 @@ export default function ReportPage() {
             onClick={() => {
               setIsEvaluationOpen(true);
               setIsTranscriptOpen(false);
+              // Wait out the 200ms collapsible animation so print sees settled sections.
               setTimeout(() => {
                 window.print();
-              }, 100);
+              }, 250);
             }}
           >
             Print report
@@ -401,6 +440,11 @@ export default function ReportPage() {
     </div>
   );
 }
+
+// overflow-clip, not hidden: hidden would make this a scroll container and
+// detach the transcript notes' scroll-driven write-in from the page scroll.
+const collapsibleMotion =
+  "overflow-clip data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up";
 
 function SectionHeading({
   open,
@@ -415,7 +459,7 @@ function SectionHeading({
         {children}
         <ChevronDown
           aria-hidden="true"
-          className={`size-5 text-ink-soft transition-transform ${open ? "" : "-rotate-90"}`}
+          className={`size-5 text-ink-soft transition-transform duration-200 ease-out ${open ? "" : "-rotate-90"}`}
         />
       </CollapsibleTrigger>
     </h2>

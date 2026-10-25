@@ -33,9 +33,10 @@ export default function ScenarioCard({
     <div
       role={locked ? "group" : undefined}
       aria-disabled={locked || undefined}
-      className={`relative flex h-full flex-col rounded-xl border border-rule bg-white p-5 transition-colors ${
-        locked ? "" : "hover:border-pencil/60 focus-within:border-pencil/60"
+      className={`rise relative flex h-full flex-col rounded-xl border border-rule bg-white p-5 ${
+        locked ? "" : "lift hover:border-pencil/60 focus-within:border-pencil/60"
       }`}
+      style={{ animationDelay: `${120 + scene * 70}ms` }}
     >
       <p className="text-sm font-medium text-ink-soft">Scene {scene}</p>
       <h2 className="mt-1 text-xl font-extrabold leading-tight tracking-tight text-ink">

@@ -314,7 +314,6 @@ function renderScenario(loaded) {
       SidePanelCedarChat: child("chat"),
     },
     "@/components/SentimentBar": () => null,
-    "@/hooks/useOrientation": () => "landscape",
     "next/link": ({ href, children }) =>
       React.createElement("a", { href }, children),
   });
