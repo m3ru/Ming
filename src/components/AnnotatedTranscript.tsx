@@ -73,16 +73,34 @@ const parseInlineMarkdown = (text: string) => {
   return elements;
 };
 
-const renderMarkdownBlocks = (text: string) => {
-  const blocks: {
-    transcript: React.ReactNode;
-    comment?: React.ReactNode;
-    index?: number;
-  }[] = [];
-  let commentCounter = 1;
+// Opening minus closing tags; a tag that spans a line break keeps those lines together.
+const unclosed = (line: string, tag: string) =>
+  line.split(`<${tag}`).length - line.split(`</${tag}>`).length > 0;
 
-  text.split("\n\n").forEach((block) => {
-    let remaining = block.trim();
+const transcriptLines = (block: string) =>
+  block
+    .trim()
+    .split("\n")
+    .reduce<string[]>((lines, line) => {
+      const previous = lines.at(-1);
+      if (
+        previous !== undefined &&
+        (unclosed(previous, "comment") || unclosed(previous, "highlight"))
+      )
+        lines[lines.length - 1] = previous + "\n" + line;
+      else lines.push(line);
+      return lines;
+    }, []);
+
+type TranscriptRow = { transcript: React.ReactNode; comment?: React.ReactNode };
+
+const renderMarkdownBlocks = (text: string) => {
+  let commentCounter = 1;
+  let key = 0;
+
+  // Each spoken line is its own row, so a margin note starts level with its highlight.
+  const renderLine = (line: string): TranscriptRow => {
+    let remaining = line;
     const elements: React.ReactNode[] = [];
     const commentTexts: { idx: number; text: string; note: string }[] = [];
 
@@ -139,7 +157,7 @@ const renderMarkdownBlocks = (text: string) => {
 
         elements.push(
           <span
-            key={blocks.length + elements.length}
+            key={key++}
             className={`marker ${tint.stroke}`}
           >
             {parseInlineMarkdown(inner)}
@@ -180,7 +198,7 @@ const renderMarkdownBlocks = (text: string) => {
         }
 
         elements.push(
-          <span key={blocks.length + elements.length} className="marker">
+          <span key={key++} className="marker">
             {parseInlineMarkdown(inner)}
             {marker && (
               <sup className={`${circled} ml-1 text-[10px] text-ink-soft`}>
@@ -197,7 +215,7 @@ const renderMarkdownBlocks = (text: string) => {
 
     const commentNode =
       commentTexts.length > 0 ? (
-        <ol className="space-y-3">
+        <ol className="space-y-3 pb-2">
           {commentTexts.map((c) => (
             <li key={c.idx} className={`flex items-start gap-2 ${c.note}`}>
               <span className={`${circled} mt-0.5 text-xs`}>{c.idx}</span>
@@ -209,13 +227,13 @@ const renderMarkdownBlocks = (text: string) => {
         </ol>
       ) : undefined;
 
-    blocks.push({
-      transcript: <p className="break-words m-0">{elements}</p>,
+    return {
+      transcript: <p className="m-0 break-words">{elements}</p>,
       comment: commentNode,
-    });
-  });
+    };
+  };
 
-  return blocks;
+  return text.split("\n\n").map((block) => transcriptLines(block).map(renderLine));
 };
 
 export default function AnnotatedTranscript({
@@ -236,15 +254,17 @@ export default function AnnotatedTranscript({
 
   return (
     <div className="divide-y divide-dashed divide-rule">
-      {blocks.map((block, i) => (
+      {blocks.map((rows, i) => (
         <div
           key={i}
-          className="grid gap-x-8 gap-y-2 py-3 leading-relaxed md:grid-cols-[minmax(0,1fr)_15rem]"
+          className="grid gap-x-8 py-3 leading-relaxed md:grid-cols-[minmax(0,1fr)_15rem]"
         >
-          <div className="min-w-0 whitespace-pre-wrap">{block.transcript}</div>
-          {block.comment ? (
-            <div className="min-w-0">{block.comment}</div>
-          ) : null}
+          {rows.map((row, j) => (
+            <React.Fragment key={j}>
+              <div className="min-w-0 whitespace-pre-wrap">{row.transcript}</div>
+              <div className="min-w-0 max-md:empty:hidden">{row.comment}</div>
+            </React.Fragment>
+          ))}
         </div>
       ))}
     </div>

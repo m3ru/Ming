@@ -220,6 +220,32 @@ test("malformed and empty segments remain unavailable; valid content is retained
   );
 });
 
+test("margin notes sit on the row of the line they annotate, and tags spanning lines stay intact", () => {
+  const content = [
+    "**User:** Hello there.",
+    "**Bart:** Hi, thanks for meeting.",
+    '**User:** <comment color="red" feedback="Too blunt">Explain yourself.</comment>',
+    "**Bart:** I will try.",
+    '**User:** <comment color="green" feedback="Kind close">Thanks for',
+    "being honest.</comment>",
+  ].join("\n");
+  const markup = renderToStaticMarkup(
+    React.createElement(AnnotatedTranscript, { segments: [{ title: "Review", content }] }),
+  );
+  const at = (text) => {
+    const index = markup.indexOf(text);
+    assert.ok(index >= 0, "missing " + text);
+    return index;
+  };
+  // Note 1 belongs to the third line: after it, and before the fourth line.
+  assert.ok(at("Explain yourself.") < at("Too blunt"));
+  assert.ok(at("Too blunt") < at("I will try."));
+  assert.ok(at("Hi, thanks for meeting.") < at("Explain yourself."));
+  // A highlight wrapped across a line break is parsed, not shown as raw tags.
+  assert.doesNotMatch(markup, /&lt;comment|&lt;\/comment/);
+  assert.ok(at("being honest.") < at("Kind close"));
+});
+
 test("restricted Markdown preserves formatting and excludes HTML, images, and unsafe URLs", () => {
   const content =
     "**Useful feedback**\n\n- A real point\n\n<img src=x onerror=alert(1)>\n\n<script>alert(2)</script>\n\n[unsafe](javascript:alert(3))\n\n![tracker](https://example.com/pixel)\n\n[safe](https://example.com/help)";
