@@ -201,14 +201,23 @@ test("provider response size and audio type are bounded without leaking bodies",
   }
 });
 
-test("turn cache has a hard bound and does not evict completed IDs to repeat provider work", async () => {
+test("turn cache has a hard bound, sheds old audio, and does not evict completed IDs to repeat provider work", async () => {
   const f = fixture();
   const first = recording();
-  await f.service.turn(first, "owner");
-  for (let i = 1; i < 32; i++) await f.service.turn(recording(), "owner");
+  assert.equal(typeof (await f.service.turn(first, "owner")).audioBase64, "string");
+  let latest;
+  for (let i = 1; i < 512; i++) {
+    latest = recording();
+    await f.service.turn(latest, "owner");
+  }
   await assert.rejects(f.service.turn(recording(), "owner"), (e) => e.status === 429);
-  assert.equal((await f.service.turn(first, "owner")).status, "success");
-  assert.equal(f.requests.length, 64);
+  const replayed = await f.service.turn(first, "owner");
+  assert.equal(replayed.status, "success");
+  assert.equal(replayed.messages.length, 2);
+  // Old replies keep their text but not their audio; the newest keep audio for retries.
+  assert.equal(replayed.audioBase64, undefined);
+  assert.equal(typeof (await f.service.turn(latest, "owner")).audioBase64, "string");
+  assert.equal(f.requests.length, 1024);
 });
 
 test("server adapter persists both real transcript texts in Mastra memory and selects the Bart or coach prompt", async () => {

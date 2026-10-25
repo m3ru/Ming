@@ -525,27 +525,41 @@ async function exerciseRouter() {
   );
 
   // Cost controls apply even to valid gateway users and never touch providers.
+  // Zero-unit reservations test concurrency alone, leaving the hourly budget untouched.
   const releases = [
-    security.reserveGeneration("capacity-a"),
-    security.reserveGeneration("capacity-a"),
+    security.reserveGeneration("capacity-a", 0),
+    security.reserveGeneration("capacity-a", 0),
+    security.reserveGeneration("capacity-a", 0),
+    security.reserveGeneration("capacity-a", 0),
   ];
   assert.throws(
-    () => security.reserveGeneration("capacity-a"),
+    () => security.reserveGeneration("capacity-a", 0),
     (e) => e.status === 429,
   );
-  releases.push(
-    security.reserveGeneration("capacity-b"),
-    security.reserveGeneration("capacity-c"),
-  );
+  // The fifth concurrent generation is refused for any identity, not only the busy one.
   assert.throws(
-    () => security.reserveGeneration("capacity-d"),
+    () => security.reserveGeneration("capacity-b", 0),
     (e) => e.status === 429,
   );
   releases.forEach((release) => {
     release();
     release();
   });
-  for (let i = 0; i < 15; i++) security.reserveGeneration("hour-quota", 8)();
+  // Released slots are reusable; releasing twice did not double-free.
+  security.reserveGeneration("capacity-b", 0)();
+  // Every visitor shares one identity, so one identity may spend the whole 600-unit
+  // hour. Earlier requests in this test already used some of it: spend in big chunks,
+  // then drain the rest (at most 15 successful reservations, under the 20/minute cap).
+  let spent = 0;
+  for (const units of [75, 75, 75, 75, 75, 75, 75, 75, 64, 32, 16, 8, 4, 2, 1]) {
+    try {
+      security.reserveGeneration("hour-quota", units)();
+      spent += units;
+    } catch (e) {
+      assert.equal(e.status, 429);
+    }
+  }
+  assert.ok(spent > 120, "one identity is no longer capped at 120 units an hour");
   assert.throws(
     () => security.reserveGeneration("hour-quota"),
     (e) => e.status === 429,

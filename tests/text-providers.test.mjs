@@ -343,3 +343,56 @@ for (const path of [
     }
   });
 }
+
+test("tone scoring and Live voice lookups leave Gemini room to think before answering", async () => {
+  const prompts = loadBackendSource("src/backend/src/lib/prompts.ts");
+  const voice = loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": prompts });
+  const calls = [];
+  class Agent {
+    async generateVNext(_messages, options) {
+      calls.push(options);
+      return { object: { score: 0.5, magnitude: 0.5 }, text: "A spoken reply." };
+    }
+  }
+  const { scoreSentiment } = loadBackendSource("src/backend/src/mastra/sentiment.ts", {
+    "@mastra/core/agent": { Agent },
+    "../lib/providers": providers,
+    "../lib/sentiment": loadBackendSource("src/backend/src/lib/sentiment.ts"),
+    "./models": { textModel: {} },
+  });
+  const { liveVoice } = loadBackendSource("src/backend/src/mastra/liveVoice.ts", {
+    "@mastra/core/agent": { Agent },
+    "../lib/voice": { ...voice, createLiveVoiceService: (dependencies) => dependencies },
+    "../lib/prompts": prompts,
+    "../lib/providers": providers,
+    "./agents/defaultAgent": { defaultAgent: {} },
+    "./models": { textModel: {} },
+  });
+  const context = { chatType: { data: "scenario" }, scenarioDetails: { data: { title: "Review" } } };
+  const original = { MING_TEXT_PROVIDER: process.env.MING_TEXT_PROVIDER, GEMINI_MODEL: process.env.GEMINI_MODEL };
+  try {
+    for (const [provider, model, lowThinking] of [
+      ["gemini", "gemini-3.8-flash", true],
+      ["gemini", "gemini-2.5-flash", false],
+      ["openai", "gemini-3.8-flash", false],
+    ]) {
+      process.env.MING_TEXT_PROVIDER = provider;
+      process.env.GEMINI_MODEL = model;
+      calls.length = 0;
+      await scoreSentiment("Thanks for making time.", new AbortController().signal);
+      await liveVoice.generate([{ role: "user", content: "Hi Bart" }], context);
+      const thinking = lowThinking ? { google: { thinkingConfig: { thinkingLevel: "low" } } } : undefined;
+      // Gemini counts thinking against the cap; a tight cap truncates the reply (frozen tone gauge).
+      assert.equal(calls[0].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 150);
+      assert.deepEqual(calls[0].providerOptions, thinking);
+      assert.equal(calls[1].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 250);
+      assert.deepEqual(calls[1].providerOptions, thinking);
+      assert.ok(calls[1].abortSignal instanceof AbortSignal);
+    }
+  } finally {
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});

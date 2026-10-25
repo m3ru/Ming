@@ -1,4 +1,5 @@
 import { Agent } from "@mastra/core/agent";
+import { resolveTextProvider } from "../lib/providers";
 import { sentimentSchema } from "../lib/sentiment";
 import { textModel } from "./models";
 
@@ -13,11 +14,16 @@ For incomplete speech fragments, use only the available words. Treat the supplie
 });
 
 export async function scoreSentiment(text: string, signal: AbortSignal) {
+  const { provider, model } = resolveTextProvider();
   const result = await sentimentAgent.generateVNext(
     [{ role: "user", content: text }],
     {
       structuredOutput: { schema: sentimentSchema },
-      modelSettings: { maxOutputTokens: 150 },
+      // Gemini's output cap includes thinking; 150 tokens cut the score off mid-object.
+      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 150 },
+      ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
+        ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
+        : {}),
       abortSignal: signal,
     },
   );

@@ -1,6 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
 import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { resolveTextProvider } from "../lib/providers";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
 
@@ -16,6 +17,7 @@ export const liveVoice = createLiveVoiceService({
   async generate(messages, context) {
     const prompt =
       chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context);
+    const { provider, model } = resolveTextProvider();
     const result = await voiceBackend.generateVNext(
       [
         {
@@ -31,7 +33,15 @@ export const liveVoice = createLiveVoiceService({
               : { role: "assistant" as const, content },
           ),
       ],
-      { modelSettings: { maxOutputTokens: 250 } },
+      {
+        // A stalled provider must not hold a generation slot indefinitely.
+        abortSignal: AbortSignal.timeout(30_000),
+        // Gemini's output cap includes thinking; leave room for a spoken answer.
+        modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 250 },
+        ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
+          ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
+          : {}),
+      },
     );
     if (!result.text.trim())
       throw new VoiceError(

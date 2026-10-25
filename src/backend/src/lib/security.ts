@@ -210,11 +210,13 @@ export function reserveGeneration(identity: string, units = 1) {
     quota.hour = hour;
     quota.units = 0;
   }
+  // Every gateway request carries the same identity ("localhost-demo"), so the
+  // per-identity caps match the global ones; lower ones let a rehearsal lock out the demo.
   if (
     active >= 4 ||
-    quota.active >= 2 ||
+    quota.active >= 4 ||
     quota.minuteCount >= 20 ||
-    quota.units + units > 120 ||
+    quota.units + units > 600 ||
     globalUnits + units > 600
   ) {
     throw new AccessError(429, "Generation limit reached. Try again later.");

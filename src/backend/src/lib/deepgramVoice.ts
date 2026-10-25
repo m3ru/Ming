@@ -4,8 +4,11 @@ import { voiceSessionSchema, type VoiceMessage } from "./voice";
 
 export const DEEPGRAM_AUDIO_BYTE_LIMIT = 1024 * 1024;
 const PROVIDER_JSON_BYTE_LIMIT = 256 * 1024;
-const CACHE_LIMIT = 32;
+// IDs are kept for the TTL so a retry never re-bills a turn. 512 per 15 minutes is far
+// above the hourly quota's 200 turns; only the newest replies keep their (~1 MB) audio.
+const CACHE_LIMIT = 512;
 const CACHE_TTL_MS = 15 * 60_000;
+const AUDIO_KEEP = 8;
 const PROVIDER_TIMEOUT_MS = 30_000;
 const mimeTypeSchema = z.string().max(100).regex(
   /^audio\/(?:webm|ogg|mp4|wav|x-wav)(?:\s*;\s*codecs=(?:[a-zA-Z0-9._,-]+|"[a-zA-Z0-9._, -]+"))?$/i,
@@ -247,6 +250,11 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       // transcript, and retrying the same ID joins this exact in-flight turn.
       cached.pending = processTurn(input, cached, apiKey, bytes).then((result) => {
         cached.result = result;
+        // Older finished turns keep their text for retries but drop reply audio.
+        let withAudio = 0;
+        for (const old of [...turns.values()].reverse())
+          if (old.result?.audioBase64 && ++withAudio > AUDIO_KEEP)
+            old.result = { ...old.result, audioBase64: undefined, audioMimeType: undefined };
         return result;
       }).finally(() => {
         cached.pending = undefined;

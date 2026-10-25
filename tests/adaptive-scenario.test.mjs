@@ -226,6 +226,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "@mastra/core/agent": agentMock,
     "../lib/voice": { ...voice, createLiveVoiceService: (dependencies) => dependencies },
     "../lib/prompts": prompts,
+    "../lib/providers": providers,
     "./agents/defaultAgent": {},
     "./models": { textModel: {} },
   });
