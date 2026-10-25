@@ -34,6 +34,10 @@ test("fresh recovery controls render without compiling browser-only Cedar contex
 });
 after(() => rmSync(output, { recursive: true, force: true }));
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+async function until(predicate) {
+  for (let i = 0; i < 100 && !predicate(); i++) await tick();
+  assert.ok(predicate(), "condition was not reached");
+}
 const errors = loadBackendSource("src/lib/chatErrors.ts");
 const { buildReportTranscript } = loadBackendSource(
   "src/lib/reportTranscript.ts",
@@ -188,34 +192,60 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
-function success(body, extra = {}) {
+function voiceMessage(body, role, content) {
   const sessionId = "deepgram-" + body.turnId;
-  return Response.json({
+  return {
+    id: "voice-" + sessionId + "-" + role,
+    role,
+    content:
+      content ?? (role === "user" ? "Actual recognized words" : "Saved response"),
+    createdAt:
+      role === "user" ? "2026-10-25T10:00:00.000Z" : "2026-10-25T10:00:01.000Z",
+  };
+}
+function done(body, extra = {}) {
+  return {
+    type: "done",
     status: "success",
     persisted: true,
-    sessionId,
-    messages: [
-      {
-        id: "voice-" + sessionId + "-user",
-        role: "user",
-        content: "Actual recognized words",
-        createdAt: "2026-10-25T10:00:00.000Z",
-      },
-      {
-        id: "voice-" + sessionId + "-assistant",
-        role: "assistant",
-        content: "Saved response",
-        createdAt: "2026-10-25T10:00:01.000Z",
-      },
-    ],
+    sessionId: "deepgram-" + body.turnId,
     ...extra,
-  });
+  };
 }
+// Deliver NDJSON in small byte chunks so every line crosses a chunk boundary.
+function ndjson(lines, size = 7) {
+  const bytes = new TextEncoder().encode(
+    lines.map((line) => JSON.stringify(line) + "\n").join(""),
+  );
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (let offset = 0; offset < bytes.length; offset += size)
+          controller.enqueue(bytes.slice(offset, offset + size));
+        controller.close();
+      },
+    }),
+    { headers: { "Content-Type": "application/x-ndjson" } },
+  );
+}
+function success(body, { roles = ["user", "assistant"], ...extra } = {}) {
+  return ndjson([
+    ...roles.map((role) => ({
+      type: "message",
+      message: voiceMessage(body, role),
+    })),
+    done(body, extra),
+  ]);
+}
+const mp3 = (body = "synthetic mp3 bytes") =>
+  new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
 function setup(t, options = {}) {
   const tracks = [];
   const recordings = [];
   const audioElements = [];
   const requests = [];
+  const speeches = [];
+  const objects = [];
   const transcripts = [];
   const revoked = [];
   let currentThread = "thread-1";
@@ -311,15 +341,18 @@ function setup(t, options = {}) {
       else delete globalThis[key];
     });
   }
-  t.mock.method(
-    URL,
-    "createObjectURL",
-    () => "blob:test-" + audioElements.length,
-  );
+  t.mock.method(URL, "createObjectURL", (object) => {
+    objects.push(object);
+    return "blob:test-" + objects.length;
+  });
   t.mock.method(URL, "revokeObjectURL", (url) => revoked.push(url));
   t.mock.method(globalThis, "fetch", async (url, init) => {
     const body = JSON.parse(init.body);
     const request = { url: String(url), body, signal: init.signal };
+    if (request.url.endsWith("/voice/deepgram/speech")) {
+      speeches.push(request);
+      return options.speech ? options.speech(request, speeches.length) : mp3();
+    }
     requests.push(request);
     return options.request
       ? options.request(request, requests.length)
@@ -348,7 +381,11 @@ function setup(t, options = {}) {
     recordings,
     tracks,
     requests,
+    speeches,
+    objects,
     transcripts,
+    // Each turn reports [user] then [user, assistant] under one session ID.
+    sessions: () => new Set(transcripts.map(({ sessionId }) => sessionId)).size,
     audioElements,
     revoked,
     microphone,
@@ -396,7 +433,7 @@ test("stop waits for the final recorder chunk and persisted response before comp
   assert.equal(stopped, false);
   response.resolve(success(env.requests[0].body));
   await stop;
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
   assert.equal(env.tracks[0].stopped, true);
   assert.equal(env.controller.getSnapshot().status, "idle");
 });
@@ -422,8 +459,8 @@ test("flush finalizes a held turn with latest typed history and context; unique 
   assert.equal(env.tracks[0].stopped, false);
   await env.controller.beginTalking();
   await env.controller.flush();
-  assert.equal(env.transcripts.length, 2);
-  assert.notEqual(env.transcripts[0].sessionId, env.transcripts[1].sessionId);
+  assert.equal(env.sessions(), 2);
+  assert.notEqual(env.transcripts[0].sessionId, env.transcripts.at(-1).sessionId);
   assert.equal(env.getHistory().length, 5);
   assert.ok(
     env.transcripts.every(({ messages }) =>
@@ -434,17 +471,12 @@ test("flush finalizes a held turn with latest typed history and context; unique 
 
 test("a partial generation/TTS failure keeps recognized text and does not block report finalization", async (t) => {
   const env = setup(t, {
-    request: ({ body }) => {
-      const response = success(body);
-      return response.json().then((result) =>
-        Response.json({
-          ...result,
-          status: "partial",
-          messages: result.messages.slice(0, 1),
-          error: "The AI could not respond. Your words are saved.",
-        }),
-      );
-    },
+    request: ({ body }) =>
+      success(body, {
+        roles: ["user"],
+        status: "partial",
+        error: "The AI could not respond. Your words are saved.",
+      }),
   });
   await env.controller.beginTalking();
   await env.controller.flush();
@@ -456,19 +488,20 @@ test("a partial generation/TTS failure keeps recognized text and does not block 
   assert.match(env.controller.getSnapshot().error, /words are saved/);
   await env.controller.stop();
   assert.equal(env.requests.length, 1);
+  assert.equal(env.speeches.length, 0, "a reply that was never saved is never spoken");
 });
 
 test("failed transcript persistence rejects completion, then retries the exact request and ID", async (t) => {
   const env = setup(t, {
     request: ({ body }, count) =>
       count === 1
-        ? Response.json({
-            status: "partial",
-            persisted: false,
-            sessionId: "deepgram-" + body.turnId,
-            messages: [],
-            error: "Could not save your transcript.",
-          })
+        ? ndjson([
+            done(body, {
+              status: "partial",
+              persisted: false,
+              error: "Could not save your transcript.",
+            }),
+          ])
         : success(body),
   });
   await env.controller.beginTalking();
@@ -477,7 +510,7 @@ test("failed transcript persistence rejects completion, then retries the exact r
   await env.controller.stop();
   assert.equal(env.requests.length, 2);
   assert.deepEqual(env.requests[0].body, env.requests[1].body);
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
 });
 
 test("a provider failure does not invent text and a later flush recovers a network-ambiguous turn", async (t) => {
@@ -494,7 +527,7 @@ test("a provider failure does not invent text and a later flush recovers a netwo
   await assert.rejects(env.controller.flush(), /unavailable/);
   assert.deepEqual(env.transcripts, []);
   await env.controller.flush();
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
   assert.deepEqual(env.requests[0].body, env.requests[1].body);
   assert.equal(env.controller.getSnapshot().error, null);
 });
@@ -567,7 +600,7 @@ test("explicit text recovery releases a persistent STT failure without retrying 
     "text and report finalization do not re-run STT after recovery",
   );
   assert.equal(
-    env.transcripts.length,
+    env.sessions(),
     1,
     "saved dialogue is not inserted again",
   );
@@ -594,7 +627,7 @@ test("text recovery cannot discard an in-flight retry or its eventual saved tran
   );
   response.resolve(success(env.requests[1].body));
   await retry;
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
   assert.equal(env.controller.canContinueByText(), false);
   await env.controller.stop();
   assert.equal(env.requests.length, 2);
@@ -621,7 +654,7 @@ test("concurrent flush and stop share a disconnected retry and preserve its one 
   );
   response.resolve(success(env.requests[1].body));
   await Promise.all([flush, stop]);
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
 });
 
 test("a typed submit awaiting voice completion cannot send its draft into a different thread", async (t) => {
@@ -682,7 +715,7 @@ test("text recovery is scoped to the failed conversation and permits a fresh voi
   await env.controller.continueByText();
   await env.controller.beginTalking();
   await env.controller.flush();
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
   assert.notEqual(env.requests[1].body.turnId, env.requests[2].body.turnId);
 });
 
@@ -703,7 +736,7 @@ test("a silent rejected clip permits a fresh recording with a new turn ID", asyn
   await env.controller.flush();
   assert.equal(env.requests.length, 2);
   assert.notEqual(env.requests[0].body.turnId, env.requests[1].body.turnId);
-  assert.equal(env.transcripts.length, 1);
+  assert.equal(env.sessions(), 1);
   await env.controller.stop();
 });
 
@@ -795,15 +828,11 @@ test("dispose aborts the request and drops a late response even when fetch ignor
   await tick();
   env.controller.dispose();
   assert.equal(env.requests[0].signal.aborted, true);
-  response.resolve(
-    success(env.requests[0].body, {
-      audioBase64: "YXVkaW8=",
-      audioMimeType: "audio/mpeg",
-    }),
-  );
+  response.resolve(success(env.requests[0].body));
   await tick();
   assert.equal(env.transcripts.length, 0);
   assert.equal(env.audioElements.length, 0);
+  assert.equal(env.speeches.length, 0);
   assert.equal(env.tracks[0].stopped, true);
   assert.equal(env.controller.getSnapshot().status, "idle");
 });
@@ -816,26 +845,19 @@ test("a thread switch preserves the old thread scope and does not play its late 
   await tick();
   env.thread("thread-2");
   const stop = env.controller.stop();
-  response.resolve(
-    success(env.requests[0].body, {
-      audioBase64: "YXVkaW8=",
-      audioMimeType: "audio/mpeg",
-    }),
-  );
+  response.resolve(success(env.requests[0].body));
   await stop;
-  assert.equal(env.transcripts[0].threadId, "thread-1");
+  assert.equal(env.transcripts.at(-1).threadId, "thread-1");
   assert.equal(env.audioElements.length, 0);
+  assert.equal(env.speeches.length, 0);
   assert.equal(env.requests[0].body.threadId, "thread-1");
 });
 
 test("blocked audio can resume; speaking reflects playback and object URLs are revoked", async (t) => {
-  const env = setup(t, {
-    blockPlayback: true,
-    request: ({ body }) =>
-      success(body, { audioBase64: "YXVkaW8=", audioMimeType: "audio/mpeg" }),
-  });
+  const env = setup(t, { blockPlayback: true });
   await env.controller.beginTalking();
   await env.controller.flush();
+  await until(() => env.controller.getSnapshot().playbackBlocked);
   assert.equal(env.controller.getSnapshot().speaking, false);
   assert.equal(env.controller.getSnapshot().playbackBlocked, true);
   env.audioElements[0].allowed = true;
@@ -873,4 +895,199 @@ test("the thirty-second limit releases capture and visibly reports the clip limi
   assert.equal(env.requests.length, 1);
   response.resolve(success(env.requests[0].body));
   await env.controller.flush();
+});
+
+function controlled() {
+  let stream;
+  const response = new Response(
+    new ReadableStream({
+      start(controller) {
+        stream = controller;
+      },
+    }),
+    { headers: { "Content-Type": "application/x-ndjson" } },
+  );
+  return {
+    response,
+    bytes: (value) => stream.enqueue(new TextEncoder().encode(value)),
+    raw: (value) => stream.enqueue(value),
+    line: (value) =>
+      stream.enqueue(new TextEncoder().encode(JSON.stringify(value) + "\n")),
+    close: () => stream.close(),
+  };
+}
+
+test("the user's words show as soon as they are saved, before Bart's reply, across split UTF-8 chunks", async (t) => {
+  const upstream = controlled();
+  const env = setup(t, { request: () => upstream.response });
+  await env.controller.beginTalking();
+  const flush = env.controller.flush();
+  await until(() => env.requests.length === 1);
+  const body = env.requests[0].body;
+  const user = JSON.stringify({
+    type: "message",
+    message: voiceMessage(body, "user", "Café ☕ words"),
+  });
+  // One byte at a time splits the line and both multi-byte characters.
+  for (const byte of new TextEncoder().encode(user + "\n"))
+    upstream.raw(new Uint8Array([byte]));
+  await until(() => env.transcripts.length === 1);
+  assert.deepEqual(
+    env.transcripts[0].messages.map((m) => [m.role, m.content]),
+    [["user", "Café ☕ words"]],
+  );
+  assert.equal(env.controller.getSnapshot().working, true, "Bart is still replying");
+  assert.equal(env.speeches.length, 0);
+  upstream.line({ type: "message", message: voiceMessage(body, "assistant") });
+  upstream.line(done(body));
+  upstream.close();
+  await flush;
+  assert.deepEqual(
+    env.transcripts.map(({ messages }) => messages.map((m) => m.role)),
+    [["user"], ["user", "assistant"]],
+  );
+  assert.equal(env.transcripts[0].sessionId, env.transcripts[1].sessionId);
+  assert.equal(env.getHistory().length, 2, "the second report replaces the first");
+  assert.equal(env.controller.getSnapshot().working, false);
+  await until(() => env.speeches.length === 1);
+});
+
+test("error lines, a missing done and malformed streams fail the turn but keep the clip for an exact retry", async (t) => {
+  const failures = [
+    [(body) => ndjson([{ type: "message", message: voiceMessage(body, "user") }, { type: "error", status: 502, error: "The reply could not be generated." }]), /reply could not be generated/],
+    [(body) => ndjson([{ type: "message", message: voiceMessage(body, "user") }]), /The voice request failed\. Please try again\./],
+    [(body) => ndjson([done(body)]), /no saved transcript/],
+    [(body) => ndjson([done(body, { sessionId: "deepgram-other" })]), /invalid response/],
+    [(body) => ndjson([{ type: "message", message: { ...voiceMessage(body, "user"), id: "forged" } }, done(body)]), /invalid transcript/],
+    [() => new Response("not json\n", { headers: { "Content-Type": "application/x-ndjson" } }), /invalid response/],
+    [(body) => ndjson([done(body, { status: "partial", persisted: false, error: "Could not save your words." })]), /Could not save your words/],
+  ];
+  const env = setup(t, {
+    request: ({ body }, count) =>
+      count <= failures.length ? failures[count - 1][0](body) : success(body),
+  });
+  await env.controller.beginTalking();
+  for (const [, expected] of failures) {
+    await assert.rejects(env.controller.flush(), expected);
+    assert.match(env.controller.getSnapshot().error, /Continue by text/);
+    assert.equal(env.controller.canContinueByText(), true);
+    assert.equal(env.speeches.length, 0);
+  }
+  await env.controller.flush();
+  assert.equal(env.requests.length, failures.length + 1);
+  assert.ok(env.requests.every(({ body }) => body.turnId === env.requests[0].body.turnId));
+  assert.equal(env.sessions(), 1);
+  assert.equal(env.controller.getSnapshot().error, null);
+  await env.controller.stop();
+});
+
+test("speech posts the turn and plays the whole reply from a Blob when MediaSource is unavailable", async (t) => {
+  const env = setup(t);
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  assert.equal(env.controller.getSnapshot().working, false, "the turn ends with Bart's text");
+  await until(() => env.controller.getSnapshot().speaking);
+  assert.match(env.speeches[0].url, /^\/api\/backend\/voice\/deepgram\/speech$/);
+  assert.deepEqual(env.speeches[0].body, {
+    turnId: env.requests[0].body.turnId,
+    threadId: "thread-1",
+  });
+  assert.ok(env.objects[0] instanceof Blob);
+  assert.equal(env.objects[0].type, "audio/mpeg");
+  assert.equal(await env.objects[0].text(), "synthetic mp3 bytes");
+  assert.equal(env.audioElements[0].src, "blob:test-1");
+  env.audioElements[0].onended();
+  assert.equal(env.controller.getSnapshot().speaking, false);
+  assert.deepEqual(env.revoked, ["blob:test-1"]);
+});
+
+test("speech failures show an error and keep the saved text", async (t) => {
+  const outcomes = [
+    () => Response.json({ error: "This reply's audio was requested too many times. Its text is saved." }, { status: 429 }),
+    () => { throw new TypeError("Failed to fetch"); },
+    () => mp3(new Uint8Array(1024 * 1024 + 1)),
+  ];
+  const env = setup(t, { speech: (_request, count) => outcomes[count - 1]() });
+  for (const expected of [/requested too many times/, /^The audio reply could not play\. Its text is saved\.$/, /too large to play/]) {
+    await env.controller.beginTalking();
+    await env.controller.flush();
+    await until(() => expected.test(env.controller.getSnapshot().error ?? ""));
+    assert.equal(env.controller.getSnapshot().speaking, false);
+  }
+  assert.equal(env.audioElements.length, 0);
+  assert.equal(env.sessions(), 3, "every reply's text stays saved");
+});
+
+test("a new press and stop abort an in-flight speech request", async (t) => {
+  const pending = [];
+  const env = setup(t, {
+    speech: () => {
+      const response = deferred();
+      pending.push(response);
+      return response.promise;
+    },
+  });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => env.speeches.length === 1);
+  await env.controller.beginTalking();
+  assert.equal(env.speeches[0].signal.aborted, true, "talking over Bart stops his reply");
+  await env.controller.flush();
+  await until(() => env.speeches.length === 2);
+  assert.equal(env.speeches[1].signal.aborted, false);
+  await env.controller.stop();
+  assert.equal(env.speeches[1].signal.aborted, true);
+  pending.forEach((response) => response.resolve(mp3()));
+  await tick();
+  assert.equal(env.audioElements.length, 0, "late audio never plays");
+  assert.equal(env.controller.getSnapshot().error, null);
+});
+
+test("with MediaSource, playback starts after the first chunk and the stream ends cleanly", async (t) => {
+  class SourceBuffer extends EventTarget {
+    appended = [];
+    appendBuffer(chunk) {
+      this.appended.push(Buffer.from(chunk).toString());
+      setImmediate(() => this.dispatchEvent(new Event("updateend")));
+    }
+  }
+  class MediaSource extends EventTarget {
+    static isTypeSupported(type) {
+      return type === "audio/mpeg";
+    }
+    ended = false;
+    addSourceBuffer(type) {
+      assert.equal(type, "audio/mpeg");
+      return (this.buffer = new SourceBuffer());
+    }
+    endOfStream() {
+      this.ended = true;
+    }
+  }
+  Object.defineProperty(globalThis, "MediaSource", { configurable: true, value: MediaSource });
+  t.after(() => delete globalThis.MediaSource);
+  let audio;
+  const env = setup(t, {
+    speech: () => {
+      audio = controlled();
+      return new Response(audio.response.body, { headers: { "Content-Type": "audio/mpeg" } });
+    },
+  });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => env.objects.length === 1);
+  const source = env.objects[0];
+  assert.ok(source instanceof MediaSource);
+  assert.equal(env.audioElements[0].src, "blob:test-1");
+  source.dispatchEvent(new Event("sourceopen"));
+  audio.bytes("first mp3 chunk");
+  await until(() => env.controller.getSnapshot().speaking);
+  assert.deepEqual(source.buffer.appended, ["first mp3 chunk"]);
+  assert.equal(source.ended, false, "Bart speaks before the rest of the reply arrives");
+  audio.bytes("second mp3 chunk");
+  audio.close();
+  await until(() => source.ended);
+  assert.deepEqual(source.buffer.appended, ["first mp3 chunk", "second mp3 chunk"]);
+  env.audioElements[0].onended();
+  assert.deepEqual(env.revoked, ["blob:test-1"]);
 });

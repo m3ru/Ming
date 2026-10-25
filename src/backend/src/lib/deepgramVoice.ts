@@ -5,10 +5,11 @@ import { voiceSessionSchema, type VoiceMessage } from "./voice";
 export const DEEPGRAM_AUDIO_BYTE_LIMIT = 1024 * 1024;
 const PROVIDER_JSON_BYTE_LIMIT = 256 * 1024;
 // IDs are kept for the TTL so a retry never re-bills a turn. 512 per 15 minutes is far
-// above the hourly quota's 200 turns; only the newest replies keep their (~1 MB) audio.
+// above the hourly quota's 200 turns. Results hold text only; audio is streamed on request.
 const CACHE_LIMIT = 512;
 const CACHE_TTL_MS = 15 * 60_000;
-const AUDIO_KEEP = 8;
+// The first play plus retries; the turn's quota reservation already paid for speech.
+const SPEECH_LIMIT = 3;
 const PROVIDER_TIMEOUT_MS = 30_000;
 const mimeTypeSchema = z.string().max(100).regex(
   /^audio\/(?:webm|ogg|mp4|wav|x-wav)(?:\s*;\s*codecs=(?:[a-zA-Z0-9._,-]+|"[a-zA-Z0-9._, -]+"))?$/i,
@@ -20,6 +21,7 @@ export const deepgramTurnSchema = voiceSessionSchema
     audioBase64: z.string().min(4).max(4 * Math.ceil(DEEPGRAM_AUDIO_BYTE_LIMIT / 3)),
     mimeType: mimeTypeSchema,
   });
+export const deepgramSpeechSchema = deepgramTurnSchema.pick({ turnId: true, threadId: true });
 type Turn = z.infer<typeof deepgramTurnSchema>;
 type Scope = { threadId: string; resourceId: string };
 type DeepgramMessage = VoiceMessage & {
@@ -31,14 +33,12 @@ export type DeepgramTurnResult = {
   // True only after the recognized user transcript has reached memory.
   persisted: boolean;
   messages: DeepgramMessage[];
-  audioBase64?: string;
-  audioMimeType?: "audio/mpeg";
   error?: string;
 };
 export class DeepgramVoiceError extends Error {
   constructor(
     message: string,
-    public status: 400 | 403 | 409 | 413 | 429 | 502 | 503 = 502,
+    public status: 400 | 403 | 404 | 409 | 413 | 429 | 502 | 503 = 502,
   ) {
     super(message);
   }
@@ -66,6 +66,9 @@ type CachedTurn = Scope & {
   assistantSaved: boolean;
   result?: DeepgramTurnResult;
   pending?: Promise<DeepgramTurnResult>;
+  // Requests waiting on this turn; each hears every message as soon as it is saved.
+  listeners: Set<(message: DeepgramMessage) => void>;
+  speechRequests: number;
 };
 
 function audioBytes(base64: string) {
@@ -113,6 +116,13 @@ function message(turn: CachedTurn, role: "user" | "assistant", content: string):
       fragments: [],
     },
   };
+}
+function notify(listener: (message: DeepgramMessage) => void, message: DeepgramMessage) {
+  try {
+    listener(message);
+  } catch {
+    // A disconnected client must not fail or stall the saved turn.
+  }
 }
 function partial(turn: CachedTurn, error: string): DeepgramTurnResult {
   return {
@@ -168,6 +178,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       } catch {
         return partial(turn, "Your voice transcript could not be saved. Retry this voice turn.");
       }
+      for (const listener of turn.listeners) notify(listener, turn.user);
     }
     if (!turn.assistant) {
       try {
@@ -189,38 +200,21 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       } catch {
         return partial(turn, "Your transcript was saved, but the reply could not be saved. Try speaking again or continue by text.");
       }
+      for (const listener of turn.listeners) notify(listener, turn.assistant);
     }
-    try {
-      const url = new URL("https://api.deepgram.com/v1/speak");
-      url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-orion-en");
-      url.searchParams.set("encoding", "mp3");
-      const response = await request(url, {
-        method: "POST",
-        headers: { Authorization: "Token " + apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ text: turn.assistant.content }),
-        signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-        redirect: "error",
-      });
-      if (!response.ok || !/^audio\/(?:mpeg|mp3)(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
-        void response.body?.cancel().catch(() => {});
-        throw new Error("Speech request failed.");
-      }
-      const audio = await boundedBody(response, DEEPGRAM_AUDIO_BYTE_LIMIT);
-      if (!audio.length) throw new Error("Empty speech output.");
-      return {
-        status: "success" as const,
-        sessionId: turn.sessionId,
-        persisted: true,
-        messages: [turn.user, turn.assistant],
-        audioBase64: audio.toString("base64"),
-        audioMimeType: "audio/mpeg" as const,
-      };
-    } catch {
-      return partial(turn, "The conversation was saved, but speech audio could not be generated. You can continue speaking or by text.");
-    }
+    return {
+      status: "success" as const,
+      sessionId: turn.sessionId,
+      persisted: true,
+      messages: [turn.user, turn.assistant],
+    };
   }
   return {
-    async turn(raw: Turn, identity: string): Promise<DeepgramTurnResult> {
+    async turn(
+      raw: Turn,
+      identity: string,
+      onMessage?: (message: DeepgramMessage) => void,
+    ): Promise<DeepgramTurnResult> {
       const input = deepgramTurnSchema.parse(raw);
       if (!identity) throw new DeepgramVoiceError("Invalid conversation identity.", 403);
       const bytes = audioBytes(input.audioBase64);
@@ -231,8 +225,21 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       let turn = turns.get(input.turnId);
       if (turn && (turn.resourceId !== identity || turn.threadId !== input.threadId || turn.fingerprint !== fingerprint))
         throw new DeepgramVoiceError("This voice turn identifier is already in use. Start a new recording.", 409);
-      if (turn?.pending) return turn.pending;
-      if (turn?.result?.status === "success") return turn.result;
+      // A joining retry first hears what is already saved, then any later message.
+      const replay = (cached: CachedTurn) => {
+        if (!onMessage) return;
+        if (cached.userSaved && cached.user) notify(onMessage, cached.user);
+        if (cached.assistantSaved && cached.assistant) notify(onMessage, cached.assistant);
+      };
+      if (turn?.pending) {
+        replay(turn);
+        if (onMessage) turn.listeners.add(onMessage);
+        return turn.pending;
+      }
+      if (turn?.result?.status === "success") {
+        replay(turn);
+        return turn.result;
+      }
       const apiKey = dependencies.apiKey()?.trim();
       if (!apiKey) throw new DeepgramVoiceError("Deepgram voice is not configured on the server.", 503);
       if (!turn) {
@@ -241,26 +248,72 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
           throw new DeepgramVoiceError("Voice turn capacity reached. Try again later.", 429);
         turn = { fingerprint, threadId: input.threadId, resourceId: identity,
           expiresAt: now + CACHE_TTL_MS, sessionId: "deepgram-" + input.turnId,
-          userSaved: false, assistantSaved: false };
+          userSaved: false, assistantSaved: false, listeners: new Set(), speechRequests: 0 };
       }
       const release = dependencies.reserve?.(identity);
       turns.set(input.turnId, turn);
       const cached = turn;
+      replay(cached);
+      if (onMessage) cached.listeners.add(onMessage);
       // Do not link this work to a browser disconnect: Stop/End await the saved
       // transcript, and retrying the same ID joins this exact in-flight turn.
       cached.pending = processTurn(input, cached, apiKey, bytes).then((result) => {
         cached.result = result;
-        // Older finished turns keep their text for retries but drop reply audio.
-        let withAudio = 0;
-        for (const old of [...turns.values()].reverse())
-          if (old.result?.audioBase64 && ++withAudio > AUDIO_KEEP)
-            old.result = { ...old.result, audioBase64: undefined, audioMimeType: undefined };
         return result;
       }).finally(() => {
         cached.pending = undefined;
+        cached.listeners.clear();
         release?.();
       });
       return cached.pending;
+    },
+    // Streams the saved reply's audio. The turn's reservation already covers it.
+    async speech(raw: z.infer<typeof deepgramSpeechSchema>, identity: string) {
+      const input = deepgramSpeechSchema.parse(raw);
+      const turn = turns.get(input.turnId);
+      if (!turn) throw new DeepgramVoiceError("This voice reply is no longer available. Its text is saved.", 404);
+      if (turn.resourceId !== identity || turn.threadId !== input.threadId)
+        throw new DeepgramVoiceError("This voice reply is unavailable.", 403);
+      if (!turn.assistantSaved || !turn.assistant)
+        throw new DeepgramVoiceError("The voice reply is not ready yet.", 409);
+      const apiKey = dependencies.apiKey()?.trim();
+      if (!apiKey) throw new DeepgramVoiceError("Deepgram voice is not configured on the server.", 503);
+      if (++turn.speechRequests > SPEECH_LIMIT)
+        throw new DeepgramVoiceError("This reply's audio was requested too many times. Its text is saved.", 429);
+      let response: Response;
+      try {
+        const url = new URL("https://api.deepgram.com/v1/speak");
+        url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-orion-en");
+        url.searchParams.set("encoding", "mp3");
+        response = await request(url, {
+          method: "POST",
+          headers: { Authorization: "Token " + apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({ text: turn.assistant.content }),
+          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+          redirect: "error",
+        });
+      } catch {
+        throw new DeepgramVoiceError("The audio reply could not be generated. Its text is saved.");
+      }
+      if (!response.ok || !response.body || !/^audio\/(?:mpeg|mp3)(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
+        void response.body?.cancel().catch(() => {});
+        throw new DeepgramVoiceError("The audio reply could not be generated. Its text is saved.");
+      }
+      let size = 0;
+      return {
+        // Erroring the stream also cancels the provider download.
+        body: response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+          transform(chunk, controller) {
+            size += chunk.byteLength;
+            if (size > DEEPGRAM_AUDIO_BYTE_LIMIT) controller.error(new Error("Speech output exceeded limit."));
+            else controller.enqueue(chunk);
+          },
+          flush(controller) {
+            if (!size) controller.error(new Error("Empty speech output."));
+          },
+        })),
+        mimeType: "audio/mpeg" as const,
+      };
     },
   };
 }

@@ -7,6 +7,11 @@ import { chatType } from "../lib/voice";
 import { defaultAgent } from "./agents/defaultAgent";
 import { isTextConfigured, textModel } from "./models";
 
+// Aura-2 has no emotion or SSML controls, so the role-played character's delivery comes from
+// how the line is written. Measured: more than one "..." or filler per reply drags badly.
+const spokenDelivery = `
+Your reply is spoken aloud by a text-to-speech voice, so write it the way you would actually say it: short sentences, contractions, plain words. Let your feelings show through wording and rhythm, matching how the other person is treating you. When you hesitate, you may use at most one "..." for a pause and at most one filler such as "um" or "uh" in a reply. Never write stage directions, asterisks, emojis, or descriptions of your tone.`;
+
 const voiceResponder = new Agent({
   name: "deepgram-voice-responder",
   model: textModel,
@@ -21,7 +26,7 @@ export const deepgramVoice = createDeepgramVoiceService({
   async generate(messages, context, signal) {
     if (!isTextConfigured()) throw new Error("Text AI is not configured.");
     const { provider, model } = resolveTextProvider();
-    const prompt = chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context);
+    const prompt = chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context) + spokenDelivery;
     const result = await voiceResponder.generateVNext([
       { role: "system", content: prompt + "\nScenario and UI context: " + JSON.stringify(context) },
       ...messages.filter((m) => m.content.trim()).map(({ role, content }) =>

@@ -268,7 +268,7 @@ test("real voice recording stays recoverable after a failed New Session save unt
   assert.equal(requests.length, 1);
   assert.equal(Buffer.from(requests[0].audioBase64, "base64").toString(), "last recorded words");
   assert.equal(env.events.filter(Array.isArray).length, 0, "navigation also waits for persistence");
-  response.resolve(Response.json({ status: "partial", persisted: false, sessionId: "deepgram-" + requests[0].turnId, messages: [], error: "Could not save your transcript." }));
+  response.resolve(new Response(JSON.stringify({ type: "done", status: "partial", persisted: false, sessionId: "deepgram-" + requests[0].turnId, error: "Could not save your transcript." }) + "\n", { headers: { "Content-Type": "application/x-ndjson" } }));
   await rejection;
   assert.deepEqual(transcripts, []);
   assert.equal(env.store.getItem("activeScenario"), "old selection");

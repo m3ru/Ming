@@ -67,6 +67,8 @@ try{
   context:{},messages:[],
  });
  assert.equal(response.status,env.MING_VOICE_PROVIDER==='deepgram'?503:404,'Deepgram selection must reach the configured backend boundary');
+ response=await post('/api/backend/voice/deepgram/speech',{turnId:'12345678-1234-4234-8234-123456789012',threadId:'synthetic-deepgram-thread'});
+ assert.equal(response.status,env.MING_VOICE_PROVIDER==='deepgram'?503:404,'Deepgram speech must reach the configured backend boundary');
  response=await fetch(origin);assert.match(await response.text(),/Welcome back/);
  console.log('PASS ('+env.MING_VOICE_PROVIDER+' voice): login-free built standalone demo + Mastra: direct home access, static assets, no credential leakage, security headers, private backend denial, blocked framework APIs, cross-origin rejection, input limits, two recoverable cookie-free 503s, Deepgram configuration boundary. No provider call.');
 }catch(error){

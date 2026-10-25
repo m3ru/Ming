@@ -80,6 +80,22 @@ test('only the Deepgram turn route allows a bounded audio payload above the norm
  }finally{global.fetch=original;}
 });
 
+test('Deepgram turn and speech responses stream through POST-only with their content types',async()=>{
+ const original=global.fetch;const sent=[];
+ global.fetch=async(url,init)=>{sent.push({url:String(url),...init});return String(url).endsWith('/speech')?new Response('mp3 bytes',{headers:{'Content-Type':'audio/mpeg'}}):new Response('{"type":"done"}\n',{headers:{'Content-Type':'application/x-ndjson'}});};
+ try{
+  const turn=await proxy.POST(request('/api/backend/voice/deepgram/turn',{turnId:'t'}),context('voice/deepgram/turn'));
+  assert.equal(turn.headers.get('content-type'),'application/x-ndjson');assert.equal(await turn.text(),'{"type":"done"}\n');
+  const speech=await proxy.POST(request('/api/backend/voice/deepgram/speech',{turnId:'t',threadId:'x'}),context('voice/deepgram/speech'));
+  assert.equal(speech.status,200);assert.equal(speech.headers.get('content-type'),'audio/mpeg');assert.equal(await speech.text(),'mp3 bytes');
+  assert.equal(sent[1].url,'http://127.0.0.1:4111/voice/deepgram/speech');assert.equal(sent[1].headers['x-ming-user-id'],'localhost-demo');
+  assert.equal(proxy.GET,undefined);
+  assert.equal((await proxy.POST(request('/api/backend/voice/deepgram/speech',{},{origin:'https://evil.example'}),context('voice/deepgram/speech'))).status,403);
+  assert.equal((await proxy.POST(request('/api/backend/voice/deepgram/speech',{pad:'x'.repeat(300000)}),context('voice/deepgram/speech'))).status,413);
+  assert.equal(sent.length,2);
+ }finally{global.fetch=original;}
+});
+
 test('voice selection defaults to OpenAI Live and supports explicit Deepgram without silently accepting typos',()=>{
  const {resolveVoiceProvider}=load('src/lib/voiceProvider.ts');
  assert.equal(resolveVoiceProvider(),'openai');

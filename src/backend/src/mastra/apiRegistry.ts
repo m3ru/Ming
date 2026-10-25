@@ -9,7 +9,7 @@ import {
 } from "../utils/streamUtils";
 import { liveVoice } from "./liveVoice";
 import { deepgramVoice } from "./deepgramVoice";
-import { deepgramTurnSchema, DeepgramVoiceError } from "../lib/deepgramVoice";
+import { deepgramSpeechSchema, deepgramTurnSchema, DeepgramVoiceError } from "../lib/deepgramVoice";
 import { isTextConfigured } from "./models";
 import { scoreSentiment } from "./sentiment";
 import { sentimentRequestSchema } from "../lib/sentiment";
@@ -234,7 +234,56 @@ export const apiRoutes = [
         if (!process.env.DEEPGRAM_API_KEY?.trim())
           throw new AccessError(503, "Deepgram voice is not configured on the server.");
         await claimThread(input.threadId, identity);
-        return c.json(await deepgramVoice.turn(input, identity));
+        // NDJSON: one line per saved message, then a final done or error line.
+        // Failures before the first line (silence, 409, quota) stay JSON with their status.
+        const encoder = new TextEncoder();
+        let output!: ReadableStreamDefaultController<Uint8Array>;
+        const body = new ReadableStream<Uint8Array>({ start: (controller) => { output = controller; } });
+        const send = (line: Record<string, unknown>) => {
+          try {
+            output.enqueue(encoder.encode(JSON.stringify(line) + "\n"));
+          } catch {
+            // The browser left; the turn still completes and a retry joins it.
+          }
+        };
+        let started!: () => void;
+        const firstMessage = new Promise<void>((resolve) => { started = resolve; });
+        const result = deepgramVoice.turn(input, identity, (message) => {
+          send({ type: "message", message });
+          started();
+        });
+        await Promise.race([firstMessage, result]);
+        void result.then(
+          ({ status, sessionId, persisted, error }) =>
+            send({ type: "done", status, sessionId, persisted, ...(error ? { error } : {}) }),
+          (error) => send(error instanceof DeepgramVoiceError
+            ? { type: "error", status: error.status, error: error.message }
+            : { type: "error", status: 502, error: "The request could not be completed. Try again." }),
+        ).finally(() => {
+          try {
+            output.close();
+          } catch {
+            // Already cancelled by the browser.
+          }
+        });
+        return c.body(body, 200, { "Content-Type": "application/x-ndjson" });
+      } catch (error) {
+        return errorResponse(c, error);
+      }
+    },
+  }),
+  registerApiRoute("/voice/deepgram/speech", {
+    method: "POST",
+    handler: async (c) => {
+      try {
+        if (process.env.MING_VOICE_PROVIDER?.trim().toLowerCase() !== "deepgram")
+          return c.json({ error: "Deepgram voice is not enabled on the server." }, 404);
+        const input = deepgramSpeechSchema.parse(await c.req.json());
+        const identity = trustedIdentity(c);
+        if (!process.env.DEEPGRAM_API_KEY?.trim())
+          throw new AccessError(503, "Deepgram voice is not configured on the server.");
+        const audio = await deepgramVoice.speech(input, identity);
+        return c.body(audio.body, 200, { "Content-Type": audio.mimeType });
       } catch (error) {
         return errorResponse(c, error);
       }

@@ -52,6 +52,8 @@ type Session = {
   stopPromise?: Promise<void>;
   audio?: HTMLAudioElement;
   audioURL?: string;
+  speech?: AbortController;
+  audioReader?: ReadableStreamDefaultReader<Uint8Array>;
 };
 const initial: VoiceSnapshot = {
   status: "idle",
@@ -62,6 +64,9 @@ const initial: VoiceSnapshot = {
   error: null,
 };
 const MAX_AUDIO_BYTES = 512 * 1024;
+// Matches the server's DEEPGRAM_AUDIO_BYTE_LIMIT for one spoken reply.
+const MAX_REPLY_AUDIO_BYTES = 1024 * 1024;
+const AUDIO_FAILED = "The audio reply could not play. Its text is saved.";
 const MAX_RECORDING_MS = 30_000;
 const MIME_TYPES = [
   "audio/webm;codecs=opus",
@@ -157,6 +162,10 @@ export class DeepgramVoiceController {
     });
   }
   private clearPlayback(active: Session) {
+    active.speech?.abort();
+    active.speech = undefined;
+    void active.audioReader?.cancel().catch(() => {});
+    active.audioReader = undefined;
     if (active.audio) {
       active.audio.onplaying = null;
       active.audio.onpause = null;
@@ -461,9 +470,10 @@ export class DeepgramVoiceController {
           signal: AbortSignal.any([abort.signal, AbortSignal.timeout(90_000)]),
         },
       );
-      const result = await response.json().catch(() => ({}));
       if (turn.epoch !== this.epoch || abort.signal.aborted) return;
       if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        if (turn.epoch !== this.epoch || abort.signal.aborted) return;
         // A rejected clip (including silence) has no saved transcript to recover.
         // Let the next press create a fresh clip instead of replaying bad audio.
         if (
@@ -476,62 +486,105 @@ export class DeepgramVoiceController {
         );
       }
       const sessionId = "deepgram-" + turn.body.turnId;
+      const invalid = new Error(
+        "The voice server returned an invalid response. Please try again.",
+      );
+      const reader = response.body?.getReader();
+      if (!reader) throw invalid;
+      // NDJSON: each saved message, then one done (or error) line.
+      const decoder = new TextDecoder();
+      const transcript: ReturnType<VoiceTranscript["messages"]> = [];
+      let buffered = "";
+      let result: Record<string, unknown> | undefined;
+      try {
+        while (!result) {
+          const chunk = await reader.read();
+          if (turn.epoch !== this.epoch || abort.signal.aborted) return;
+          buffered += decoder.decode(chunk.value, { stream: !chunk.done });
+          const lines = buffered.split("\n");
+          buffered = chunk.done ? "" : lines.pop()!;
+          for (const line of lines) {
+            if (!line.trim() || result) continue;
+            let event;
+            try {
+              event = JSON.parse(line);
+            } catch {
+              throw invalid;
+            }
+            if (event?.type === "error")
+              throw new Error(
+                typeof event.error === "string" && event.error
+                  ? event.error
+                  : "The voice request failed. Please try again.",
+              );
+            if (event?.type === "done") {
+              result = event;
+              continue;
+            }
+            const item = event?.type === "message" ? event.message : undefined;
+            if (
+              !item ||
+              (item.role !== "user" && item.role !== "assistant") ||
+              item.id !== "voice-" + sessionId + "-" + item.role ||
+              typeof item.content !== "string" ||
+              !item.content.trim() ||
+              typeof item.createdAt !== "string" ||
+              !Number.isFinite(Date.parse(item.createdAt))
+            )
+              throw new Error(
+                "The voice server returned an invalid transcript. Please try again.",
+              );
+            transcript.push({
+              id: item.id,
+              role: item.role,
+              content: item.content,
+              createdAt: item.createdAt,
+              metadata: {
+                source: "live-voice",
+                sessionId,
+                voiceProvider: "deepgram",
+                fragments: [],
+              },
+            });
+            // Replaces this turn's messages: the user's words show before Bart replies.
+            this.dependencies.transcript(turn.body.threadId, sessionId, [
+              ...transcript,
+            ]);
+          }
+          if (chunk.done) break;
+        }
+      } finally {
+        void reader.cancel().catch(() => {});
+      }
+      if (!result)
+        throw new Error("The voice request failed. Please try again.");
       if (
         result.sessionId !== sessionId ||
         (result.status !== "success" && result.status !== "partial") ||
-        typeof result.persisted !== "boolean" ||
-        !Array.isArray(result.messages)
+        typeof result.persisted !== "boolean"
       )
-        throw new Error(
-          "The voice server returned an invalid response. Please try again.",
-        );
+        throw invalid;
+      const error = typeof result.error === "string" ? result.error : "";
       if (!result.persisted)
         throw new Error(
-          result.error ||
-            "Could not save the voice transcript. Please try again.",
+          error || "Could not save the voice transcript. Please try again.",
         );
-      const transcript: ReturnType<VoiceTranscript["messages"]> = [];
-      for (const item of result.messages) {
-        if (
-          (item.role !== "user" && item.role !== "assistant") ||
-          item.id !== "voice-" + sessionId + "-" + item.role ||
-          typeof item.content !== "string" ||
-          !item.content.trim() ||
-          typeof item.createdAt !== "string" ||
-          !Number.isFinite(Date.parse(item.createdAt))
-        )
-          throw new Error(
-            "The voice server returned an invalid transcript. Please try again.",
-          );
-        transcript.push({
-          id: item.id,
-          role: item.role,
-          content: item.content,
-          createdAt: item.createdAt,
-          metadata: {
-            source: "live-voice",
-            sessionId,
-            voiceProvider: "deepgram",
-            fragments: [],
-          },
-        });
-      }
       if (!transcript.some((item) => item.role === "user"))
         throw new Error(
           "The voice server returned no saved transcript. Please try again.",
         );
-      this.dependencies.transcript(turn.body.threadId, sessionId, transcript);
       if (this.unsaved.get(turn.body.threadId) === turn)
         this.unsaved.delete(turn.body.threadId);
       if (active && this.active === active) {
-        this.update({ error: result.error || null });
+        this.update({ error: error || null });
+        // Not awaited: the turn ends with Bart's text; `speaking` covers the audio.
         if (
           this.sameScope(active) &&
           !active.stopPromise &&
-          typeof result.audioBase64 === "string" &&
-          result.audioMimeType === "audio/mpeg"
+          result.status === "success" &&
+          transcript.some((item) => item.role === "assistant")
         )
-          await this.playAudio(active, result.audioBase64);
+          void this.speak(active, turn.body);
       }
     } catch (error) {
       if (
@@ -557,57 +610,141 @@ export class DeepgramVoiceController {
       this.requests.delete(abort);
     }
   }
-  private async playAudio(active: Session, encoded: string) {
+  private async speak(active: Session, { turnId, threadId }: Turn["body"]) {
     this.clearPlayback(active);
+    const abort = new AbortController();
+    active.speech = abort;
+    this.requests.add(abort);
+    // Resolves on the event, or at once when this playback is cleared.
+    const settle = (target: EventTarget, type: string) =>
+      new Promise<void>((resolve) => {
+        const done = () => {
+          target.removeEventListener(type, done);
+          abort.signal.removeEventListener("abort", done);
+          resolve();
+        };
+        target.addEventListener(type, done);
+        abort.signal.addEventListener("abort", done);
+      });
     try {
-      if (encoded.length > 6 * 1024 * 1024)
+      const response = await fetch(
+        this.dependencies.baseURL().replace(/\/$/, "") + "/voice/deepgram/speech",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ turnId, threadId }),
+          signal: AbortSignal.any([abort.signal, AbortSignal.timeout(90_000)]),
+        },
+      );
+      if (abort.signal.aborted) return;
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
         throw new Error(
-          "The audio reply is too large to play. Its text is saved.",
+          typeof result.error === "string" && result.error
+            ? result.error
+            : AUDIO_FAILED,
         );
-      const bytes = Uint8Array.from(atob(encoded), (character) =>
-        character.charCodeAt(0),
-      );
-      const audio = new Audio();
-      active.audio = audio;
-      active.audioURL = URL.createObjectURL(
-        new Blob([bytes], { type: "audio/mpeg" }),
-      );
-      audio.src = active.audioURL;
-      audio.onplaying = () => {
-        if (this.active === active && active.audio === audio)
-          this.update({
-            speaking: !audio.paused && !audio.muted,
-            playbackBlocked: false,
-          });
+      }
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error(AUDIO_FAILED);
+      active.audioReader = reader;
+      let bytes = 0;
+      const read = async () => {
+        const chunk = await reader.read();
+        bytes += chunk.value?.byteLength ?? 0;
+        if (bytes > MAX_REPLY_AUDIO_BYTES)
+          throw new Error(
+            "The audio reply is too large to play. Its text is saved.",
+          );
+        return chunk;
       };
-      const quiet = () => {
-        if (this.active === active && active.audio === audio)
-          this.update({ speaking: false });
-      };
-      audio.onpause = quiet;
-      audio.onended = () => {
-        quiet();
-        if (active.audio === audio) this.clearPlayback(active);
-      };
-      audio.onerror = () => {
-        if (this.active === active && active.audio === audio) {
-          this.clearPlayback(active);
-          this.update({
-            error: "The audio reply could not play. Its text is saved.",
-          });
+      if (
+        typeof MediaSource !== "undefined" &&
+        MediaSource.isTypeSupported("audio/mpeg")
+      ) {
+        // Progressive: play once the first chunk is buffered (~0.3 s), not after the whole reply.
+        const audio = new Audio();
+        const source = new MediaSource();
+        this.watchPlayback(active, audio, URL.createObjectURL(source));
+        await settle(source, "sourceopen");
+        if (abort.signal.aborted) return;
+        const buffer = source.addSourceBuffer("audio/mpeg");
+        let started = false;
+        while (true) {
+          const chunk = await read();
+          if (abort.signal.aborted) return;
+          if (chunk.done) break;
+          buffer.appendBuffer(chunk.value);
+          await settle(buffer, "updateend");
+          if (abort.signal.aborted) return;
+          if (!started) void this.startPlayback(active, audio);
+          started = true;
         }
-      };
-      try {
-        await audio.play();
-      } catch {
-        if (this.active === active && active.audio === audio)
-          this.update({ speaking: false, playbackBlocked: true });
+        source.endOfStream();
+      } else {
+        const chunks: Uint8Array<ArrayBuffer>[] = [];
+        for (let chunk = await read(); !chunk.done; chunk = await read())
+          chunks.push(chunk.value);
+        if (abort.signal.aborted) return;
+        const audio = new Audio();
+        this.watchPlayback(
+          active,
+          audio,
+          URL.createObjectURL(new Blob(chunks, { type: "audio/mpeg" })),
+        );
+        await this.startPlayback(active, audio);
       }
     } catch (error) {
-      if (this.active === active) {
-        this.clearPlayback(active);
-        this.update({ error: message(error) });
+      if (abort.signal.aborted || this.active !== active) return;
+      this.clearPlayback(active);
+      // Our own errors are user-facing; network and media exceptions are not.
+      this.update({
+        error:
+          error instanceof Error && error.name === "Error"
+            ? error.message
+            : AUDIO_FAILED,
+      });
+    } finally {
+      this.requests.delete(abort);
+      if (active.speech === abort) {
+        active.speech = undefined;
+        active.audioReader = undefined;
       }
+    }
+  }
+  private watchPlayback(active: Session, audio: HTMLAudioElement, url: string) {
+    active.audio = audio;
+    active.audioURL = url;
+    audio.src = url;
+    audio.onplaying = () => {
+      if (this.active === active && active.audio === audio)
+        this.update({
+          speaking: !audio.paused && !audio.muted,
+          playbackBlocked: false,
+        });
+    };
+    const quiet = () => {
+      if (this.active === active && active.audio === audio)
+        this.update({ speaking: false });
+    };
+    audio.onpause = quiet;
+    audio.onended = () => {
+      quiet();
+      if (active.audio === audio) this.clearPlayback(active);
+    };
+    audio.onerror = () => {
+      if (this.active === active && active.audio === audio) {
+        this.clearPlayback(active);
+        this.update({ error: AUDIO_FAILED });
+      }
+    };
+  }
+  private async startPlayback(active: Session, audio: HTMLAudioElement) {
+    try {
+      await audio.play();
+    } catch {
+      if (this.active === active && active.audio === audio)
+        this.update({ speaking: false, playbackBlocked: true });
     }
   }
   resumePlayback = async () => {

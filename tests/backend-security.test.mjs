@@ -103,6 +103,7 @@ async function exerciseRouter() {
   const deepgram = loadBackendSource("src/backend/src/lib/deepgramVoice.ts", { "./voice": voice });
   const providers = loadBackendSource("src/backend/src/lib/providers.ts");
   let deepgramTurns = 0;
+  let deepgramSpeech = 0;
   let voiceSessions = 0;
   let voiceGenerations = 0;
   const saved = [];
@@ -146,10 +147,21 @@ async function exerciseRouter() {
     "../lib/security": security,
     "../lib/voice": voice,
     "./liveVoice": { liveVoice },
-    "./deepgramVoice": { deepgramVoice: { turn: async () => {
-      deepgramTurns++;
-      return { status: "success", persisted: true, messages: [] };
-    } } },
+    // The real service behind the real router; only Deepgram, the model and memory are fakes.
+    "./deepgramVoice": { deepgramVoice: deepgram.createDeepgramVoiceService({
+      apiKey: () => process.env.DEEPGRAM_API_KEY,
+      request: async (url, options) => {
+        if (new URL(url).pathname.endsWith("/listen")) {
+          deepgramTurns++;
+          const silent = Buffer.from(options.body).every((byte) => byte === 0);
+          return Response.json({ results: { channels: [{ alternatives: [{ transcript: silent ? "" : "Synthetic words" }] }] } });
+        }
+        deepgramSpeech++;
+        return new Response("synthetic mp3", { headers: { "Content-Type": "audio/mpeg" } });
+      },
+      generate: async () => "Synthetic spoken reply",
+      save: async () => {},
+    }) },
     "../lib/deepgramVoice": deepgram,
     "./models": providers,
     "./sentiment": { scoreSentiment: async () => ({ score: 0, magnitude: 0 }) },
@@ -309,16 +321,38 @@ async function exerciseRouter() {
     audioBase64: Buffer.alloc(300 * 1024, 1).toString("base64"),
     mimeType: "audio/webm;codecs=opus", context: {}, messages: [],
   };
+  const speechBody = { turnId: deepgramBody.turnId, threadId: deepgramBody.threadId };
   assert.equal((await request("/voice/deepgram/turn", deepgramBody)).status, 404);
+  assert.equal((await request("/voice/deepgram/speech", speechBody)).status, 404);
   process.env.MING_VOICE_PROVIDER = "deepgram";
   delete process.env.DEEPGRAM_API_KEY;
   assert.equal((await request("/voice/deepgram/turn", deepgramBody)).status, 503);
+  assert.equal((await request("/voice/deepgram/speech", speechBody)).status, 503);
   assert.equal(deepgramTurns, 0);
   process.env.DEEPGRAM_API_KEY = "synthetic-deepgram";
-  assert.equal((await request("/voice/deepgram/turn", deepgramBody)).status, 200);
+  assert.equal((await request("/voice/deepgram/speech", speechBody)).status, 404, "no saved reply yet");
+  const streamed = await request("/voice/deepgram/turn", deepgramBody);
+  assert.equal(streamed.status, 200);
+  assert.equal(streamed.headers.get("content-type"), "application/x-ndjson");
+  const lines = (await streamed.text()).trim().split("\n").map((line) => JSON.parse(line));
+  assert.deepEqual(lines.map((line) => line.type + ":" + (line.message?.role ?? line.status)), ["message:user", "message:assistant", "done:success"]);
+  assert.equal(lines[0].message.content, "Synthetic words");
+  assert.deepEqual(lines[2], { type: "done", status: "success", sessionId: "deepgram-" + deepgramBody.turnId, persisted: true });
   assert.equal(deepgramTurns, 1);
   assert.equal((await request("/voice/deepgram/turn", deepgramBody, "attacker-b")).status, 403);
   assert.equal(deepgramTurns, 1);
+  const silent = await request("/voice/deepgram/turn", { ...deepgramBody, turnId: "1b0f6e8a-5d47-4c1e-9b8e-3f3a2c1d0e9f", audioBase64: Buffer.alloc(1024).toString("base64") });
+  assert.equal(silent.status, 400, "a silent clip fails before streaming, as plain JSON");
+  assert.match((await silent.json()).error, /No speech was detected/);
+  assert.equal((await request("/voice/deepgram/speech", speechBody, "attacker-b")).status, 403);
+  assert.equal((await request("/voice/deepgram/speech", { ...speechBody, turnId: "not-a-uuid" })).status, 400);
+  assert.equal((await request("/voice/deepgram/speech", speechBody, "owner-a", { "Content-Type": "text/plain" })).status, 400);
+  assert.equal(deepgramSpeech, 0);
+  const spoken = await request("/voice/deepgram/speech", speechBody);
+  assert.equal(spoken.status, 200);
+  assert.equal(spoken.headers.get("content-type"), "audio/mpeg");
+  assert.equal(await spoken.text(), "synthetic mp3");
+  assert.equal(deepgramSpeech, 1);
   assert.equal((await request("/voice/deepgram/turn", { ...deepgramBody, extra: "x".repeat(security.DEEPGRAM_REQUEST_BYTE_LIMIT) })).status, 413);
   assert.equal((await request("/voice/deepgram/turn", { ...deepgramBody, nested })).status, 400);
   assert.equal((await request("/voice/deepgram/turn", deepgramBody, "owner-a", { "Content-Type": "audio/webm" })).status, 400);

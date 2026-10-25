@@ -30,6 +30,7 @@ const customRoutes = new Set([
   "/voice/end",
   "/voice/heartbeat",
   "/voice/deepgram/turn",
+  "/voice/deepgram/speech",
 ]);
 
 export class AccessError extends Error {
@@ -61,7 +62,7 @@ export const gatewayBoundary: MiddlewareHandler = async (c, next) => {
   if (c.req.method !== "POST" || !customRoutes.has(c.req.path)) {
     return c.json({ error: "Endpoint unavailable." }, 404);
   }
-  if (c.req.path === "/voice/deepgram/turn" &&
+  if (c.req.path.startsWith("/voice/deepgram/") &&
     !/^application\/(?:ming\+json|json)(?:;|$)/i.test(c.req.header("Content-Type") ?? ""))
     return c.json({ error: "A JSON voice request is required." }, 400);
   // Read incrementally rather than allocating unbounded JSON. The private

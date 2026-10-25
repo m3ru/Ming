@@ -32,25 +32,35 @@ function fixture(overrides = {}) {
   return { service: createDeepgramVoiceService(dependencies), dependencies, requests, saves, generations };
 }
 
-test("Deepgram REST turn sends binary audio, saves actual text before speech, and deduplicates completed turns", async () => {
-  const f = fixture();
+test("Deepgram REST turn sends binary audio, reports each message once saved, ends without audio, and deduplicates completed turns", async () => {
+  const log = [];
+  const f = fixture({
+    generate: async () => { log.push("generate"); return "Thank you. I appreciate your support."; },
+    save: async (messages) => { log.push("save:" + messages[0].role); },
+  });
   const input = recording();
-  const result = await f.service.turn(input, "owner");
+  const events = [];
+  const result = await f.service.turn(input, "owner", (message) => { events.push(message); log.push("emit:" + message.role); });
+  // The user's words are reported before the reply is even generated.
+  assert.deepEqual(log, ["save:user", "emit:user", "generate", "save:assistant", "emit:assistant"]);
+  assert.deepEqual(events, result.messages);
+  assert.deepEqual(Object.keys(result).sort(), ["messages", "persisted", "sessionId", "status"]);
   assert.equal(result.status, "success");
   assert.equal(result.persisted, true);
-  assert.equal(result.audioMimeType, "audio/mpeg");
-  assert.equal(Buffer.from(result.audioBase64, "base64").toString(), "MP3 output");
   assert.equal(result.sessionId, "deepgram-" + input.turnId);
   assert.deepEqual(result.messages.map((m) => m.role), ["user", "assistant"]);
   assert.equal(result.messages[0].id, "voice-deepgram-" + input.turnId + "-user");
   assert.equal(result.messages[0].metadata.voiceProvider, "deepgram");
-  assert.deepEqual(f.saves.map((s) => s.messages[0].content), result.messages.map((m) => m.content));
-  assert.equal(f.saves[0].scope.threadId, input.threadId);
-  assert.equal(f.saves[0].scope.resourceId, "owner");
-  assert.equal(f.generations[0][0].at(-1).content, result.messages[0].content);
-  assert.deepEqual(f.generations[0][1], input.context);
-  assert.ok(f.generations[0][2] instanceof AbortSignal);
-  const [listen, speak] = f.requests;
+  const g = fixture();
+  const saved = await g.service.turn(input, "owner");
+  assert.deepEqual(g.saves.map((s) => s.messages[0].content), saved.messages.map((m) => m.content));
+  assert.equal(g.saves[0].scope.threadId, input.threadId);
+  assert.equal(g.saves[0].scope.resourceId, "owner");
+  assert.equal(g.generations[0][0].at(-1).content, saved.messages[0].content);
+  assert.deepEqual(g.generations[0][1], input.context);
+  assert.ok(g.generations[0][2] instanceof AbortSignal);
+  assert.equal(g.requests.length, 1, "speech is no longer part of the turn");
+  const [listen] = g.requests;
   assert.equal(listen.url.origin, "https://api.deepgram.com");
   assert.equal(listen.url.pathname, "/v1/listen");
   assert.equal(listen.url.searchParams.get("model"), "nova-3");
@@ -60,19 +70,19 @@ test("Deepgram REST turn sends binary audio, saves actual text before speech, an
   assert.equal(Buffer.from(listen.options.body).toString(), "actual browser audio bytes");
   assert.equal(listen.options.redirect, "error");
   assert.ok(listen.options.signal instanceof AbortSignal);
-  assert.equal(speak.url.pathname, "/v1/speak");
-  assert.equal(speak.url.searchParams.get("model"), "aura-2-orion-en");
-  assert.equal(speak.url.searchParams.get("encoding"), "mp3");
-  assert.deepEqual(JSON.parse(speak.options.body), { text: result.messages[1].content });
-  assert.deepEqual(await f.service.turn(input, "owner"), result);
-  assert.equal(f.requests.length, 2);
-  assert.equal(f.saves.length, 2);
+  const replayed = [];
+  assert.deepEqual(await g.service.turn(input, "owner", (message) => replayed.push(message)), saved);
+  assert.deepEqual(replayed, saved.messages, "a completed retry replays both saved messages");
+  assert.equal(g.requests.length, 1);
+  assert.equal(g.saves.length, 2);
 });
 
 test("Deepgram model overrides and MediaRecorder formats cross the actual HTTP boundary", async () => {
   for (const mimeType of ["audio/webm", "audio/ogg;codecs=opus", "audio/mp4;codecs=mp4a.40.2", "audio/wav", "audio/x-wav"]) {
     const f = fixture({ sttModel: () => "nova-3-general", ttsModel: () => "aura-2-asteria-en" });
-    await f.service.turn(recording({ mimeType }), "owner");
+    const input = recording({ mimeType });
+    await f.service.turn(input, "owner");
+    await f.service.speech({ turnId: input.turnId, threadId: input.threadId }, "owner");
     assert.equal(f.requests[0].options.headers["Content-Type"], mimeType);
     assert.equal(f.requests[0].url.searchParams.get("model"), "nova-3-general");
     assert.equal(f.requests[1].url.searchParams.get("model"), "aura-2-asteria-en");
@@ -113,9 +123,11 @@ test("text failure preserves the recognized user and retry resumes without anoth
   assert.deepEqual(failed.messages.map((m) => m.role), ["user"]);
   assert.doesNotMatch(JSON.stringify(failed), new RegExp(secret));
   assert.equal(f.requests.length, 1);
-  const recovered = await f.service.turn(input, "owner");
+  const events = [];
+  const recovered = await f.service.turn(input, "owner", (message) => events.push(message.role));
   assert.equal(recovered.status, "success");
-  assert.equal(f.requests.length, 2);
+  assert.deepEqual(events, ["user", "assistant"], "the retry first hears the already-saved user");
+  assert.equal(f.requests.length, 1);
   assert.equal(f.saves.length, 2);
   assert.equal(generations, 2);
 });
@@ -132,40 +144,101 @@ test("failed user persistence returns persisted false and retries the same recog
   assert.equal(f.generations.length, 0);
   const recovered = await f.service.turn(input, "owner");
   assert.equal(recovered.status, "success");
-  assert.equal(f.requests.length, 2);
+  assert.equal(f.requests.length, 1, "the recognized text is reused without another STT call");
   assert.deepEqual(saved.map((m) => m.role), ["user", "assistant"]);
 });
 
-test("failed assistant persistence never returns or speaks an unsaved assistant, and retry reuses its generated text", async () => {
+test("failed assistant persistence never returns, reports or speaks an unsaved assistant, and retry reuses its generated text", async () => {
   let saves = 0;
   const f = fixture({ save: async () => { if (++saves === 2) throw new Error(secret); } });
   const input = recording();
-  const failed = await f.service.turn(input, "owner");
+  const events = [];
+  const failed = await f.service.turn(input, "owner", (message) => events.push(message.role));
   assert.equal(failed.persisted, true);
   assert.deepEqual(failed.messages.map((m) => m.role), ["user"]);
+  assert.deepEqual(events, ["user"]);
+  await assert.rejects(f.service.speech({ turnId: input.turnId, threadId: input.threadId }, "owner"), (e) => e.status === 409);
   assert.equal(f.requests.length, 1);
   assert.equal((await f.service.turn(input, "owner")).status, "success");
   assert.equal(f.generations.length, 1);
-  assert.equal(f.requests.length, 2);
+  assert.equal(f.requests.length, 1);
 });
 
-test("speech failure returns both saved messages and can retry speech without duplicating text work", async () => {
-  let speechRequests = 0;
-  const f = fixture({ request: async (url) => {
-    if (new URL(url).pathname.endsWith("listen")) return transcript();
-    if (++speechRequests === 1) return new Response(secret, { status: 429 });
-    return speech();
-  } });
+const read = async (body) => Buffer.from(await new Response(body).arrayBuffer());
+const speechOf = (input) => ({ turnId: input.turnId, threadId: input.threadId });
+
+test("speech streams the saved reply's audio from Deepgram without reserving more quota", async () => {
+  let reserves = 0;
+  const f = fixture({ reserve: () => { reserves++; return () => {}; } });
   const input = recording();
-  const failed = await f.service.turn(input, "owner");
-  assert.equal(failed.status, "partial");
-  assert.equal(failed.persisted, true);
-  assert.equal(failed.messages.length, 2);
-  assert.equal(failed.audioBase64, undefined);
-  assert.doesNotMatch(JSON.stringify(failed), new RegExp(secret));
-  assert.equal((await f.service.turn(input, "owner")).status, "success");
+  const result = await f.service.turn(input, "owner");
+  assert.equal(reserves, 1);
+  const audio = await f.service.speech(speechOf(input), "owner");
+  assert.equal(audio.mimeType, "audio/mpeg");
+  assert.ok(audio.body instanceof ReadableStream);
+  assert.equal((await read(audio.body)).toString(), "MP3 output");
+  assert.equal(reserves, 1, "the turn's reservation already paid for speech");
+  const speak = f.requests[1];
+  assert.equal(speak.url.origin, "https://api.deepgram.com");
+  assert.equal(speak.url.pathname, "/v1/speak");
+  assert.equal(speak.url.searchParams.get("model"), "aura-2-orion-en");
+  assert.equal(speak.url.searchParams.get("encoding"), "mp3");
+  assert.deepEqual([...speak.url.searchParams.keys()].sort(), ["encoding", "model"]);
+  assert.equal(speak.options.headers.Authorization, "Token " + secret);
+  assert.deepEqual(JSON.parse(speak.options.body), { text: result.messages[1].content });
+  assert.equal(speak.options.redirect, "error");
+  assert.ok(speak.options.signal instanceof AbortSignal);
   assert.equal(f.generations.length, 1);
   assert.equal(f.saves.length, 2);
+});
+
+test("speech is limited to the owner of a saved reply and to three requests per turn", async () => {
+  let finish;
+  const gate = new Promise((resolve) => { finish = resolve; });
+  const f = fixture({ generate: async () => { await gate; return "Gated reply"; } });
+  const input = recording();
+  const pending = f.service.turn(input, "owner");
+  await new Promise(setImmediate);
+  await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 409, "not ready while generating");
+  finish();
+  await pending;
+  await assert.rejects(f.service.speech({ ...speechOf(input), turnId: randomUUID() }, "owner"), (e) => e.status === 404);
+  await assert.rejects(f.service.speech(speechOf(input), "attacker"), (e) => e.status === 403);
+  await assert.rejects(f.service.speech({ ...speechOf(input), threadId: "other-thread" }, "owner"), (e) => e.status === 403);
+  await assert.rejects(f.service.speech({ ...speechOf(input), turnId: "not-a-uuid" }, "owner"));
+  assert.equal(f.requests.length, 1, "rejected requests never reach Deepgram");
+  for (let i = 0; i < 3; i++) await read((await f.service.speech(speechOf(input), "owner")).body);
+  await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 429);
+  assert.equal(f.requests.length, 4);
+  let key = secret;
+  const keyless = fixture({ apiKey: () => key });
+  const other = recording();
+  await keyless.service.turn(other, "owner");
+  key = " ";
+  await assert.rejects(keyless.service.speech(speechOf(other), "owner"), (e) => e.status === 503);
+  assert.equal(keyless.requests.length, 1);
+});
+
+test("speech provider failures, wrong types and oversized or empty audio fail without leaking bodies", async () => {
+  for (const output of [() => new Response(secret, { status: 429 }), () => Response.json({ secret }), async () => { throw new Error(secret); }]) {
+    const f = fixture({ request: async (url) => new URL(url).pathname.endsWith("listen") ? transcript() : output() });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 502 && !e.message.includes(secret));
+    // A failed attempt counts, so a retry is possible but bounded.
+    await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 502);
+  }
+  for (const body of [Buffer.alloc(DEEPGRAM_AUDIO_BYTE_LIMIT + 1), Buffer.alloc(0)]) {
+    const f = fixture({ request: async (url) => new URL(url).pathname.endsWith("listen") ? transcript() : speech(body) });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    const audio = await f.service.speech(speechOf(input), "owner");
+    await assert.rejects(read(audio.body));
+  }
+  const exact = fixture({ request: async (url) => new URL(url).pathname.endsWith("listen") ? transcript() : speech(Buffer.alloc(DEEPGRAM_AUDIO_BYTE_LIMIT, 7)) });
+  const input = recording();
+  await exact.service.turn(input, "owner");
+  assert.equal((await read((await exact.service.speech(speechOf(input), "owner")).body)).length, DEEPGRAM_AUDIO_BYTE_LIMIT);
 });
 
 test("concurrent duplicate turns share provider work and one quota reservation; scope or recording reuse is rejected", async () => {
@@ -184,40 +257,50 @@ test("concurrent duplicate turns share provider work and one quota reservation; 
   }
   finish();
   assert.deepEqual(await one, await two);
-  assert.equal(calls, 2);
+  assert.equal(calls, 1);
   assert.equal(releases, 1);
 });
 
-test("provider response size and audio type are bounded without leaking bodies", async () => {
-  const tooMuchJson = fixture({ request: async () => new Response(" ".repeat(256 * 1024 + 1) + secret) });
-  await assert.rejects(tooMuchJson.service.turn(recording(), "owner"), (e) => e.status === 502 && !e.message.includes(secret));
-  for (const output of [() => Response.json({ secret }), () => speech(Buffer.alloc(DEEPGRAM_AUDIO_BYTE_LIMIT + 1)), () => speech(Buffer.alloc(0))]) {
-    const f = fixture({ request: async (url) => new URL(url).pathname.endsWith("listen") ? transcript() : output() });
-    const result = await f.service.turn(recording(), "owner");
-    assert.equal(result.status, "partial");
-    assert.equal(result.persisted, true);
-    assert.equal(result.messages.length, 2);
-    assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
-  }
+test("a retry joining an in-flight turn hears already-saved messages first, then later ones, with no new provider calls", async () => {
+  let finish, reserves = 0;
+  const gate = new Promise((resolve) => { finish = resolve; });
+  const f = fixture({
+    generate: async (...args) => { f.generations.push(args); await gate; return "Joined reply"; },
+    reserve: () => { reserves++; return () => {}; },
+  });
+  const input = recording();
+  const first = [], joined = [];
+  const one = f.service.turn(input, "owner", (message) => first.push(message.role));
+  await new Promise(setImmediate);
+  assert.deepEqual(first, ["user"]);
+  const two = f.service.turn(input, "owner", (message) => joined.push(message.role));
+  assert.deepEqual(joined, ["user"], "the saved user is replayed at once");
+  finish();
+  assert.deepEqual(await one, await two);
+  assert.deepEqual(first, ["user", "assistant"]);
+  assert.deepEqual(joined, ["user", "assistant"]);
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.generations.length, 1);
+  assert.equal(f.saves.length, 2);
+  assert.equal(reserves, 1);
 });
 
-test("turn cache has a hard bound, sheds old audio, and does not evict completed IDs to repeat provider work", async () => {
+test("provider transcription size is bounded without leaking bodies", async () => {
+  const tooMuchJson = fixture({ request: async () => new Response(" ".repeat(256 * 1024 + 1) + secret) });
+  await assert.rejects(tooMuchJson.service.turn(recording(), "owner"), (e) => e.status === 502 && !e.message.includes(secret));
+});
+
+test("turn cache has a hard bound and does not evict completed IDs to repeat provider work", async () => {
   const f = fixture();
   const first = recording();
-  assert.equal(typeof (await f.service.turn(first, "owner")).audioBase64, "string");
-  let latest;
-  for (let i = 1; i < 512; i++) {
-    latest = recording();
-    await f.service.turn(latest, "owner");
-  }
+  await f.service.turn(first, "owner");
+  for (let i = 1; i < 512; i++) await f.service.turn(recording(), "owner");
   await assert.rejects(f.service.turn(recording(), "owner"), (e) => e.status === 429);
   const replayed = await f.service.turn(first, "owner");
   assert.equal(replayed.status, "success");
   assert.equal(replayed.messages.length, 2);
-  // Old replies keep their text but not their audio; the newest keep audio for retries.
-  assert.equal(replayed.audioBase64, undefined);
-  assert.equal(typeof (await f.service.turn(latest, "owner")).audioBase64, "string");
-  assert.equal(f.requests.length, 1024);
+  assert.equal(f.requests.length, 512);
+  assert.equal(f.generations.length, 512);
 });
 
 test("server adapter persists both real transcript texts in Mastra memory and selects the Bart or coach prompt", async () => {
@@ -281,6 +364,8 @@ test("server adapter persists both real transcript texts in Mastra memory and se
       assert.ok(messagesV2.some((m) => m.role === "assistant" && m.content.parts[0].text === "A saved spoken reply."));
       assert.ok(messagesV2.every((m) => m.content.metadata.source === "live-voice" && m.content.metadata.voiceProvider === "deepgram"));
       assert.ok(generations.at(-1).messages[0].content.includes(provider === "gemini" ? prompts.bartPrompt : prompts.feedbackReplyPrompt));
+      // Only the role-played character gets spoken-delivery guidance; the coach stays plain.
+      assert.equal(generations.at(-1).messages[0].content.includes("spoken aloud by a text-to-speech voice"), provider === "gemini");
       assert.ok(generations.at(-1).messages[0].content.includes(JSON.stringify(context)));
       assert.ok(generations.at(-1).options.abortSignal instanceof AbortSignal);
       assert.deepEqual(generations.at(-1).options.modelSettings, {
