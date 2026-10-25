@@ -31,6 +31,20 @@ export function ReportMarkdown({ children }: { children: string }) {
   );
 }
 
+// Restrict model-provided highlight colours to these highlighter tints; valence
+// colours the matching margin note.
+const highlighters: Record<string, { stroke: string; note: string }> = {
+  yellow: { stroke: "", note: "text-pencil" },
+  green: { stroke: "bg-sage/25", note: "text-sage" },
+  red: { stroke: "bg-red-pencil/15", note: "text-red-pencil" },
+  blue: { stroke: "bg-pencil/15", note: "text-pencil" },
+  teal: { stroke: "bg-sage/15", note: "text-pencil" },
+  gray: { stroke: "bg-rule/60", note: "text-pencil" },
+};
+
+const circled =
+  "inline-flex size-[1.4em] shrink-0 items-center justify-center rounded-full border border-current font-sans font-semibold leading-none";
+
 const parseInlineMarkdown = (text: string) => {
   const elements: React.ReactNode[] = [];
   const regex = /(\*\*.*?\*\*|\*.*?\*)/g;
@@ -43,7 +57,11 @@ const parseInlineMarkdown = (text: string) => {
 
     const part = match[0];
     if (part.startsWith("**") && part.endsWith("**")) {
-      elements.push(<strong key={lastIndex}>{part.slice(2, -2)}</strong>);
+      const bold = part.slice(2, -2);
+      // Display only: the parser labels the learner "User:".
+      elements.push(
+        <strong key={lastIndex}>{bold === "User:" ? "You:" : bold}</strong>,
+      );
     } else if (part.startsWith("*") && part.endsWith("*")) {
       elements.push(<em key={lastIndex}>{part.slice(1, -1)}</em>);
     }
@@ -66,7 +84,7 @@ const renderMarkdownBlocks = (text: string) => {
   text.split("\n\n").forEach((block) => {
     let remaining = block.trim();
     const elements: React.ReactNode[] = [];
-    const commentTexts: { idx: number; text: string }[] = [];
+    const commentTexts: { idx: number; text: string; note: string }[] = [];
 
     // Process either <highlight> or <comment ...> tags in order of appearance
     while (true) {
@@ -110,33 +128,23 @@ const renderMarkdownBlocks = (text: string) => {
         const color = attrs.color || "yellow";
         const feedback = attrs.feedback || "";
 
-        // Restrict model-provided highlight colors to this known palette.
-        const colorMap: Record<string, string> = {
-          yellow: "bg-yellow-200",
-          red: "bg-red-200",
-          green: "bg-green-200",
-          blue: "bg-blue-200",
-          teal: "bg-teal-200",
-          gray: "bg-gray-200",
-        };
-
-        const bgClass = colorMap[color.toLowerCase()];
+        const tint = highlighters[color.toLowerCase()] ?? highlighters.yellow;
 
         // push highlighted inner text
         let marker: number | null = null;
         if (feedback) {
           marker = commentCounter++;
-          commentTexts.push({ idx: marker, text: feedback });
+          commentTexts.push({ idx: marker, text: feedback, note: tint.note });
         }
 
         elements.push(
           <span
             key={blocks.length + elements.length}
-            className={`${bgClass ?? "bg-yellow-200"} px-1 rounded`}
+            className={`marker ${tint.stroke}`}
           >
             {parseInlineMarkdown(inner)}
             {marker && (
-              <sup className="text-[10px] text-gray-600 ml-0.5 align-baseline -translate-y-1">
+              <sup className={`${circled} ml-1 text-[10px] text-ink-soft`}>
                 {marker}
               </sup>
             )}
@@ -164,17 +172,18 @@ const renderMarkdownBlocks = (text: string) => {
         let marker: number | null = null;
         if (feedback) {
           marker = commentCounter++;
-          commentTexts.push({ idx: marker, text: feedback });
+          commentTexts.push({
+            idx: marker,
+            text: feedback,
+            note: highlighters.yellow.note,
+          });
         }
 
         elements.push(
-          <span
-            key={blocks.length + elements.length}
-            className="bg-yellow-200 px-1 rounded"
-          >
+          <span key={blocks.length + elements.length} className="marker">
             {parseInlineMarkdown(inner)}
             {marker && (
-              <sup className="text-[10px] text-gray-600 ml-0.5 align-baseline -translate-y-1">
+              <sup className={`${circled} ml-1 text-[10px] text-ink-soft`}>
                 {marker}
               </sup>
             )}
@@ -188,23 +197,14 @@ const renderMarkdownBlocks = (text: string) => {
 
     const commentNode =
       commentTexts.length > 0 ? (
-        <div className="space-y-2">
+        <ol className="space-y-3">
           {commentTexts.map((c) => (
-            <div
-              key={c.idx}
-              className="flex bg-yellow-100 border border-gray-100 rounded-sm p-1 shadow-sm"
-            >
-              <div className="m-1 mr-0 text-sm text-blue-700 break-words">
-                {c.text}
-              </div>
-              <span className="flex mr-1 mt-4 flex-col p-0 h-auto">
-                <sup className="text-[10px] text-gray-600 ml-0.25 align-baseline -translate-y-1">
-                  {c.idx}
-                </sup>
-              </span>
-            </div>
+            <li key={c.idx} className={`flex items-start gap-2 ${c.note}`}>
+              <span className={`${circled} mt-0.5 text-xs`}>{c.idx}</span>
+              <span className="hand break-words text-[26px]">{c.text}</span>
+            </li>
           ))}
-        </div>
+        </ol>
       ) : undefined;
 
     blocks.push({
@@ -226,34 +226,25 @@ export default function AnnotatedTranscript({
 
   if (!md.trim()) {
     return (
-      <p className="p-4 text-gray-700">
+      <p className="py-2 text-ink-soft">
         No annotated transcript is available for this report.
       </p>
     );
   }
 
   return (
-    <div className="bg-white p-0 pl-5 rounded-md overflow-auto">
-      <div>
-        {blocks.map((block, i) => (
-          <div
-            key={i}
-            className="flex max-md:flex-col items-start py-1 gap-2 leading-snug"
-          >
-            <div className="flex-1 py-0 mr-3 whitespace-pre-wrap">
-              {block.transcript}
-            </div>
-
-            <div className="md:w-45 py-1">
-              {block.comment && (
-                <div className="bg-gray-50 border-l-4 border-blue-300 rounded px-2 py-1 text-gray-800 break-words">
-                  {block.comment}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="divide-y divide-dashed divide-rule">
+      {blocks.map((block, i) => (
+        <div
+          key={i}
+          className="grid gap-x-8 gap-y-2 py-3 leading-relaxed md:grid-cols-[minmax(0,1fr)_15rem]"
+        >
+          <div className="min-w-0 whitespace-pre-wrap">{block.transcript}</div>
+          {block.comment ? (
+            <div className="min-w-0">{block.comment}</div>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

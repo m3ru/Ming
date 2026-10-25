@@ -334,7 +334,7 @@ test("scenario resolves saved context before mounting video/chat; invalid storag
   assert.ok(ready.mounted.every((m) => m.scenario === scenario));
   const invalid = renderScenario({ error: "Storage invalid" });
   assert.match(invalid.markup, /Scenario unavailable/);
-  assert.match(invalid.markup, /Return Home/);
+  assert.match(invalid.markup, /Return home/);
   assert.equal(invalid.mounted.length, 0);
   const sourceCode = readFileSync(
     join(root, "src/app/scenario/page.tsx"),

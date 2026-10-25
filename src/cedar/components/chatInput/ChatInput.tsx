@@ -1,7 +1,7 @@
 import { cn, useCedarStore, HumanInTheLoopMessage } from "cedar-os";
 
 import { CedarEditorContent as EditorContent } from "cedar-os";
-import { Mic, MicOff, PhoneOff, SendHorizonal } from "lucide-react";
+import { Mic, PhoneOff, SendHorizonal } from "lucide-react";
 import { motion } from "motion/react";
 import React, { useEffect } from "react";
 
@@ -239,7 +239,7 @@ export const ChatInput: React.FC<{
   return (
     <div
       className={cn(
-        "bg-gray-800/10 dark:bg-gray-600/80 rounded-lg p-2 lg:p-3 text-sm",
+        "rounded-xl border border-rule bg-white p-2 text-sm text-ink lg:p-3",
         className,
       )}
     >
@@ -248,7 +248,7 @@ export const ChatInput: React.FC<{
 
       {/* Chat editor row */}
       <div
-        className="cedar-chat-editor relative w-full h-fit rounded-md focus-within:ring-2 focus-within:ring-blue-500"
+        className="cedar-chat-editor relative w-full h-fit rounded-lg px-1 focus-within:ring-2 focus-within:ring-pencil/40"
         id="cedar-chat-input"
         onKeyDown={(event) => {
           if (event.key === "Escape" && editor?.isFocused) {
@@ -266,18 +266,18 @@ export const ChatInput: React.FC<{
           <div className="flex min-w-0 items-center gap-2">
             <motion.div
               layoutId="chatInput"
-              className="min-w-0 flex-1 justify-center py-3"
+              className="min-w-0 flex-1 justify-center py-2.5"
             >
               <EditorContent
                 editor={editor}
-                className="prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 placeholder-gray-500 dark:placeholder-gray-400 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
+                className="prose prose-sm max-w-none focus:outline-none outline-none focus:ring-0 ring-0 [&_*]:focus:outline-none [&_*]:outline-none [&_*]:focus:ring-0 [&_*]:ring-0 [&_.ProseMirror]:p-0 [&_.ProseMirror]:outline-none [&_.ProseMirror]:break-words [&_.ProseMirror]:overflow-wrap-anywhere [&_.ProseMirror]:word-break-break-word"
               />
             </motion.div>
           </div>
         )}
       </div>
 
-      <div className="text-xs space-y-1" aria-live="polite">
+      <div className="mb-2 space-y-1 px-1 text-xs text-ink-soft" aria-live="polite">
         {voice.status === "connecting" && (
           <p>
             Connecting voice… Allow microphone access if prompted. You can type
@@ -294,9 +294,6 @@ export const ChatInput: React.FC<{
         )}
         {voice.status === "connected" && (
           <p>
-            {voice.provider === "deepgram"
-              ? "Deepgram voice · "
-              : "OpenAI Live · "}
             {voice.muted
               ? "Hold Space or the microphone to talk"
               : "Listening…"}
@@ -314,13 +311,13 @@ export const ChatInput: React.FC<{
             onClick={() => {
               void voice.resumePlayback();
             }}
-            className="underline"
+            className="font-medium text-pencil underline underline-offset-2"
           >
             Enable audio playback
           </button>
         )}
         {voice.error && (
-          <p role="alert" className="text-red-600">
+          <p role="alert" className="text-red-pencil">
             {voice.error}
           </p>
         )}
@@ -328,7 +325,7 @@ export const ChatInput: React.FC<{
           <div>
             <button
               type="button"
-              className="min-h-11 rounded-md px-2 underline cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              className="min-h-11 cursor-pointer rounded-lg px-2 font-medium text-pencil underline underline-offset-2 disabled:opacity-50"
               disabled={isSending || isProcessing}
               onClick={() => {
                 void voice
@@ -350,12 +347,12 @@ export const ChatInput: React.FC<{
             </button>
             <p>
               Discards the failed recording. Saved messages stay in the
-              conversation. Then send your draft or select End Scenario.
+              conversation. Then send your draft or select End conversation.
             </p>
           </div>
         )}
         {sendError && (
-          <p role="alert" className="text-red-600">
+          <p role="alert" className="text-red-pencil">
             {sendError}
           </p>
         )}
@@ -364,12 +361,16 @@ export const ChatInput: React.FC<{
       {/* Bottom rows. Contains tools and send chat button */}
       <div
         id="input-tools"
-        className="flex items-center  space-x-2  justify-between"
+        className="flex items-center justify-between gap-2"
       >
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="flex min-h-11 items-center gap-1 rounded-md p-1 cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            className={`flex min-h-11 cursor-pointer select-none items-center gap-2 rounded-full px-4 font-semibold text-white transition-colors disabled:opacity-50 ${
+              voice.muted
+                ? "bg-pencil enabled:hover:bg-pencil/90"
+                : "bg-red-pencil"
+            }`}
             onPointerDown={(event) => {
               if (event.button !== 0) return;
               event.preventDefault();
@@ -401,11 +402,7 @@ export const ChatInput: React.FC<{
             aria-pressed={!voice.muted}
             title="Hold Space or hold this button to talk"
           >
-            {voice.muted ? (
-              <MicOff className="w-4 h-4" />
-            ) : (
-              <Mic className="w-4 h-4 text-red-500" />
-            )}
+            <Mic className="size-4" />
             <span>
               {voice.status === "connecting"
                 ? "Connecting…"
@@ -425,7 +422,7 @@ export const ChatInput: React.FC<{
                 void voice.stop().catch(() => {});
               }}
               aria-label="Disconnect voice"
-              className="min-h-11 min-w-11 rounded-md p-1 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              className="flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper hover:text-red-pencil"
             >
               <PhoneOff className="w-4 h-4" />
             </button>
@@ -443,7 +440,7 @@ export const ChatInput: React.FC<{
           }
           aria-label={isSending ? "Sending message" : "Send message"}
           title={isSending ? "Sending message…" : "Send message"}
-          className="flex min-h-11 min-w-11 items-center justify-center flex-shrink-0 rounded-full bg-blue-500 text-white enabled:hover:bg-blue-600 enabled:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 transition-colors p-2"
+          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-pencil p-2 text-white transition-colors enabled:cursor-pointer enabled:hover:bg-pencil/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <SendHorizonal className="w-4 h-4" />
         </button>

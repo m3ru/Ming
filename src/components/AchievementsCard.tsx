@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { readCompletedScenarioIds } from "@/lib/completedScenarios";
 import { Trophy, Star } from "lucide-react";
@@ -9,38 +8,41 @@ export default function AchievementsCard() {
   const [count, setCount] = useState(0);
   useEffect(() => { setCount(readCompletedScenarioIds(localStorage).length); }, []);
   const achievements = [
-    { title: "First Scenario Complete", icon: Trophy, unlocked: count >= 1 },
-    { title: "Three Practice Sessions", icon: Star, unlocked: count >= 3 },
-    { title: "Five Practice Sessions", icon: Star, unlocked: count >= 5 },
+    { title: "First scenario complete", icon: Trophy, unlocked: count >= 1 },
+    { title: "Three practice sessions", icon: Star, unlocked: count >= 3 },
+    { title: "Five practice sessions", icon: Star, unlocked: count >= 5 },
   ];
   return (
-    <Card className="w-full shadow-lg border border-gray-200">
-      <CardHeader>
-        <h3 className="text-lg font-bold text-gray-800">Achievements</h3>
-      </CardHeader>
-      <CardContent className="flex gap-4">
-        {achievements.map((ach, idx) => (
-          <div
-            key={idx}
-            className={`flex flex-col items-center justify-center p-2 md:p-4 rounded-lg w-32 h-32 ${
-              ach.unlocked ? "bg-blue-100" : "bg-gray-100 opacity-50"
-            }`}
+    <section aria-labelledby="achievements" className="rounded-xl border border-rule bg-white p-5 sm:p-6">
+      <h2 id="achievements" className="text-2xl font-extrabold tracking-tight text-ink">
+        Achievements
+      </h2>
+      <ul className="mt-4 space-y-2">
+        {achievements.map((ach) => (
+          <li
+            key={ach.title}
+            className="flex items-center gap-3 rounded-lg border border-rule px-3 py-2.5"
           >
-            <ach.icon
-              className={`h-8 w-8 mb-2 ${
-                ach.unlocked ? "text-blue-600" : "text-gray-400"
-              }`}
-            />
             <span
-              className={`text-center text-sm ${
-                ach.unlocked ? "font-semibold text-gray-800" : "text-gray-400"
+              className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+                ach.unlocked ? "bg-sage/15 text-sage" : "bg-muted text-ink-soft"
+              }`}
+            >
+              <ach.icon aria-hidden className="size-5" />
+            </span>
+            <span
+              className={`min-w-0 flex-1 text-sm ${
+                ach.unlocked ? "font-semibold text-ink" : "text-ink-soft"
               }`}
             >
               {ach.title}
             </span>
-          </div>
+            <span className={`text-sm ${ach.unlocked ? "font-semibold text-ink" : "text-ink-soft"}`}>
+              {ach.unlocked ? "Unlocked" : "Locked"}
+            </span>
+          </li>
         ))}
-      </CardContent>
-    </Card>
+      </ul>
+    </section>
   );
 }

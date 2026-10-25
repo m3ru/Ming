@@ -4,7 +4,7 @@ import { Scenario } from "./types";
     title: "Performance Review with Bart",
     goal: "You must conduct a compassionate but firm performance review with Bart and align on a clear improvement plan.",
     goalForAnalyzer: `This scenario involves the user holding a difficult performance review with Bart, addressing recent underperformance while remaining empathetic and supportive.`,
-    situation: `Your role: Engineering Manager at Ming, overseeing the web platform team building an e-commerce portal for a client. \nBart, a mid-level full-stack engineer on Bill's team, has had a noticeable performance dip over the last 4 weeks. \nYou’ve scheduled a 1:1 to review expectations, share objective evidence, and collaboratively set next-steps and support.`,
+    situation: `Your role: Engineering Manager at Ming, overseeing the web platform team building an e-commerce portal for a client. \nBart, a mid-level full-stack engineer on your team, has had a noticeable performance dip over the last 4 weeks. \nYou’ve scheduled a 1:1 to review expectations, share objective evidence, and collaboratively set next-steps and support.`,
     situationForAnalyzer: `The situation involves an engineering manager addressing sustained underperformance by Bart while acknowledging ongoing family stressors. The manager must balance empathy with accountability and agree on specific, time-bound improvement actions.`,
     companyDetails: `Company values: transparency, collaboration, and work-life balance. \nEmployees are encouraged to speak up and ask for help early. There is a strong emphasis on meeting commitments, peer review quality, and customer impact.`,
     userRole:
@@ -13,7 +13,7 @@ import { Scenario } from "./types";
       {
         name: "Bart",
         role: "Mid-Level Fullstack Software Engineer",
-        pfp: "https://randomuser.me/api/portraits/men/12.jpg",
+        pfp: "/bart.jpg",
         personality:
           "Soft-spoken and hesitant to ask for help, he responds well to clear, supportive feedback.",
         scenarioSpecificInfo:

@@ -21,7 +21,6 @@ import { contextForAnalysis } from "@/lib/scenarioUtil";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, type Sentiment } from "@/lib/sentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
-import { Separator } from "@/components/ui/separator";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
 import type { Scenario } from "@/lib/types";
 
@@ -54,7 +53,7 @@ export const SidePanelCedarChat: React.FC<
     setUserSentiment: (sentiment: Sentiment) => void;
   }
 > = ({
-  title = "Transcript",
+  title = "Live transcript",
   companyLogo,
   stream = true,
   documents = [],
@@ -108,7 +107,7 @@ export const SidePanelCedarChat: React.FC<
     }),
     {
       showInChat: false,
-      color: "#8b5cf6",
+      color: "#3557c8",
     },
   );
 
@@ -159,7 +158,7 @@ export const SidePanelCedarChat: React.FC<
         <path d="M8 2v14" />
       </svg>
     ),
-    color: "#8b5cf6",
+    color: "#3557c8",
     order: 5,
   });
 
@@ -174,7 +173,7 @@ export const SidePanelCedarChat: React.FC<
     }),
     {
       showInChat: false,
-      color: "#8b5cf6",
+      color: "#3557c8",
     },
   );
 
@@ -192,15 +191,15 @@ export const SidePanelCedarChat: React.FC<
         await voiceSession.stop();
       } catch {
         setStopError(voiceSession.provider === "deepgram"
-          ? "Voice could not finish. Retry the recording, or select Continue by text to discard the failed recording before ending the scenario."
-          : "The voice transcript could not finish saving. Your conversation is still here. Select End Scenario to try saving it again.");
+          ? "Voice could not finish. Retry the recording, or select Continue by text to discard the failed recording before ending the conversation."
+          : "The voice transcript could not finish saving. Your conversation is still here. Select End conversation to try saving it again.");
         return;
       }
       const finalTranscript = buildReportTranscript(
         useCedarStore.getState().getThreadMessages(currentThreadId),
       );
       if (!finalTranscript) {
-        setStopError("Have a conversation with Bart before ending the scenario. Send a message and wait for his reply.");
+        setStopError("Talk with Bart before ending the conversation. Send a message and wait for his reply.");
         return;
       }
       const response = await fetch("/api/backend/feedback", {
@@ -224,7 +223,7 @@ export const SidePanelCedarChat: React.FC<
       };
       if (controller.signal.aborted) return;
       if (result.status !== "success") {
-        setStopError("The report could not be generated. Your conversation is still here. Select End Scenario to try again.");
+        setStopError("The report could not be generated. Your conversation is still here. Select End conversation to try again.");
         return;
       }
       const savedReport = JSON.stringify({
@@ -237,21 +236,21 @@ export const SidePanelCedarChat: React.FC<
       });
       const parsedReport = Parser(savedReport);
       if (parsedReport.status === "invalid" || !parsedReport.summary || !parsedReport.segments.length) {
-        setStopError("The report was incomplete. Your conversation is still here. Select End Scenario to try again.");
+        setStopError("The report was incomplete. Your conversation is still here. Select End conversation to try again.");
         return;
       }
       try {
         localStorage.setItem("reportData", savedReport);
         recordCompletedScenario(localStorage, currentThreadId);
       } catch {
-        setStopError("The report could not be saved in this browser. Allow site storage, then select End Scenario to try again.");
+        setStopError("The report could not be saved in this browser. Allow site storage, then select End conversation to try again.");
         return;
       }
       router.push("/report");
     } catch {
       setStopError(controller.signal.aborted
-        ? "Report generation stopped. Your conversation is still here. Select End Scenario to try again."
-        : "The report service is unavailable. Your conversation is still here. Select End Scenario to try again.");
+        ? "Report generation stopped. Your conversation is still here. Select End conversation to try again."
+        : "The report service is unavailable. Your conversation is still here. Select End conversation to try again.");
     } finally {
       clearTimeout(timeout);
       if (finishing.current === controller) finishing.current = null;
@@ -289,62 +288,68 @@ export const SidePanelCedarChat: React.FC<
   return (
     <>
       {showSpinner && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white/80">
-          <Spinner size={48} />
-          <div className="mt-4 text-lg font-medium text-gray-700">
-            Generating report...
-          </div>
-          <Button variant="outline" className="mt-4" onClick={() => finishing.current?.abort()}>Cancel report</Button>
-          <div className="flex flex-col items-center mt-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-paper/80 p-4">
+          <div className="flex w-full max-w-sm flex-col items-center rounded-xl border border-rule bg-white px-6 py-8 text-center shadow-xl shadow-ink/10">
+            <Spinner size={40} className="text-pencil" />
+            <p role="status" className="mt-4 text-lg font-bold text-ink">
+              Writing your debrief…
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => finishing.current?.abort()}
+            >
+              Cancel report
+            </Button>
             <Image
               src="/bill.png.jpeg"
-              alt="Bart walking back to his office..."
+              alt=""
               width={120}
               height={120}
-              className="rounded-md shadow"
+              className="mt-6 rounded-lg"
             />
-            <div className="mt-2 text-base text-center text-gray-600">
+            <p className="hand mt-2 -rotate-2 text-[28px] text-ink-soft">
               Bart is walking back to his office
-            </div>
+            </p>
           </div>
         </div>
       )}
-      <div className="flex flex-col h-full">
+      <div className="flex h-[70vh] min-h-[28rem] flex-col overflow-hidden rounded-xl border border-rule bg-white lg:h-auto lg:min-h-0">
         {/* Header */}
-        <div className="flex flex-col">
-          <div className="z-20 flex flex-row items-center justify-between flex-shrink-0 min-w-0 pb-2 ">
-            <div className="flex items-center flex-1 min-w-0">
-              {companyLogo && (
-                <div className="flex-shrink-0 w-6 h-6 mr-2">{companyLogo}</div>
-              )}
-              <span className="lg:text-lg font-bold truncate">{title}</span>
-            </div>
-            <div className="flex items-center flex-shrink-0 gap-2">
-              <Button
-                variant="destructive"
-                onClick={handleStop}
-                disabled={showSpinner || isProcessing}
-                className="mr-2 cursor-pointer"
-              >
-                End Scenario
-              </Button>
-            </div>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-rule px-4 py-3">
+          <div className="flex min-w-0 items-center">
+            {companyLogo && (
+              <div className="mr-2 size-6 shrink-0">{companyLogo}</div>
+            )}
+            <h2 className="truncate text-lg font-extrabold tracking-tight text-ink">
+              {title}
+            </h2>
           </div>
-          {stopError && (
-            <p role="alert" className="p-2 text-sm text-red-600">
-              {stopError}
-            </p>
-          )}
-          <Separator />
+          <Button
+            variant="outline"
+            onClick={handleStop}
+            disabled={showSpinner || isProcessing}
+            className="shrink-0 cursor-pointer border-red-pencil bg-white text-red-pencil shadow-none hover:bg-red-pencil hover:text-white"
+          >
+            End conversation
+          </Button>
         </div>
+        {stopError && (
+          <p
+            role="alert"
+            className="shrink-0 border-b border-rule bg-red-pencil/5 px-4 py-2 text-sm text-red-pencil"
+          >
+            {stopError}
+          </p>
+        )}
 
         {/* Chat messages - takes up remaining space */}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <ChatBubbles />
         </div>
 
         {/* Chat input - fixed at bottom */}
-        <div className="flex-shrink-0 p-1">
+        <div className="shrink-0 p-3 pt-1">
           <ChatInput
             handleFocus={() => {}}
             handleBlur={() => {}}

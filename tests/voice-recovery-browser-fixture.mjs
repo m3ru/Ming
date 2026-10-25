@@ -45,7 +45,7 @@ const followUpScenario = {
     {
       name: "Bart",
       role: "Software Engineer",
-      pfp: "https://randomuser.me/api/portraits/men/12.jpg",
+      pfp: "/bart.jpg",
       personality: "Thoughtful and cooperative.",
       scenarioSpecificInfo:
         "Wants to agree on a clear next step after the review.",

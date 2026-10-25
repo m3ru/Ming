@@ -51,7 +51,7 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
     return (
       <div
         key={key + ":" + entry.id}
-        className={`px-2 py-1 text-xs rounded-sm cursor-pointer flex items-center gap-1 whitespace-nowrap hover:border-opacity-80 hover:text-opacity-80 group box-border border ${
+        className={`px-2 py-1 text-xs rounded-full cursor-pointer flex items-center gap-1 whitespace-nowrap hover:border-opacity-80 hover:text-opacity-80 group box-border border ${
           hasBgStyle ? "border-transparent" : ""
         }`}
         style={bgStyle}
@@ -191,12 +191,10 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
   return (
     <div
       id="input-context"
-      className="max-lg:hidden flex items-center gap-2 flex-wrap"
+      className="max-lg:hidden flex items-center gap-2 flex-wrap px-1"
     >
-      <div
-        className={`px-2 py-1 text-xs rounded-sm flex items-center gap-1 whitespace-nowrap dark:bg-gray-800 bg-gray-50 box-border border border-transparent`}
-      >
-        <span>@ to add context</span>
+      <div className="flex items-center whitespace-nowrap rounded-full border border-dashed border-rule px-2 py-0.5 text-xs text-ink-soft">
+        <span>Type @ to add context</span>
       </div>
       {contextElements}
     </div>

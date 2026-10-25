@@ -75,7 +75,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 					a: ({ children, href }) => (
 						<a
 							href={href}
-							className='text-blue-500 underline inline'
+							className='text-pencil underline underline-offset-2 inline'
 							target='_blank'
 							rel='noopener noreferrer'>
 							{children}
@@ -87,11 +87,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 						const codeString = String(children).replace(/\n$/, '');
 
 						return isInline ? (
-							<code
-								className='px-1 py-0.5 rounded text-sm inline font-mono bg-[#2d2d2d]'
-								style={{
-									color: styling.color,
-								}}>
+							<code className='px-1 py-0.5 rounded text-sm inline font-mono bg-muted text-ink'>
 								{children}
 							</code>
 						) : (

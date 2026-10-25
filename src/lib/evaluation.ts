@@ -140,3 +140,23 @@ export function buildEvaluation(
     };
   });
 }
+
+// Headline for the report. Criteria arrive in canonical order, so strict
+// comparisons give ties to the earlier category.
+export function evaluationVerdict(
+  criteria: Pick<EvaluationCriterion, "category" | "score">[],
+): { strongest: EvaluationCategory; workOn?: EvaluationCategory } | null {
+  const scored = criteria.filter(
+    (c): c is typeof c & { score: number } => c.score !== null,
+  );
+  if (!scored.length) return null;
+  let best = scored[0];
+  let worst = scored[0];
+  for (const c of scored) {
+    if (c.score > best.score) best = c;
+    if (c.score < worst.score) worst = c;
+  }
+  return best.score === worst.score
+    ? { strongest: best.category }
+    : { strongest: best.category, workOn: worst.category };
+}

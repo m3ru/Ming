@@ -386,20 +386,21 @@ test("actual report loading handles missing, corrupt, and blocked storage withou
 test("empty and invalid report pages expose navigation without fake report content or export", () => {
   const empty = renderPage({ status: "empty" });
   assert.match(empty, /No report yet/);
-  assert.match(empty, /href="\/scenario">Start Scenario/);
+  assert.match(empty, /href="\/scenario">Start scenario/);
   assert.doesNotMatch(
     empty,
-    /Conversation Summary|Evaluation|Print\/Export|85\/100/,
+    /Skill by skill|Annotated transcript|Print report|85\/100/,
   );
   const unavailable = renderPage({
     status: "error",
     message: "Saved report cannot be read.",
   });
   assert.match(unavailable, /Report unavailable/);
-  assert.match(unavailable, /Return to Scenario/);
-  assert.match(unavailable, /Try Loading Again/);
+  assert.match(unavailable, /Return to scenario/);
+  assert.match(unavailable, /Try loading again/);
+  assert.match(unavailable, /retry End conversation/);
   assert.match(unavailable, /href="\/"/);
-  assert.doesNotMatch(unavailable, /Print\/Export/);
+  assert.doesNotMatch(unavailable, /Print report/);
 });
 
 test("partial page renders available content with explicit gaps and safe summary output", () => {
@@ -435,15 +436,37 @@ test("follow-up controls precede the long transcript and failures keep the compl
       message: "Generation unavailable. Your report is still available.",
     },
   });
-  assert.match(markup, /Retry Follow-up/);
+  assert.match(markup, /Retry follow-up/);
   assert.match(markup, /A concrete conversation/);
-  assert.match(markup, /Print\/Export Report/);
+  assert.match(markup, /Print report/);
   assert.ok(
     markup.indexOf("Practice your next conversation") <
-      markup.indexOf("Annotated Transcript + Q&amp;A"),
+      markup.indexOf("Annotated transcript"),
   );
   const loading = renderPage(state, { followUpState: { status: "loading" } });
   assert.match(loading, /Generating your follow-up/);
-  assert.match(loading, /Cancel Generation/);
+  assert.match(loading, /Cancel generation/);
   assert.match(loading, /A concrete conversation/);
+});
+
+test("the report verdict names the strongest and weakest scored skills", () => {
+  const { evaluationVerdict } = load("src/lib/evaluation.ts");
+  const criteria = (scores) =>
+    categories.map((category, i) => ({ category, score: scores[i] }));
+  assert.deepEqual(evaluationVerdict(criteria([90, 92, 88, 85, 90, 85])), {
+    strongest: "Clarity",
+    workOn: "Assertiveness",
+  });
+  assert.deepEqual(evaluationVerdict(criteria([70, null, 90, 90, 40, 40])), {
+    strongest: "Open-mindedness",
+    workOn: "Active Listening",
+  });
+  assert.deepEqual(evaluationVerdict(criteria([80, 80, null, 80, 80, 80])), {
+    strongest: "Empathy",
+  });
+  assert.deepEqual(
+    evaluationVerdict(criteria([null, null, 0, null, null, null])),
+    { strongest: "Open-mindedness" },
+  );
+  assert.equal(evaluationVerdict(criteria(Array(6).fill(null))), null);
 });

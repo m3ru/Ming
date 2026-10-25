@@ -14,6 +14,10 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
   const getMessageRenderers = useCedarStore(
     (state) => state.getMessageRenderers,
   );
+  // The report's coaching chat runs on its own "transcript-" thread (TranscriptChatPanel).
+  const isCoachThread = useCedarStore((state) =>
+    state.mainThreadId.startsWith("transcript-"),
+  );
 
   // Errors belong to the interface, rather than the role-play character.
   if (isChatErrorMessage(message)) return <ConversationError />;
@@ -30,61 +34,34 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
     }
   }
 
-  // Get common message styling
-  const getMessageStyles = (role: string) => {
-    const commonClasses =
-      "prose prose-sm inline-block rounded-xl relative text-sm w-fit";
-    const roleClasses =
-      role === "bot" || role === "assistant"
-        ? `dark:text-gray-100 text-[black] w-full`
-        : "text-[white] px-2 py-1 lg:px-3 lg:py-2";
-
-    const style =
-      role === "bot" || role === "assistant"
-        ? {
-            // boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-            // backgroundColor: "#aaaaaa",
-            // color: "#ffffff",
-          }
-        : {
-            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-            backgroundColor: "#3b82f6",
-            color: "#ffffff",
-          };
-
-    return {
-      className: `${commonClasses} ${roleClasses}`,
-      style,
-    };
-  };
+  const isUser = message.role !== "bot" && message.role !== "assistant";
+  const npc = Scenarios.negativeReview.npcs[0];
 
   return (
-    <div
-      className={`${
-        message.role === "bot" || message.role === "assistant"
-          ? "max-w-[100%] w-full"
-          : "max-w-[80%] w-fit"
-      }`}
-    >
+    <div className={isUser ? "w-fit max-w-[85%]" : "w-full max-w-[92%]"}>
       <div
-        className={`flex items-end ${message.role === "user" ? "justify-end" : "justify-start"} lg:mb-1 space-x-1 lg:space-x-2`}
+        className={`mb-1 flex items-center gap-2 ${isUser ? "justify-end" : "justify-start"}`}
       >
-        {(message.role === "bot" || message.role === "assistant") && (
+        {!isUser && !isCoachThread && (
           <Avatar>
             <AvatarImage
-              className="rounded-full h-6 w-6 g:h-8 lg:w-8"
-              src={Scenarios.negativeReview.npcs[0].pfp}
-              alt={Scenarios.negativeReview.npcs[0].name}
+              className="size-7 rounded-full object-cover"
+              src={npc.pfp}
+              alt=""
             />
           </Avatar>
         )}
-        <div className="text-sm text-gray-500">
-          {message.role === "user"
-            ? "You"
-            : Scenarios.negativeReview.npcs[0].name}
+        <div className="text-sm font-semibold text-ink">
+          {isUser ? "You" : isCoachThread ? "Coach" : npc.name}
         </div>
       </div>
-      <div {...getMessageStyles(message.role)}>
+      <div
+        className={
+          isUser
+            ? "w-fit rounded-2xl rounded-br-md bg-accent px-3.5 py-2.5 text-[15px] leading-relaxed text-ink [&_p+p]:mt-2"
+            : "w-fit rounded-2xl rounded-tl-md border border-rule bg-white px-3.5 py-2.5 text-[15px] leading-relaxed text-ink [&_p+p]:mt-2"
+        }
+      >
         <MarkdownRenderer
           content={
             message.content ??

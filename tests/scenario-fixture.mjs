@@ -9,7 +9,7 @@ export const scenarioFixture = {
   npcs: [{
     name: "Bart",
     role: "Mid-level full-stack engineer",
-    pfp: "https://randomuser.me/api/portraits/men/12.jpg",
+    pfp: "/bart.jpg",
     personality: "Conscientious and worried about contradictory requirements. Explain your concern if asked and become more cooperative when it is accurately reflected.",
     scenarioSpecificInfo: "QA needs the checkout handoff tomorrow at 15:00. Ticket 604 allows guest checkout while the release checklist requires login. Ask the manager to choose one acceptance rule and owner.",
   }],

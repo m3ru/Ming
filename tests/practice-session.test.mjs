@@ -136,7 +136,7 @@ test("unavailable, full or unwritable session storage keeps the page open with a
       await assert.rejects(env.start(selection), /browser storage/);
       assert.deepEqual(env.events, ["stop", "saved"]);
       assert.deepEqual(env.states, [true, false]);
-      assert.match(env.errors.at(-1), /retry New Session/);
+      assert.match(env.errors.at(-1), /retry New session/);
     }
   }
 });

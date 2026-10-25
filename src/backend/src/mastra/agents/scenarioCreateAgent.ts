@@ -17,7 +17,7 @@ Return one complete JSON object matching the requested output schema:
 - situationForAnalyzer: the context and fair criteria the evaluator should use;
 - companyDetails: relevant culture, constraints, and team expectations;
 - userRole: the learner's authority and relationship to Bart;
-- npcs: exactly one NPC named Bart, with pfp https://randomuser.me/api/portraits/men/12.jpg,
+- npcs: exactly one NPC named Bart, with pfp /bart.jpg,
   a professional role, personality instructions, and concrete scenarioSpecificInfo;
 - documents: 1–3 short, useful, mutually consistent supporting documents with title,
   type, and content blocks whose format is plain, bold, italic, or code.

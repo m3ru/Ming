@@ -17,7 +17,7 @@ export const ScenarioPipelineInputSchema = z.object({
 
 // The existing portrait and video depict Bart. Keep the generated character
 // consistent with those assets rather than asking the model to invent a URL.
-export const BART_PORTRAIT = "https://randomuser.me/api/portraits/men/12.jpg";
+export const BART_PORTRAIT = "/bart.jpg";
 const followUpScenarioSchema = scenarioSchema.extend({
   documents: scenarioSchema.shape.documents.max(3),
   npcs: z.array(scenarioNpcSchema.extend({

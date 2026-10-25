@@ -42,8 +42,8 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
 
   // Determine container classes based on maxHeight with proper className merging
   const containerClasses = maxHeight
-    ? cn("overflow-x-hidden overflow-y-auto px-3", className)
-    : cn("flex-1 overflow-x-hidden overflow-y-auto min-h-0 px-3", className);
+    ? cn("overflow-x-hidden overflow-y-auto px-4", className)
+    : cn("flex-1 overflow-x-hidden overflow-y-auto min-h-0 px-4", className);
 
   const containerStyle = maxHeight
     ? { height: maxHeight, contain: "paint layout" }
@@ -53,17 +53,17 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
     <div
       ref={containerRef}
       className={cn(
-        "w-full h-full mb-0 flex flex-col space-y-1 pb-2 lg:pb-3 relative",
+        "w-full h-full mb-0 flex flex-col pb-3 relative",
         containerClasses,
       )}
       style={{
         ...containerStyle,
         // Custom scrollbar styles for Firefox
-        scrollbarColor: "rgba(156, 163, 175, 0.8) transparent",
+        scrollbarColor: "var(--rule) transparent",
       }}
     >
       {/* Messages container */}
-      <div className="relative z-20 lg:px-1 lg:py-1">
+      <div className="relative z-20 py-1">
         <AnimatePresence initial={false}>
           {displayMessages.map((message) => (
             <motion.div
@@ -84,14 +84,14 @@ export const ChatBubbles: React.FC<ChatBubblesProps> = ({
               }}
               className={`flex ${
                 message.role === "user" ? "justify-end" : "justify-start"
-              } mt-2`}
+              } mt-4 first:mt-1`}
             >
               <ChatRenderer message={message} />
             </motion.div>
           ))}
           {isProcessing && (
-            <div className="py-1 lg:py-2">
-              <ShimmerText text="Thinking..." state="thinking" />
+            <div className="pt-4 pb-1">
+              <ShimmerText text="Thinking…" state="thinking" />
             </div>
           )}
         </AnimatePresence>

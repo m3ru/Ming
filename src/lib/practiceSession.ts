@@ -48,7 +48,7 @@ export function createSessionStarter(options: SessionStarterOptions) {
         await options.stopVoice();
       } catch (error) {
         const detail = error instanceof Error ? error.message : "The voice recording could not be saved.";
-        throw new Error(`${detail} Your current session is still open. Retry New Session, or choose Continue by text before trying again.`);
+        throw new Error(`${detail} Your current session is still open. Retry New session, or choose Continue by text before trying again.`);
       }
       // A typed turn may have started while the last voice turn was saving.
       if (options.isProcessing()) {
@@ -59,7 +59,7 @@ export function createSessionStarter(options: SessionStarterOptions) {
         if (selection?.success) storage.setItem(ACTIVE_SCENARIO_KEY, JSON.stringify(selection.data));
         else storage.removeItem(ACTIVE_SCENARIO_KEY);
       } catch {
-        throw new Error("Could not save the next session in browser storage. Allow session storage and retry New Session.");
+        throw new Error("Could not save the next session in browser storage. Allow session storage and retry New session.");
       }
       // A document navigation remounts Cedar with a fresh UUID and conversation.
       options.navigate("/scenario");

@@ -23,40 +23,64 @@ export default function SentimentBar({ sentiment }: { sentiment: number }) {
     return () => clearInterval(interval);
   }, [value]);
 
-  return (
-    <div className="w-full flex flex-col items-center">
-      <div
-        className="w-full h-10 relative overflow-hidden justify-center"
-        style={{
-          backgroundColor: "black",
-        }}
-      >
-        {/* The color bar, which changes width based on sentiment */}
-        <div
-          className="h-full transition-all duration-500 ease-out"
-          style={{
-            width: `${displayValue * 100}%`,
-            backgroundColor: `hsl(${displayValue * 120} 75% 45%)`,
-          }}
-        />
-        {/* The moving white cursor */}
-        <div
-          className="absolute h-full aspect-square bg-white shadow-lg transition-all duration-500 ease-out z-20"
-          style={{
-            left: `calc(${displayValue * 100}% - 1rem)`,
-          }}
-        />
-        {/* The emojis on the ends of the bar */}
-        <span className="absolute my-0.3 text-white text-3xl font-extrabold left-2 top-1/2 -translate-y-1/2 z-30">
-          ☹
-        </span>
-        <span className="absolute my-0.3 text-white text-3xl font-extrabold right-2 top-1/2 -translate-y-1/2 z-30">
-          ☺
-        </span>
+  // A note only while the needle is still travelling to the latest score.
+  const note =
+    value > displayValue
+      ? "warming up"
+      : value < displayValue
+        ? "cooling off"
+        : null;
+  // Keep the note on the side of the needle with more room.
+  const noteSide =
+    displayValue < 0.5 ? "left-full ml-3 -rotate-3" : "right-0 mr-3 rotate-3";
 
-        {/* The "Mood" text, centered over the bar */}
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 text-white font-medium"></div>
+  return (
+    <section
+      aria-label="Your tone"
+      className="shrink-0 rounded-xl border border-rule bg-white px-5 pb-4 pt-4"
+    >
+      {/* One grid so the needle layer can share the track's cell. */}
+      <div className="grid grid-cols-1">
+        <div
+          className="relative z-10 col-start-1 row-start-2 justify-self-start"
+          style={{ width: `${displayValue * 100}%` }}
+        >
+          <span
+            aria-hidden="true"
+            className="absolute right-0 top-1/2 size-5 -translate-y-1/2 translate-x-1/2 rounded-full border-[3px] border-ink bg-white shadow-sm"
+          />
+          {note && (
+            <span
+              className={`hand absolute bottom-full mb-2 whitespace-nowrap text-[27px] ${noteSide} ${
+                note === "warming up" ? "text-pencil" : "text-red-pencil"
+              }`}
+            >
+              {note}
+            </span>
+          )}
+        </div>
+        <h2 className="col-start-1 row-start-1 mb-10 text-base font-bold text-ink">
+          Your tone
+        </h2>
+        <div
+          role="meter"
+          aria-label="Your tone, from tense to warm"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(displayValue * 100)}
+          className="col-start-1 row-start-2 h-3 rounded-full bg-linear-to-r from-tense to-warm"
+        />
+        <div className="col-start-1 row-start-3 mt-3 flex justify-between text-sm text-ink-soft">
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden="true" className="size-2 rounded-full bg-tense" />
+            Tense
+          </span>
+          <span className="flex items-center gap-1.5">
+            Warm
+            <span aria-hidden="true" className="size-2 rounded-full bg-warm" />
+          </span>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

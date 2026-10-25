@@ -1,14 +1,11 @@
 "use client";
 
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import ScoreBar from "./ScoreBar";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import React from "react";
 import Parser, { emptyReportScores } from "@/app/report/parser";
 
 export default function ScoreCard() {
-  const router = useRouter();
   const [scores, setScores] = React.useState(emptyReportScores);
 
   React.useEffect(() => {
@@ -25,36 +22,28 @@ export default function ScoreCard() {
   }, []);
 
   return (
-    <Card className="shadow-lg border border-gray-200">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <h3 className="text-lg font-bold text-gray-800">Latest Scores</h3>
-        <Button
-          onClick={() => router.push("/report")}
-          size="sm"
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-        >
-          View Full Report
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {scores.every(({ score }) => score === null) ? (
-          <p className="mb-2 text-sm text-gray-600">
-            No scored report is available yet.
-          </p>
-        ) : null}
-        <div className="md:grid md:grid-cols-2 max-md:flex max-md:flex-col md:gap-4">
-          <div className="flex-1">
-            <ScoreBar category={scores[0].category} score={scores[0].score} />
-            <ScoreBar category={scores[2].category} score={scores[2].score} />
-            <ScoreBar category={scores[4].category} score={scores[4].score} />
-          </div>
-          <div className="flex-1">
-            <ScoreBar category={scores[1].category} score={scores[1].score} />
-            <ScoreBar category={scores[3].category} score={scores[3].score} />
-            <ScoreBar category={scores[5].category} score={scores[5].score} />
-          </div>
+    <section aria-labelledby="latest-scores" className="rounded-xl border border-rule bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <div>
+          <h2 id="latest-scores" className="text-2xl font-extrabold tracking-tight text-ink">
+            Latest scores
+          </h2>
+          <p className="mt-1 text-ink-soft">From your most recent report</p>
         </div>
-      </CardContent>
-    </Card>
+        <Link href="/report" className="text-sm font-semibold text-pencil underline-offset-4 hover:underline">
+          View full report
+        </Link>
+      </div>
+      {scores.every(({ score }) => score === null) ? (
+        <p className="mt-4 text-sm text-ink-soft">
+          Finish a conversation to see your scores here.
+        </p>
+      ) : null}
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {scores.map(({ category, score }) => (
+          <ScoreBar key={category} category={category} score={score} />
+        ))}
+      </div>
+    </section>
   );
 }

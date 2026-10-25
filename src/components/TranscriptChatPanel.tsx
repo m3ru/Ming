@@ -95,7 +95,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     }),
     {
       showInChat: false,
-      color: "#10b981",
+      color: "#2e7d69",
     },
   );
 
@@ -148,18 +148,24 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     searchFields: ["feedback", "comment"], // Search in feedback and comment
     description: "Feedback",
     icon: <MessageSquare className="w-4 h-4" />,
-    color: "#10b981",
+    color: "#2e7d69",
     order: 1,
   });
 
   return (
-    <div className="flex flex-col h-[500px] w-full bg-gray-50 border border-gray-200 rounded-lg">
+    <section
+      aria-labelledby="transcript-chat-heading"
+      className="flex h-[500px] w-full flex-col overflow-hidden rounded-xl border border-rule bg-white"
+    >
       {/* Header */}
-      <div className="flex items-center px-4 py-3 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
-        <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-800">
-          Ask About Your Performance
-        </h3>
+      <div className="flex flex-shrink-0 items-center gap-2 border-b border-rule px-5 py-4">
+        <MessageSquare aria-hidden="true" className="size-5 text-pencil" />
+        <h2
+          id="transcript-chat-heading"
+          className="text-xl font-extrabold tracking-tight text-ink"
+        >
+          Ask about your performance
+        </h2>
       </div>
 
       {/* Welcome Message 
@@ -174,12 +180,12 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
       */}
 
       {/* Chat Messages Area - Fixed height with scroll */}
-      <div className="flex-1 overflow-y-auto bg-white">
+      <div className="flex-1 overflow-y-auto">
         <ChatBubbles />
       </div>
 
       {/* Chat Input */}
-      <div className="flex-shrink-0 p-2 bg-white border-t border-gray-200 rounded-b-lg">
+      <div className="flex-shrink-0 border-t border-rule p-2">
         <div className="w-full overflow-hidden">
           <ChatInput
             handleFocus={() => {}}
@@ -190,7 +196,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 };
 
