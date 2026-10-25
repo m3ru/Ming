@@ -116,7 +116,7 @@ path, this mode waits for release before processing. It caps a recording at 30
 seconds and preserves transcript text when speech playback fails. End Scenario
 waits for the pending turn and saved transcript before generating feedback.
 `DEEPGRAM_STT_MODEL` defaults to `nova-3`; `DEEPGRAM_TTS_MODEL` defaults to
-`aura-2-thalia-en`. Audio and provider keys go through the server.
+`aura-2-orion-en`. Audio and provider keys go through the server.
 
 The Google Veo video-generation helpers remain in `src/lib/videoUtil.ts` and
 `src/backend/src/lib/videoUtil.ts`. Their existing scenario-to-video behavior is

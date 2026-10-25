@@ -210,7 +210,7 @@ export function createLiveVoiceService(dependencies: Dependencies) {
             body: JSON.stringify({
               session: {
                 model: "gpt-live-1",
-                audio: { output: { voice: "marin" } },
+                audio: { output: { voice: "cedar" } },
                 delegation: { type: "client" },
                 instructions: coach
                   ? "You are a concise, supportive communication coach. Speak English. Your backend has the user's transcript, scores, and feedback. Delegate questions needing those records. Use its results without inventing feedback. Listen to corrections and allow interruptions."

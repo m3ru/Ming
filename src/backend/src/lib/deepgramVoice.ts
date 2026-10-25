@@ -192,7 +192,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
     }
     try {
       const url = new URL("https://api.deepgram.com/v1/speak");
-      url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-thalia-en");
+      url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-orion-en");
       url.searchParams.set("encoding", "mp3");
       const response = await request(url, {
         method: "POST",

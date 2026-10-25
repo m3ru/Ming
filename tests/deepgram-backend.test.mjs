@@ -61,7 +61,7 @@ test("Deepgram REST turn sends binary audio, saves actual text before speech, an
   assert.equal(listen.options.redirect, "error");
   assert.ok(listen.options.signal instanceof AbortSignal);
   assert.equal(speak.url.pathname, "/v1/speak");
-  assert.equal(speak.url.searchParams.get("model"), "aura-2-thalia-en");
+  assert.equal(speak.url.searchParams.get("model"), "aura-2-orion-en");
   assert.equal(speak.url.searchParams.get("encoding"), "mp3");
   assert.deepEqual(JSON.parse(speak.options.body), { text: result.messages[1].content });
   assert.deepEqual(await f.service.turn(input, "owner"), result);

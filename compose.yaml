@@ -49,7 +49,7 @@ services:
       OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-5.4-mini}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
-      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
+      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-orion-en}
     volumes:
       - ming-data:/data
     healthcheck:
