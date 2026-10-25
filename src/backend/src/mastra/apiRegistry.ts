@@ -1,6 +1,6 @@
 import { registerApiRoute } from "@mastra/core/server";
 import { ChatInputSchema, chatWorkflow } from "./workflows/chatWorkflow";
-import { feedbackOrchestratorWorkflow } from "./workflows/feedbackOrchestratorWorkflow";
+import { getReport } from "./reportService";
 import { ScenarioPipelineInputSchema, ScenarioPipelineOutputSchema, scenarioPipelineWorkflow } from "./workflows/scenarioPipelineWorkflow";
 import {
   ChatStreamError,
@@ -34,6 +34,7 @@ const feedbackSchema = z.object({
   threadId: threadIdSchema,
   transcript: z.string().trim().min(1).max(96000),
   additionalContext: z.record(z.unknown()).optional(),
+  stage: z.enum(["complete", "summary", "annotations"]).default("complete"),
 });
 const scenarioRequestSchema = ScenarioPipelineInputSchema.pick({
   analysis: true,
@@ -142,39 +143,23 @@ export const apiRoutes = [
   registerApiRoute("/feedback", {
     method: "POST",
     handler: async (c) => {
-      let release: (() => void) | undefined;
       try {
         const input = feedbackSchema.parse(await c.req.json());
         const resourceId = trustedIdentity(c);
         configured();
-        release = reserveGeneration(resourceId, 8);
         await claimThread(input.threadId, resourceId);
-        const run = await feedbackOrchestratorWorkflow.createRunAsync();
-        const result = await run.start({
-          inputData: {
-            ...input,
-            resourceId,
-            threadId: analysisThread(input.threadId, resourceId),
-          },
-        });
-        if (result.status !== "success")
-          return c.json(
-            {
-              status: "failed",
-              error: "The report could not be generated. Try again.",
-            },
-            502,
-          );
-        const { summaryAnalysis, detailedFeedback, segmentedAnalysis } =
-          result.result;
+        const result = await getReport({
+          transcript: input.transcript,
+          additionalContext: input.additionalContext,
+          resourceId,
+          threadId: input.threadId,
+        }, input.stage);
         return c.json({
           status: "success",
-          result: { summaryAnalysis, detailedFeedback, segmentedAnalysis },
+          result,
         });
       } catch (error) {
         return errorResponse(c, error);
-      } finally {
-        release?.();
       }
     },
   }),

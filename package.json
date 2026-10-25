@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint . --max-warnings 0",
     "test:voice": "node scripts/test-voice.mjs",
-    "test:demo": "node --test tests/backend-streaming.test.mjs tests/chat-controls.test.mjs tests/demo-completion.test.mjs tests/hooks-cleanup.test.mjs src/lib/tests/report-regression.test.mjs",
+    "test:demo": "node --test tests/backend-streaming.test.mjs tests/report-optimization.test.mjs tests/chat-controls.test.mjs tests/demo-completion.test.mjs tests/hooks-cleanup.test.mjs src/lib/tests/report-regression.test.mjs",
     "pretty": "npx prettier --write .",
     "typecheck": "tsc --noEmit --incremental false",
     "test:providers": "node --test tests/text-providers.test.mjs",

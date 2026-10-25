@@ -24,15 +24,18 @@ import {
 import { useSessionActions } from "@/components/SessionActionsProvider";
 import { evaluationVerdict } from "@/lib/evaluation";
 import { Button } from "@/components/ui/button";
+import { completeReportAnnotations } from "@/lib/completeReportAnnotations";
 
 type ReportState =
   | { status: "loading" | "empty" }
   | { status: "error"; message: string }
-  | { status: "loaded"; report: ParsedResult; source?: FollowUpSource };
+  | { status: "loaded"; report: ParsedResult; source?: FollowUpSource; raw?: string };
 
 export default function ReportPage() {
   const [isEvaluationOpen, setIsEvaluationOpen] = useState(true);
   const [isTranscriptOpen, setIsTranscriptOpen] = useState(true);
+  const [annotationError, setAnnotationError] = useState(false);
+  const [annotationAttempt, setAnnotationAttempt] = useState(0);
 
   const [reportState, setReportState] = useState<ReportState>({
     status: "loading",
@@ -43,6 +46,7 @@ export default function ReportPage() {
   const followUp = useRef<ReturnType<typeof createFollowUpController> | null>(
     null,
   );
+  const followUpSourceRaw = useRef<string | undefined>(undefined);
   const {
     startNewSession,
     isStarting,
@@ -60,6 +64,7 @@ export default function ReportPage() {
     try {
       const stored = localStorage.getItem("reportData");
       if (!stored) {
+        followUpSourceRaw.current = undefined;
         followUp.current?.setSource(undefined);
         setReportState({ status: "empty" });
         return;
@@ -67,13 +72,17 @@ export default function ReportPage() {
       const report = Parser(stored);
       const source =
         report.status === "invalid" ? undefined : followUpSource(stored);
-      followUp.current?.setSource(source);
+      if (followUpSourceRaw.current !== source?.rawReport) {
+        followUpSourceRaw.current = source?.rawReport;
+        followUp.current?.setSource(source);
+      }
       setReportState(
         report.status === "invalid"
           ? { status: "error", message: report.issues.join(" ") }
-          : { status: "loaded", report, source },
+          : { status: "loaded", report, source, raw: stored },
       );
     } catch {
+      followUpSourceRaw.current = undefined;
       followUp.current?.setSource(undefined);
       setReportState({
         status: "error",
@@ -96,6 +105,19 @@ export default function ReportPage() {
       followUp.current?.cancel(false);
     };
   }, [loadReport]);
+
+  const pendingReport = reportState.status === "loaded" && reportState.report.annotationStatus === "pending" ? reportState.raw : undefined;
+  useEffect(() => {
+    if (!pendingReport) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => { setAnnotationError(true); controller.abort(); }, 100_000);
+    setAnnotationError(false);
+    void completeReportAnnotations({ raw: pendingReport, storage: localStorage, fetch, signal: controller.signal })
+      .then((updated) => { if (updated && !controller.signal.aborted) loadReport(); })
+      .catch(() => { if (!controller.signal.aborted) setAnnotationError(true); })
+      .finally(() => clearTimeout(timeout));
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, [pendingReport, annotationAttempt, loadReport]);
 
   if (reportState.status !== "loaded") {
     const isError = reportState.status === "error";
@@ -181,6 +203,14 @@ export default function ReportPage() {
         className="mx-auto grid w-full max-w-7xl gap-6 p-5 md:p-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:grid-rows-[auto_auto_1fr]"
       >
         <header className="space-y-6 lg:col-span-2">
+          {pendingReport ? (
+            <div className="alert-note" data-tone="info" role="status">
+              <p className="min-w-0 flex-1">{annotationError
+                ? "Transcript notes couldn’t load. Your summary and scores are saved."
+                : "Your summary and scores are ready. Adding transcript notes…"}</p>
+              {annotationError && <Button variant="outline" size="sm" onClick={() => setAnnotationAttempt((attempt) => attempt + 1)}>Retry notes</Button>}
+            </div>
+          ) : null}
           {status === "partial" ? (
             <section className="alert-note" role="status">
               <CircleAlert

@@ -2,6 +2,7 @@
 
 import React from "react";
 import ReactMarkdown from "react-markdown";
+import type { ReportSegment } from "@/app/report/parser";
 
 export function ReportMarkdown({ children }: { children: string }) {
   return (
@@ -221,10 +222,71 @@ const renderMarkdownBlocks = (text: string) => {
 export default function AnnotatedTranscript({
   segments,
 }: {
-  segments?: { title: string; content: string }[];
+  segments?: ReportSegment[];
 }) {
   const md = (segments || []).map((segment) => segment.content).join("\n\n");
   const blocks = React.useMemo(() => renderMarkdownBlocks(md), [md]);
+
+  if (
+    segments?.length &&
+    segments.every((segment) => segment.highlights !== undefined)
+  ) {
+    return (
+      <div className="divide-y divide-dashed divide-rule">
+        {segments.map((segment, index) => {
+          let cursor = 0;
+          const speech: React.ReactNode[] = [];
+          const highlights = segment.highlights ?? [];
+          highlights.forEach((highlight, i) => {
+            speech.push(segment.content.slice(cursor, highlight.start));
+            speech.push(
+              <span
+                key={i}
+                className={`marker ${highlighters[highlight.color].stroke}`}
+              >
+                {segment.content.slice(highlight.start, highlight.end)}
+                <sup className={`${circled} ml-1 text-[10px] text-ink-soft`}>
+                  {i + 1}
+                </sup>
+              </span>,
+            );
+            cursor = highlight.end;
+          });
+          speech.push(segment.content.slice(cursor));
+          return (
+            <div
+              key={index}
+              className="grid gap-x-8 gap-y-2 py-3 leading-relaxed md:grid-cols-[minmax(0,1fr)_15rem]"
+            >
+              <div className="min-w-0">
+                <h3 className="mb-2 text-sm font-semibold text-ink-soft">
+                  {segment.title}
+                </h3>
+                <p className="m-0 whitespace-pre-wrap break-words">{speech}</p>
+              </div>
+              {highlights.length > 0 && (
+                <ol className="min-w-0 space-y-3">
+                  {highlights.map((highlight, i) => (
+                    <li
+                      key={i}
+                      className={`flex items-start gap-2 ${highlighters[highlight.color].note}`}
+                    >
+                      <span className={`${circled} mt-0.5 text-xs`}>
+                        {i + 1}
+                      </span>
+                      <span className="font-serif text-lg italic leading-relaxed">
+                        {highlight.feedback}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (!md.trim()) {
     return (

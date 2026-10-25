@@ -5,12 +5,13 @@ import {
   type EvaluationCategory,
   type EvaluationCriterion,
 } from "@/lib/evaluation";
+import { parseAnnotationSegments, type AnnotationSegment } from "@/lib/reportAnnotations";
 
 export type ReportScore = {
   category: EvaluationCategory;
   score: number | null;
 };
-export type ReportSegment = { title: string; content: string };
+export type ReportSegment = { title: string; content: string; highlights?: AnnotationSegment["highlights"] };
 
 export type ParsedResult = {
   status: "ready" | "partial" | "invalid";
@@ -24,6 +25,7 @@ export type ParsedResult = {
   sessionId: string | null;
   transcript: string | null;
   createdAt: string | null;
+  annotationStatus?: "pending" | "ready";
 };
 
 export function emptyReportScores(): ReportScore[] {
@@ -67,6 +69,7 @@ export default function Parser(rawText: string): ParsedResult {
   result.sessionId = nonemptyString(record.sessionId);
   result.transcript = nonemptyString(record.transcript);
   result.createdAt = nonemptyString(record.createdAt);
+  result.annotationStatus = record.annotationStatus === "pending" ? "pending" : undefined;
 
   const section = (heading: string): string | null => {
     const match = summaryText.match(
@@ -126,6 +129,16 @@ export default function Parser(rawText: string): ParsedResult {
           `${whitespace}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`,
       );
     if (title && content) result.segments.push({ title, content });
+  }
+  if (record.annotationSegments !== undefined) {
+    const structured = parseAnnotationSegments(record.annotationSegments, result.transcript);
+    if (structured) {
+      result.segments = structured;
+      if (record.annotationStatus === "ready") result.annotationStatus = "ready";
+    } else {
+      result.segments = [];
+      result.issues.push("The transcript notes contain invalid locations.");
+    }
   }
 
   const hasContent =

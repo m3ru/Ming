@@ -97,6 +97,17 @@ dependency advisories](docs/PRODUCTION.md).
 
 All backend text agents use the shared model in `src/backend/src/mastra/models.ts`.
 
+Debriefs generate the summary and transcript annotations concurrently. The report
+opens when its summary and scores are ready; transcript notes finish afterward
+and can be retried independently. Annotations reference the original conversation
+instead of asking the model to rewrite it. Successful stages and in-flight work
+are reused for the same owner, session, transcript, context, provider, model, and
+prompt version. Each stage cache holds at most 64 entries with a 15-minute TTL;
+reuse is process-local and clears on backend restart. Bump `REPORT_PROMPT_VERSION`
+when changing either report prompt or its generation settings. Backend
+`debrief_generation` logs contain stage duration, success, and token counts, without
+conversation text.
+
 By default, voice conversations use OpenAI GPT-Live (`gpt-live-1`) over WebRTC. The root
 `OPENAI_API_KEY` must belong to a project with GPT-Live access. Run on localhost
 or HTTPS and allow microphone access when the chat opens. The voice connection

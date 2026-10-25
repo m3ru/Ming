@@ -15,7 +15,7 @@ import type { ReportScore } from "@/app/report/parser";
 import "./TranscriptChatPanel.css";
 
 interface TranscriptChatPanelProps {
-  segments: Array<{ title: string; content: string }>;
+  segments: Array<{ title: string; content: string; highlights?: { feedback: string }[] }>;
   feedback: string | null;
   suggestions: string | null;
   scores: ReportScore[];
@@ -109,6 +109,13 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     }> = [];
 
     segments.forEach((segment, segmentIndex) => {
+      if (segment.highlights) {
+        segment.highlights.forEach((highlight, index) => feedbackItems.push({
+          id: `feedback-${segmentIndex}-${index}`, title: highlight.feedback,
+          comment: segment.title, feedback: highlight.feedback,
+        }));
+        return;
+      }
       // Extract feedback from comment tags using regex
       const commentRegex = /<comment[^>]*feedback="([^"]*)"[^>]*>/g;
       let match;

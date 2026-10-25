@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { backendRequire, loadBackendSource, root } from "./backend-runtime.mjs";
+import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root } from "./backend-runtime.mjs";
 import { scenarioFixture } from "./scenario-fixture.mjs";
 
 async function exerciseRouter() {
@@ -44,6 +44,7 @@ async function exerciseRouter() {
     },
     doStream: async (options) => {
       modelCalls++;
+      const isAnnotation = options.prompt.some((message) => message.role === "user" && Array.isArray(message.content) && message.content.some((part) => part.type === "text" && part.text.startsWith('{"lines":')));
       const isScenario = options.prompt.some((message) => JSON.stringify(message).includes("Design the next workplace communication practice with Bart"));
       return {
         stream: new ReadableStream({
@@ -53,7 +54,7 @@ async function exerciseRouter() {
             controller.enqueue({
               type: "text-delta",
               id: "text-1",
-              delta: isScenario ? JSON.stringify(scenarioFixture) : "Synthetic reply",
+              delta: isScenario ? JSON.stringify(scenarioFixture) : isAnnotation ? JSON.stringify({ segments: [{ title: "Conversation", startLine: 0, highlights: [] }] }) : "Synthetic reply",
             });
             controller.enqueue({ type: "text-end", id: "text-1" });
             controller.enqueue({
@@ -75,6 +76,7 @@ async function exerciseRouter() {
       "transcriptSummaryAnalyzerAgent",
       "transcriptAnalyzerAgent",
       "transcriptDetailAgent",
+      "reportAnnotationAgent",
       "scenarioCreateAgent",
       "promptCreateAgent",
       "reportCreateAgent",
@@ -130,17 +132,14 @@ async function exerciseRouter() {
       ),
     },
   );
-  const feedback = loadBackendSource(
-    "src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts",
-    { ...agentMocks, "../../lib/providers": providers },
-  );
+  const feedback = loadReportWorkflow(agentMocks, providers);
   const scenario = loadBackendSource(
     "src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts",
     { ...agentMocks, "../../lib/scenarioSchema": loadBackendSource("src/backend/src/lib/scenarioSchema.ts"), "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts") },
   );
   const registry = loadBackendSource("src/backend/src/mastra/apiRegistry.ts", {
     "./workflows/chatWorkflow": chat,
-    "./workflows/feedbackOrchestratorWorkflow": feedback,
+    "./reportService": loadReportService(feedback, providers, security),
     "./workflows/scenarioPipelineWorkflow": scenario,
     "../utils/streamUtils": utils,
     "../lib/security": security,
@@ -390,6 +389,8 @@ async function exerciseRouter() {
   assert.equal(reportResult.status, "success");
   assert.equal(reportResult.result.summaryAnalysis, "Synthetic reply");
   assert.deepEqual(Object.keys(reportResult.result).sort(), [
+    "annotationSegments",
+    "annotationStatus",
     "detailedFeedback",
     "segmentedAnalysis",
     "summaryAnalysis",

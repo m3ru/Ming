@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { backendRequire, loadBackendSource, root } from "./backend-runtime.mjs";
+import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root } from "./backend-runtime.mjs";
 
 const file = fileURLToPath(import.meta.url);
 
@@ -90,6 +90,7 @@ async function exerciseRuntime(withMemory) {
       "transcriptSummaryAnalyzerAgent",
       "transcriptAnalyzerAgent",
       "transcriptDetailAgent",
+      "reportAnnotationAgent",
       "scenarioCreateAgent",
       "promptCreateAgent",
       "reportCreateAgent",
@@ -122,13 +123,7 @@ async function exerciseRuntime(withMemory) {
       ),
     },
   );
-  const feedback = loadBackendSource(
-    "src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts",
-    {
-      ...agentMocks,
-      "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts"),
-    },
-  );
+  const feedback = loadReportWorkflow(agentMocks, loadBackendSource("src/backend/src/lib/providers.ts"));
   const scenario = loadBackendSource(
     "src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts",
     { ...agentMocks, "../../lib/scenarioSchema": loadBackendSource("src/backend/src/lib/scenarioSchema.ts"), "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts") },
@@ -140,7 +135,7 @@ async function exerciseRuntime(withMemory) {
   });
   const registry = loadBackendSource("src/backend/src/mastra/apiRegistry.ts", {
     "./workflows/chatWorkflow": chat,
-    "./workflows/feedbackOrchestratorWorkflow": feedback,
+    "./reportService": loadReportService(feedback, loadBackendSource("src/backend/src/lib/providers.ts"), security),
     "./workflows/scenarioPipelineWorkflow": scenario,
     "../lib/security": {
       ...security,
@@ -305,20 +300,19 @@ if (process.argv.includes("--runtime-child")) {
   function reportFixture({ provider = "gemini", model = "gemini-3.5-flash", truncatedStage, finishReason } = {}) {
     const stages = [], calls = [];
     const texts = [
-      "<segment:opening>user: Hello</segment:opening>",
-      '## CRITERION FEEDBACK\n[{"category":"Empathy","summary":"You greeted Bart."}]\n## IMPROVEMENT RECOMMENDATIONS\nAsk a follow-up.',
-      "<segment:opening>user: Hello</segment:opening>",
+      '## CONVERSATION OVERVIEW\nHello.\n## IMPROVEMENT RECOMMENDATIONS\nAsk a follow-up.',
+      JSON.stringify({ segments: [{ title: "opening", startLine: 0, highlights: [] }] }),
     ];
     const workflow = { then(step) { stages.push(step); return this; }, commit() { return this; } };
     const agentMocks = Object.fromEntries([
-      "transcriptAnalyzerAgent", "transcriptSummaryAnalyzerAgent", "transcriptDetailAgent",
+      "transcriptSummaryAnalyzerAgent", "reportAnnotationAgent",
     ].map((name, index) => [`../agents/${name}`, { [name]: {
       async generateVNext(messages, options) {
         calls.push({ messages, options });
         return { text: index === truncatedStage ? 'incomplete {"summary' : texts[index], finishReason: index === truncatedStage ? "length" : finishReason };
       },
     } }]));
-    loadBackendSource("src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts", {
+    loadReportWorkflow(agentMocks, { resolveTextProvider: () => ({ provider, model }) }, {
       ...agentMocks,
       "@mastra/core/workflows": { createStep: (step) => step, createWorkflow: () => workflow },
       "@mastra/core/di": { RuntimeContext: Map },
@@ -343,11 +337,11 @@ if (process.argv.includes("--runtime-child")) {
     ]) {
       const fixture = reportFixture({ provider, model, finishReason: "stop" });
       const result = await fixture.run();
-      assert.equal(result.segmentedAnalysis, fixture.texts[0]);
-      assert.equal(result.summaryAnalysis, fixture.texts[1]);
-      assert.equal(result.detailedFeedback, fixture.texts[2]);
-      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), provider === "gemini" ? [4096, 4096, 4096] : [4096, 2048, 4096]);
-      assert.equal(fixture.calls[2].options.modelSettings.temperature, 0.2);
+      assert.equal(result.summaryAnalysis, fixture.texts[0]);
+      assert.equal(result.annotationSegments[0].content, "user: Hello");
+      assert.equal(result.detailedFeedback, result.segmentedAnalysis);
+      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), provider === "gemini" ? [4096, 4096] : [2048, 1536]);
+      assert.ok(fixture.calls.every(({ options }) => !options.memory));
       for (const { options } of fixture.calls) {
         assert.deepEqual(options.providerOptions, lowThinking
           ? { google: { thinkingConfig: { thinkingLevel: "low" } } }
@@ -357,15 +351,15 @@ if (process.argv.includes("--runtime-child")) {
     const legacy = reportFixture({ finishReason: undefined });
     // Missing metadata from older adapters is not proof of truncation.
     const result = await legacy.run();
-    assert.equal(result.summaryAnalysis, legacy.texts[1]);
+    assert.equal(result.summaryAnalysis, legacy.texts[0]);
   });
 
-  test("length-truncated report output fails before any downstream stage can report success", async () => {
+  test("length-truncated output never becomes a completed report", async () => {
     for (const provider of ["gemini", "openai"]) {
-      for (const truncatedStage of [0, 1, 2]) {
+      for (const truncatedStage of [0, 1]) {
         const fixture = reportFixture({ provider, truncatedStage });
-        await assert.rejects(fixture.run(), /Report generation reached its output limit/);
-        assert.equal(fixture.calls.length, truncatedStage + 1);
+        await assert.rejects(fixture.run(), /The report could not be generated/);
+        assert.equal(fixture.calls.length, 2);
       }
     }
   });
