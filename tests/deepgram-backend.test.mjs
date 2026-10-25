@@ -47,7 +47,7 @@ function fixture(overrides = {}) {
     request: async (url, options) => {
       requests.push({ url: new URL(url), options });
       const { hostname, pathname } = new URL(url);
-      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini() : speech();
+      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini(options) : speech();
     },
     generate: async (...args) => { generations.push(args); return "Thank you. I appreciate your support."; },
     save: async (messages, scope) => saves.push({ messages, scope }),
@@ -409,8 +409,6 @@ test("server adapter persists both real transcript texts in Mastra memory and se
 
 const gemini = (overrides = {}) => fixture({ ttsProvider: () => "gemini", geminiApiKey: () => geminiKey, ...overrides });
 const hosts = (f) => f.requests.slice(1).map((r) => r.url.hostname);
-const BART_STYLE = "Read this aloud as Bart, a soft-spoken young software engineer talking with his manager.";
-const COACH_STYLE = "Read this aloud in a calm, warm, supportive coaching voice:";
 
 test("Gemini speech is opt-in: an unset, deepgram or unknown TTS provider calls only Deepgram", async () => {
   for (const provider of [undefined, "deepgram", "", "openai", "geminii"]) {
@@ -424,7 +422,7 @@ test("Gemini speech is opt-in: an unset, deepgram or unknown TTS provider calls 
   }
 });
 
-test("Gemini speech sends the model, voice, key header and the Bart or coach style, and streams raw PCM", async () => {
+test("Gemini speech sends the model, voice, key header and only the reply text, and streams raw PCM", async () => {
   let reserves = 0;
   const f = gemini({ ttsProvider: () => " Gemini ", reserve: () => { reserves++; return () => {}; } });
   const input = recording();
@@ -447,9 +445,8 @@ test("Gemini speech sends the model, voice, key header and the Bart or coach sty
     responseModalities: ["AUDIO"],
     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } },
   });
-  const text = body.contents[0].parts[0].text;
-  assert.ok(text.startsWith(BART_STYLE), text);
-  assert.ok(text.endsWith(": " + result.messages[1].content), text);
+  // Gemini 3.8 TTS reads any style direction aloud, so it must get exactly the reply.
+  assert.equal(body.contents[0].parts[0].text, result.messages[1].content);
 
   const coach = gemini({ geminiTtsModel: () => " gemini-2.5-pro-preview-tts ", geminiTtsVoice: () => " Kore " });
   const review = recording({ context: { chatType: { data: "transcript" } } });
@@ -459,7 +456,40 @@ test("Gemini speech sends the model, voice, key header and the Bart or coach sty
   assert.equal(coachCall.url.pathname, "/v1beta/models/gemini-2.5-pro-preview-tts:streamGenerateContent");
   const coachBody = JSON.parse(coachCall.options.body);
   assert.equal(coachBody.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Kore");
-  assert.equal(coachBody.contents[0].parts[0].text, COACH_STYLE + " Thank you. I appreciate your support.");
+  assert.equal(coachBody.contents[0].parts[0].text, "Thank you. I appreciate your support.");
+});
+
+test("Gemini that has sent no audio by the deadline falls back to Deepgram instead of stalling", async (t) => {
+  const { GEMINI_FIRST_AUDIO_MS } = loadBackendSource("src/backend/src/lib/deepgramVoice.ts", { "./voice": voice });
+  const stalls = {
+    // No response headers at all.
+    "no response": ({ signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })),
+    // Headers arrive, but no audio event follows.
+    "no audio": ({ signal }) => new Response(new ReadableStream({
+      start: (controller) => signal.addEventListener("abort", () => controller.error(signal.reason), { once: true }),
+    }), { headers: { "Content-Type": "text/event-stream" } }),
+  };
+  for (const [name, stall] of Object.entries(stalls)) {
+    const f = gemini({ gemini: stall });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      // Real time (Date is not mocked): the 30 s provider timeout must not be what ends the wait.
+      const started = Date.now();
+      const pending = f.service.speech(speechOf(input), "owner");
+      // Let the Gemini request start, then pass the first-audio deadline.
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      t.mock.timers.tick(GEMINI_FIRST_AUDIO_MS);
+      const audio = await pending;
+      assert.ok(Date.now() - started < 2000, name + ": fell back only after " + (Date.now() - started) + " ms");
+      assert.equal(audio.mimeType, "audio/mpeg", name);
+      assert.equal((await read(audio.body)).toString(), "MP3 output", name);
+      assert.deepEqual(hosts(f), [geminiHost, "api.deepgram.com"], name);
+    } finally {
+      t.mock.timers.reset();
+    }
+  }
 });
 
 test("Gemini SSE events split at any byte, with CRLF or LF separators, decode to the exact PCM bytes", async () => {

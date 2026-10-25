@@ -1,16 +1,15 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { chatType, voiceSessionSchema, type VoiceMessage } from "./voice";
+import { voiceSessionSchema, type VoiceMessage } from "./voice";
 
 export const DEEPGRAM_AUDIO_BYTE_LIMIT = 1024 * 1024;
 // Raw 16-bit mono PCM at 24 kHz is 48,000 bytes a second: 4 MiB is about 87 s of speech.
 export const GEMINI_PCM_BYTE_LIMIT = 4 * 1024 * 1024;
 export const GEMINI_PCM_MIME_TYPE = "audio/L16; rate=24000; channels=1";
-// Gemini TTS takes its delivery direction as plain text before the line.
-const GEMINI_STYLE = {
-  bart: "Read this aloud as Bart, a soft-spoken young software engineer talking with his manager. Let the emotion follow the words (apologetic, anxious, defensive or relieved) and keep any hesitations:",
-  coach: "Read this aloud in a calm, warm, supportive coaching voice:",
-};
+// Gemini 3.8 TTS reads any style direction aloud (verified by transcribing its output), so it
+// gets only the line; delivery comes from how the reply is written.
+// First audio arrived in ~0.7 s direct, ~1 s through the gateway; after this, Deepgram answers.
+export const GEMINI_FIRST_AUDIO_MS = 3000;
 const geminiEventSchema = z.object({
   error: z.unknown().optional(),
   candidates: z.array(z.object({
@@ -92,8 +91,6 @@ type CachedTurn = Scope & {
   // Requests waiting on this turn; each hears every message as soon as it is saved.
   listeners: Set<(message: DeepgramMessage) => void>;
   speechRequests: number;
-  // Coach (transcript) turns get a different Gemini speaking style than Bart.
-  coach: boolean;
 };
 
 function audioBytes(base64: string) {
@@ -202,10 +199,13 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
   const request = dependencies.request ?? fetch;
   const turns = new Map<string, CachedTurn>();
   // A PCM stream, or undefined when Gemini fails before its first audio byte so Deepgram can answer.
-  async function geminiSpeech(text: string, coach: boolean) {
+  async function geminiSpeech(text: string) {
     const apiKey = dependencies.geminiApiKey?.()?.trim();
     if (!apiKey) return;
     const model = dependencies.geminiTtsModel?.()?.trim() || "gemini-3.8-flash-lite-tts";
+    // A slow start falls back to Deepgram instead of leaving Bart silent until the full timeout.
+    const firstAudio = new AbortController();
+    const deadline = setTimeout(() => firstAudio.abort(), GEMINI_FIRST_AUDIO_MS);
     try {
       const response = await request(
         new URL("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse"),
@@ -213,7 +213,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
           method: "POST",
           headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: GEMINI_STYLE[coach ? "coach" : "bart"] + " " + text }] }],
+            contents: [{ parts: [{ text }] }],
             generationConfig: {
               responseModalities: ["AUDIO"],
               speechConfig: { voiceConfig: { prebuiltVoiceConfig: {
@@ -221,7 +221,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
               } } },
             },
           }),
-          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+          signal: AbortSignal.any([AbortSignal.timeout(PROVIDER_TIMEOUT_MS), firstAudio.signal]),
           redirect: "error",
         },
       );
@@ -245,6 +245,8 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       });
     } catch {
       return;
+    } finally {
+      clearTimeout(deadline);
     }
   }
   async function processTurn(input: Turn, turn: CachedTurn, apiKey: string, bytes: Buffer) {
@@ -355,8 +357,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
           throw new DeepgramVoiceError("Voice turn capacity reached. Try again later.", 429);
         turn = { fingerprint, threadId: input.threadId, resourceId: identity,
           expiresAt: now + CACHE_TTL_MS, sessionId: "deepgram-" + input.turnId,
-          userSaved: false, assistantSaved: false, listeners: new Set(), speechRequests: 0,
-          coach: chatType(input.context) === "transcript" };
+          userSaved: false, assistantSaved: false, listeners: new Set(), speechRequests: 0 };
       }
       const release = dependencies.reserve?.(identity);
       turns.set(input.turnId, turn);
@@ -390,7 +391,7 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
         throw new DeepgramVoiceError("This reply's audio was requested too many times. Its text is saved.", 429);
       // The fallback below is part of this same counted request.
       if (dependencies.ttsProvider?.()?.trim().toLowerCase() === "gemini") {
-        const body = await geminiSpeech(turn.assistant.content, turn.coach);
+        const body = await geminiSpeech(turn.assistant.content);
         if (body) return { body, mimeType: GEMINI_PCM_MIME_TYPE };
       }
       let response: Response;
