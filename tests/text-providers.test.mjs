@@ -3,7 +3,21 @@ import { test } from "node:test";
 import { loadBackendSource } from "./backend-runtime.mjs";
 
 const providers = loadBackendSource("src/backend/src/lib/providers.ts");
-const { resolveTextProvider, isTextConfigured } = providers;
+const { resolveTextProvider, isTextConfigured, resolveGeminiKey } = providers;
+
+test("the shared Gemini key helper keeps the text key order and is what Gemini text uses", () => {
+  const cases = [
+    [{ GEMINI_API_KEY: " a ", GOOGLE_GENERATIVE_AI_API_KEY: "b", GOOGLE_API_KEY: "c" }, "a"],
+    [{ GEMINI_API_KEY: " ", GOOGLE_GENERATIVE_AI_API_KEY: " b ", GOOGLE_API_KEY: "c" }, "b"],
+    [{ GOOGLE_GENERATIVE_AI_API_KEY: "\t", GOOGLE_API_KEY: " c " }, "c"],
+    [{ GOOGLE_API_KEY: "c", GEMINI_API_KEY: "a" }, "a"],
+    [{ GOOGLE_API_KEY: " ", OPENAI_API_KEY: "openai", NEXT_PUBLIC_GOOGLE_API_KEY: "public" }, undefined],
+  ];
+  for (const [env, expected] of cases) {
+    assert.equal(resolveGeminiKey(env), expected);
+    assert.equal(resolveTextProvider(env).apiKey, expected);
+  }
+});
 
 test("text defaults to Gemini and never borrows an OpenAI key", () => {
   assert.deepEqual(resolveTextProvider({ OPENAI_API_KEY: "openai-only" }), {

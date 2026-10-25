@@ -117,6 +117,12 @@ seconds and preserves transcript text when speech playback fails. End Scenario
 waits for the pending turn and saved transcript before generating feedback.
 `DEEPGRAM_STT_MODEL` defaults to `nova-3`; `DEEPGRAM_TTS_MODEL` defaults to
 `aura-2-orion-en`. Audio and provider keys go through the server.
+Set `MING_TTS_PROVIDER=gemini` to speak Bart's replies with Gemini text-to-speech
+instead (any other value keeps Deepgram, the default). It uses the same Gemini
+key as text, `GEMINI_TTS_MODEL` (default `gemini-3.8-flash-lite-tts`) and
+`GEMINI_TTS_VOICE` (default `Puck`), and streams raw 24 kHz PCM to the browser.
+If Gemini fails before any audio (quota, network, no key, empty output), that
+same reply is spoken by Deepgram instead; Deepgram STT and its key stay required.
 
 The Google Veo video-generation helpers remain in `src/lib/videoUtil.ts` and
 `src/backend/src/lib/videoUtil.ts`. Their existing scenario-to-video behavior is

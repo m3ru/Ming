@@ -50,6 +50,9 @@ services:
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
       DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-orion-en}
+      MING_TTS_PROVIDER: ${MING_TTS_PROVIDER:-deepgram}
+      GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}
+      GEMINI_TTS_VOICE: ${GEMINI_TTS_VOICE:-Puck}
     volumes:
       - ming-data:/data
     healthcheck:

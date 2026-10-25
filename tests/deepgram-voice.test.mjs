@@ -1091,3 +1091,199 @@ test("with MediaSource, playback starts after the first chunk and the stream end
   env.audioElements[0].onended();
   assert.deepEqual(env.revoked, ["blob:test-1"]);
 });
+
+// A minimal Web Audio stand-in: records what is scheduled, when, and what is torn down.
+function webAudio(t, { state = "running" } = {}) {
+  const contexts = [];
+  class AudioBufferSourceNode {
+    buffer = null;
+    onended = null;
+    stopped = false;
+    connect(destination) {
+      this.destination = destination;
+    }
+    start(when) {
+      this.when = when;
+    }
+    stop() {
+      this.stopped = true;
+    }
+  }
+  class AudioContext {
+    currentTime = 0;
+    destination = { node: "speakers" };
+    onstatechange = null;
+    sources = [];
+    closed = false;
+    constructor() {
+      this.state = state;
+      contexts.push(this);
+    }
+    createBuffer(channels, length, sampleRate) {
+      assert.equal(channels, 1);
+      const data = new Float32Array(length);
+      return { length, sampleRate, getChannelData: () => data };
+    }
+    createBufferSource() {
+      const source = new AudioBufferSourceNode();
+      this.sources.push(source);
+      return source;
+    }
+    setState(state) {
+      this.state = state;
+      this.onstatechange?.();
+    }
+    async resume() {
+      this.setState("running");
+    }
+    async close() {
+      this.closed = true;
+      this.state = "closed";
+    }
+  }
+  Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: AudioContext });
+  t.after(() => delete globalThis.AudioContext);
+  return contexts;
+}
+const L16 = "audio/L16; rate=24000; channels=1";
+const int16 = (values) => new Uint8Array(new Int16Array(values).buffer);
+function pcmStream(type = L16) {
+  let stream;
+  let cancelled = false;
+  const response = new Response(
+    new ReadableStream({
+      start(controller) {
+        stream = controller;
+      },
+      cancel() {
+        cancelled = true;
+      },
+    }),
+    { headers: { "Content-Type": type } },
+  );
+  return {
+    response,
+    send: (bytes) => stream.enqueue(bytes),
+    close: () => stream.close(),
+    cancelled: () => cancelled,
+  };
+}
+
+test("audio/L16 replies stream into Web Audio as contiguous buffers, carrying an odd byte across chunks", async (t) => {
+  const contexts = webAudio(t);
+  const samples = [0, 1000, -1000, 32767, -32768, 12345, -1];
+  const bytes = int16(samples);
+  let audio;
+  const env = setup(t, {
+    speech: () => (audio = pcmStream()).response,
+  });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => audio);
+  // 3 + 4 + 1 + 6 bytes: three of the four splits land mid-sample.
+  audio.send(bytes.slice(0, 3));
+  await until(() => contexts[0]?.sources.length === 1);
+  const context = contexts[0];
+  assert.equal(env.controller.getSnapshot().speaking, true, "Bart speaks from the first buffer");
+  for (const [from, to] of [[3, 7], [7, 8], [8, 14]]) audio.send(bytes.slice(from, to));
+  audio.close();
+  await until(() => context.sources.length === 4);
+  const { sources } = context;
+  assert.deepEqual(sources.map((s) => s.buffer.length), [1, 2, 1, 3]);
+  assert.ok(sources.every((s) => s.buffer.sampleRate === 24_000 && s.destination === context.destination));
+  assert.deepEqual(
+    sources.flatMap((s) => [...s.buffer.getChannelData(0)]),
+    samples.map((value) => value / 32768),
+  );
+  assert.equal(sources[0].when, 0.05, "a small lead before the first buffer");
+  for (let i = 1; i < sources.length; i++)
+    assert.equal(sources[i].when, sources[i - 1].when + sources[i - 1].buffer.length / 24_000, "back to back");
+  assert.equal(env.audioElements.length, 0);
+  assert.equal(env.objects.length, 0, "no MediaSource or Blob for PCM");
+  for (const source of sources.slice(0, -1)) source.onended();
+  assert.equal(env.controller.getSnapshot().speaking, true, "still speaking until the last buffer ends");
+  assert.equal(context.closed, false);
+  sources.at(-1).onended();
+  assert.equal(env.controller.getSnapshot().speaking, false);
+  assert.equal(context.closed, true);
+  assert.equal(env.controller.getSnapshot().error, null);
+});
+
+test("audio/L16 honours the rate parameter case-insensitively and its own larger byte cap", async (t) => {
+  const contexts = webAudio(t);
+  const replies = [
+    () => new Response(int16([1, 2, 3, 4]), { headers: { "Content-Type": "AUDIO/l16;rate=16000" } }),
+    // Twice the MP3 cap still plays as PCM; one byte over the PCM cap does not.
+    () => new Response(new Uint8Array(2 * 1024 * 1024), { headers: { "Content-Type": L16 } }),
+    () => new Response(new Uint8Array(4 * 1024 * 1024 + 1), { headers: { "Content-Type": L16 } }),
+  ];
+  const env = setup(t, { speech: (_request, count) => replies[count - 1]() });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => contexts[0]?.sources.length === 1);
+  assert.equal(contexts[0].sources[0].buffer.sampleRate, 16_000);
+  contexts[0].sources[0].onended();
+  assert.equal(contexts[0].closed, true);
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => contexts[1]?.sources.length >= 1);
+  assert.equal(contexts[1].sources.reduce((n, s) => n + s.buffer.length, 0), 1024 * 1024);
+  await env.controller.beginTalking();
+  assert.equal(contexts[1].closed, true, "talking over Bart closes his audio");
+  await env.controller.flush();
+  await until(() => /too large to play/.test(env.controller.getSnapshot().error ?? ""));
+  assert.equal(contexts[2].closed, true);
+  assert.ok(contexts[2].sources.every((s) => s.stopped));
+  assert.equal(env.controller.getSnapshot().speaking, false);
+});
+
+test("audio/L16 playback blocked by autoplay resumes its AudioContext", async (t) => {
+  const contexts = webAudio(t, { state: "suspended" });
+  const env = setup(t, {
+    speech: () => new Response(int16([5, 6, 7]), { headers: { "Content-Type": L16 } }),
+  });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => env.controller.getSnapshot().playbackBlocked);
+  assert.equal(env.controller.getSnapshot().speaking, false);
+  const [context] = contexts;
+  await env.controller.resumePlayback();
+  assert.equal(context.state, "running");
+  assert.equal(env.controller.getSnapshot().playbackBlocked, false);
+  assert.equal(env.controller.getSnapshot().speaking, true);
+  context.sources[0].onended();
+  assert.equal(env.controller.getSnapshot().speaking, false);
+  assert.equal(context.closed, true);
+});
+
+test("stop aborts the PCM request, cancels its reader, stops every scheduled buffer and closes the context", async (t) => {
+  const contexts = webAudio(t);
+  let audio;
+  const env = setup(t, { speech: () => (audio = pcmStream()).response });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => audio);
+  audio.send(int16([1, 2]));
+  audio.send(int16([3, 4]));
+  await until(() => contexts[0]?.sources.length === 2);
+  assert.equal(env.controller.getSnapshot().speaking, true);
+  await env.controller.stop();
+  const [context] = contexts;
+  assert.equal(env.speeches[0].signal.aborted, true);
+  assert.equal(audio.cancelled(), true);
+  assert.ok(context.sources.every((s) => s.stopped && s.onended === null));
+  assert.equal(context.closed, true);
+  assert.equal(context.onstatechange, null);
+  assert.equal(env.controller.getSnapshot().speaking, false);
+  assert.equal(env.controller.getSnapshot().error, null);
+});
+
+test("audio/mpeg replies never create an AudioContext", async (t) => {
+  const contexts = webAudio(t);
+  const env = setup(t);
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  await until(() => env.controller.getSnapshot().speaking);
+  assert.equal(env.audioElements.length, 1);
+  assert.equal(contexts.length, 0);
+});

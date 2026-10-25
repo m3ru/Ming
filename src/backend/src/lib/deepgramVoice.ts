@@ -1,8 +1,26 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { voiceSessionSchema, type VoiceMessage } from "./voice";
+import { chatType, voiceSessionSchema, type VoiceMessage } from "./voice";
 
 export const DEEPGRAM_AUDIO_BYTE_LIMIT = 1024 * 1024;
+// Raw 16-bit mono PCM at 24 kHz is 48,000 bytes a second: 4 MiB is about 87 s of speech.
+export const GEMINI_PCM_BYTE_LIMIT = 4 * 1024 * 1024;
+export const GEMINI_PCM_MIME_TYPE = "audio/L16; rate=24000; channels=1";
+// Gemini TTS takes its delivery direction as plain text before the line.
+const GEMINI_STYLE = {
+  bart: "Read this aloud as Bart, a soft-spoken young software engineer talking with his manager. Let the emotion follow the words (apologetic, anxious, defensive or relieved) and keep any hesitations:",
+  coach: "Read this aloud in a calm, warm, supportive coaching voice:",
+};
+const geminiEventSchema = z.object({
+  error: z.unknown().optional(),
+  candidates: z.array(z.object({
+    content: z.object({
+      parts: z.array(z.object({
+        inlineData: z.object({ mimeType: z.string(), data: z.string() }).optional(),
+      })).optional(),
+    }).optional(),
+  })).optional(),
+});
 const PROVIDER_JSON_BYTE_LIMIT = 256 * 1024;
 // IDs are kept for the TTL so a retry never re-bills a turn. 512 per 15 minutes is far
 // above the hourly quota's 200 turns. Results hold text only; audio is streamed on request.
@@ -47,6 +65,11 @@ type Dependencies = {
   apiKey: () => string | undefined;
   sttModel?: () => string | undefined;
   ttsModel?: () => string | undefined;
+  // "gemini" speaks with Gemini and falls back to Deepgram; any other value is Deepgram only.
+  ttsProvider?: () => string | undefined;
+  geminiApiKey?: () => string | undefined;
+  geminiTtsModel?: () => string | undefined;
+  geminiTtsVoice?: () => string | undefined;
   request?: typeof fetch;
   generate: (
     messages: VoiceMessage[],
@@ -69,6 +92,8 @@ type CachedTurn = Scope & {
   // Requests waiting on this turn; each hears every message as soon as it is saved.
   listeners: Set<(message: DeepgramMessage) => void>;
   speechRequests: number;
+  // Coach (transcript) turns get a different Gemini speaking style than Bart.
+  coach: boolean;
 };
 
 function audioBytes(base64: string) {
@@ -101,6 +126,42 @@ async function boundedBody(response: Response, limit: number) {
     void reader.cancel().catch(() => {});
     reader.releaseLock();
   }
+}
+
+/** Gemini SSE events to raw PCM bytes. Events split across chunks are buffered. */
+function geminiPcm() {
+  const decoder = new TextDecoder();
+  let buffered = "";
+  let size = 0;
+  const parse = (event: string, controller: TransformStreamDefaultController<Uint8Array>) => {
+    const data = event.split("\n").filter((line) => line.startsWith("data:")).map((line) => line.slice(5)).join("\n");
+    if (!data.trim()) return;
+    const parsed = geminiEventSchema.parse(JSON.parse(data));
+    if (parsed.error !== undefined) throw new Error("Speech provider error.");
+    for (const { inlineData } of parsed.candidates?.[0]?.content?.parts ?? []) {
+      if (!inlineData) continue;
+      if (!/^audio\/l16\s*(?:;|$)/i.test(inlineData.mimeType) || !/;\s*rate=24000\s*(?:;|$)/i.test(inlineData.mimeType))
+        throw new Error("Unexpected speech format.");
+      const bytes = Buffer.from(inlineData.data, "base64");
+      size += bytes.byteLength;
+      if (size > GEMINI_PCM_BYTE_LIMIT) throw new Error("Speech output exceeded limit.");
+      if (bytes.byteLength) controller.enqueue(bytes);
+    }
+  };
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      buffered += decoder.decode(chunk, { stream: true });
+      // Hold a trailing \r back: it may be the first half of a \r\n split across chunks.
+      const end = buffered.endsWith("\r") ? buffered.length - 1 : buffered.length;
+      const events = buffered.slice(0, end).replace(/\r\n?/g, "\n").split("\n\n");
+      buffered = events.pop()! + buffered.slice(end);
+      if (buffered.length > 2 * GEMINI_PCM_BYTE_LIMIT) throw new Error("Speech event exceeded limit.");
+      for (const event of events) parse(event, controller);
+    },
+    flush(controller) {
+      parse((buffered + decoder.decode()).replace(/\r\n?/g, "\n"), controller);
+    },
+  });
 }
 
 function message(turn: CachedTurn, role: "user" | "assistant", content: string): DeepgramMessage {
@@ -140,6 +201,52 @@ function partial(turn: CachedTurn, error: string): DeepgramTurnResult {
 export function createDeepgramVoiceService(dependencies: Dependencies) {
   const request = dependencies.request ?? fetch;
   const turns = new Map<string, CachedTurn>();
+  // A PCM stream, or undefined when Gemini fails before its first audio byte so Deepgram can answer.
+  async function geminiSpeech(text: string, coach: boolean) {
+    const apiKey = dependencies.geminiApiKey?.()?.trim();
+    if (!apiKey) return;
+    const model = dependencies.geminiTtsModel?.()?.trim() || "gemini-3.8-flash-lite-tts";
+    try {
+      const response = await request(
+        new URL("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse"),
+        {
+          method: "POST",
+          headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: GEMINI_STYLE[coach ? "coach" : "bart"] + " " + text }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: {
+                voiceName: dependencies.geminiTtsVoice?.()?.trim() || "Puck",
+              } } },
+            },
+          }),
+          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+          redirect: "error",
+        },
+      );
+      if (!response.ok || !response.body) {
+        // The error body is never read or relayed.
+        void response.body?.cancel().catch(() => {});
+        return;
+      }
+      const reader = response.body.pipeThrough(geminiPcm()).getReader();
+      const first = await reader.read();
+      if (first.done) return;
+      // After the first byte there is no fallback: a later failure errors the stream.
+      return new ReadableStream<Uint8Array>({
+        start: (controller) => controller.enqueue(first.value),
+        async pull(controller) {
+          const chunk = await reader.read();
+          if (chunk.done) controller.close();
+          else controller.enqueue(chunk.value);
+        },
+        cancel: (reason) => reader.cancel(reason),
+      });
+    } catch {
+      return;
+    }
+  }
   async function processTurn(input: Turn, turn: CachedTurn, apiKey: string, bytes: Buffer) {
     if (!turn.user) {
       try {
@@ -248,7 +355,8 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
           throw new DeepgramVoiceError("Voice turn capacity reached. Try again later.", 429);
         turn = { fingerprint, threadId: input.threadId, resourceId: identity,
           expiresAt: now + CACHE_TTL_MS, sessionId: "deepgram-" + input.turnId,
-          userSaved: false, assistantSaved: false, listeners: new Set(), speechRequests: 0 };
+          userSaved: false, assistantSaved: false, listeners: new Set(), speechRequests: 0,
+          coach: chatType(input.context) === "transcript" };
       }
       const release = dependencies.reserve?.(identity);
       turns.set(input.turnId, turn);
@@ -280,6 +388,11 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       if (!apiKey) throw new DeepgramVoiceError("Deepgram voice is not configured on the server.", 503);
       if (++turn.speechRequests > SPEECH_LIMIT)
         throw new DeepgramVoiceError("This reply's audio was requested too many times. Its text is saved.", 429);
+      // The fallback below is part of this same counted request.
+      if (dependencies.ttsProvider?.()?.trim().toLowerCase() === "gemini") {
+        const body = await geminiSpeech(turn.assistant.content, turn.coach);
+        if (body) return { body, mimeType: GEMINI_PCM_MIME_TYPE };
+      }
       let response: Response;
       try {
         const url = new URL("https://api.deepgram.com/v1/speak");

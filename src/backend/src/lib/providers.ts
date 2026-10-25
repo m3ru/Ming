@@ -8,6 +8,18 @@ export type TextProviderConfig = {
   apiKey: string | undefined;
 };
 
+/** The first nonblank Gemini key; shared by text and speech. */
+export function resolveGeminiKey(
+  env: ProviderEnvironment = process.env,
+): string | undefined {
+  return (
+    env.GEMINI_API_KEY?.trim() ||
+    env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+    env.GOOGLE_API_KEY?.trim() ||
+    undefined
+  );
+}
+
 /** Resolve only the selected vendor. Missing keys never switch providers. */
 export function resolveTextProvider(
   env: ProviderEnvironment = process.env,
@@ -17,11 +29,7 @@ export function resolveTextProvider(
     return {
       provider,
       model: env.GEMINI_MODEL?.trim() || "gemini-3.8-flash",
-      apiKey:
-        env.GEMINI_API_KEY?.trim() ||
-        env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-        env.GOOGLE_API_KEY?.trim() ||
-        undefined,
+      apiKey: resolveGeminiKey(env),
     };
   }
   if (provider === "openai") {

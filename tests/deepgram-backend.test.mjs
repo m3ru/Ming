@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { backendRequire, loadBackendSource } from "./backend-runtime.mjs";
 
 const voice = loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": loadBackendSource("src/backend/src/lib/prompts.ts") });
-const { createDeepgramVoiceService, DEEPGRAM_AUDIO_BYTE_LIMIT } = loadBackendSource(
+const { createDeepgramVoiceService, DEEPGRAM_AUDIO_BYTE_LIMIT, GEMINI_PCM_BYTE_LIMIT } = loadBackendSource(
   "src/backend/src/lib/deepgramVoice.ts", { "./voice": voice },
 );
 const secret = "synthetic-key-and-private-provider-diagnostics";
@@ -17,17 +17,41 @@ const transcript = (text = "I would like to help you improve.") => Response.json
   results: { channels: [{ alternatives: [{ transcript: text }] }] },
 });
 const speech = (body = Buffer.from("MP3 output")) => new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
+const geminiKey = "synthetic-gemini-key";
+const geminiHost = "generativelanguage.googleapis.com";
+// Gemini's SSE shape: one data line per event, CRLF separators, base64 L16 PCM parts.
+const pcmEvent = (...chunks) => ({ candidates: [{ content: { role: "model", parts: chunks.map((bytes) => ({
+  inlineData: { mimeType: "audio/l16; rate=24000; channels=1", data: Buffer.from(bytes).toString("base64") },
+})) } }] });
+const sse = (events, { separator = "\r\n\r\n", ...options } = {}) =>
+  chunked(events.map((event) => "data: " + JSON.stringify(event) + separator).join(""), options);
+function chunked(text, { split = 4096, onCancel, fail } = {}) {
+  const bytes = new TextEncoder().encode(text);
+  let offset = 0;
+  // Pull-based so a failure arrives only after every earlier chunk was read.
+  return new Response(new ReadableStream({
+    pull(controller) {
+      if (offset < bytes.length) controller.enqueue(bytes.slice(offset, offset += split));
+      else if (fail) controller.error(fail);
+      else controller.close();
+    },
+    cancel: onCancel,
+  }, { highWaterMark: 0 }), { headers: { "Content-Type": "text/event-stream" } });
+}
+const pcm = Buffer.from([1, 2, 3, 4, 250, 251, 252, 253]);
 function fixture(overrides = {}) {
   const requests = [], saves = [], generations = [];
+  const { gemini = () => sse([pcmEvent(pcm)]), ...rest } = overrides;
   const dependencies = {
     apiKey: () => secret,
     request: async (url, options) => {
       requests.push({ url: new URL(url), options });
-      return new URL(url).pathname.endsWith("listen") ? transcript() : speech();
+      const { hostname, pathname } = new URL(url);
+      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini() : speech();
     },
     generate: async (...args) => { generations.push(args); return "Thank you. I appreciate your support."; },
     save: async (messages, scope) => saves.push({ messages, scope }),
-    ...overrides,
+    ...rest,
   };
   return { service: createDeepgramVoiceService(dependencies), dependencies, requests, saves, generations };
 }
@@ -375,6 +399,250 @@ test("server adapter persists both real transcript texts in Mastra memory and se
         ? { google: { thinkingConfig: { thinkingLevel: "low" } } }
         : undefined);
     }
+  } finally {
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+const gemini = (overrides = {}) => fixture({ ttsProvider: () => "gemini", geminiApiKey: () => geminiKey, ...overrides });
+const hosts = (f) => f.requests.slice(1).map((r) => r.url.hostname);
+const BART_STYLE = "Read this aloud as Bart, a soft-spoken young software engineer talking with his manager.";
+const COACH_STYLE = "Read this aloud in a calm, warm, supportive coaching voice:";
+
+test("Gemini speech is opt-in: an unset, deepgram or unknown TTS provider calls only Deepgram", async () => {
+  for (const provider of [undefined, "deepgram", "", "openai", "geminii"]) {
+    const f = fixture({ ttsProvider: () => provider, geminiApiKey: () => geminiKey });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    const audio = await f.service.speech(speechOf(input), "owner");
+    assert.equal(audio.mimeType, "audio/mpeg");
+    assert.equal((await read(audio.body)).toString(), "MP3 output");
+    assert.deepEqual(hosts(f), ["api.deepgram.com"], String(provider));
+  }
+});
+
+test("Gemini speech sends the model, voice, key header and the Bart or coach style, and streams raw PCM", async () => {
+  let reserves = 0;
+  const f = gemini({ ttsProvider: () => " Gemini ", reserve: () => { reserves++; return () => {}; } });
+  const input = recording();
+  const result = await f.service.turn(input, "owner");
+  const audio = await f.service.speech(speechOf(input), "owner");
+  assert.equal(audio.mimeType, "audio/L16; rate=24000; channels=1");
+  assert.ok(audio.body instanceof ReadableStream);
+  assert.deepEqual(await read(audio.body), pcm);
+  assert.equal(reserves, 1, "speech reserves no extra quota");
+  assert.deepEqual(hosts(f), [geminiHost], "Deepgram is not called when Gemini speaks");
+  const [, call] = f.requests;
+  assert.equal(call.url.href, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-lite-tts:streamGenerateContent?alt=sse");
+  assert.equal(call.options.method, "POST");
+  assert.deepEqual(call.options.headers, { "x-goog-api-key": geminiKey, "Content-Type": "application/json" });
+  assert.doesNotMatch(JSON.stringify(call.options), new RegExp(secret), "the Deepgram key never goes to Google");
+  assert.equal(call.options.redirect, "error");
+  assert.ok(call.options.signal instanceof AbortSignal);
+  const body = JSON.parse(call.options.body);
+  assert.deepEqual(body.generationConfig, {
+    responseModalities: ["AUDIO"],
+    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Puck" } } },
+  });
+  const text = body.contents[0].parts[0].text;
+  assert.ok(text.startsWith(BART_STYLE), text);
+  assert.ok(text.endsWith(": " + result.messages[1].content), text);
+
+  const coach = gemini({ geminiTtsModel: () => " gemini-2.5-pro-preview-tts ", geminiTtsVoice: () => " Kore " });
+  const review = recording({ context: { chatType: { data: "transcript" } } });
+  await coach.service.turn(review, "owner");
+  await read((await coach.service.speech(speechOf(review), "owner")).body);
+  const [, coachCall] = coach.requests;
+  assert.equal(coachCall.url.pathname, "/v1beta/models/gemini-2.5-pro-preview-tts:streamGenerateContent");
+  const coachBody = JSON.parse(coachCall.options.body);
+  assert.equal(coachBody.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Kore");
+  assert.equal(coachBody.contents[0].parts[0].text, COACH_STYLE + " Thank you. I appreciate your support.");
+});
+
+test("Gemini SSE events split at any byte, with CRLF or LF separators, decode to the exact PCM bytes", async () => {
+  // Odd and even part sizes, two parts in one event, and a closing finishReason event.
+  const parts = [[0, 1, 2], [3, 4, 5, 6, 7, 8, 9], [10], [11, 12, 13, 14]].map((n) => Buffer.from(n.map((i) => (i * 37) % 256)));
+  const events = [pcmEvent(parts[0]), pcmEvent(parts[1], parts[2]),
+    { candidates: [{ content: { parts: [{ text: "ignored" }] } }] }, pcmEvent(parts[3]),
+    { candidates: [{ finishReason: "STOP" }], usageMetadata: { totalTokenCount: 9 } }];
+  for (const separator of ["\r\n\r\n", "\n\n"]) {
+    for (const split of [1, 2, 3, 5, 7, 64, 4096]) {
+      const f = gemini({ gemini: () => sse(events, { split, separator }) });
+      const input = recording();
+      await f.service.turn(input, "owner");
+      assert.deepEqual(await read((await f.service.speech(speechOf(input), "owner")).body), Buffer.concat(parts), JSON.stringify({ separator, split }));
+    }
+  }
+  // One event over two data lines (joined with a newline), a comment line, the codec=pcm
+  // MIME form, and a last event without a trailing blank line.
+  const json = JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/L16;codec=pcm;rate=24000", data: pcm.toString("base64") } }] } }] });
+  const at = json.indexOf("[");
+  const text = ": keep-alive\r\n\r\ndata: " + json.slice(0, at) + "\r\ndata: " + json.slice(at) + "\r\n\r\ndata: " + JSON.stringify(pcmEvent(parts[3])) + "\r\n";
+  for (const split of [1, 2, 3, 4096]) {
+    const f = gemini({ gemini: () => chunked(text, { split }) });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    assert.deepEqual(await read((await f.service.speech(speechOf(input), "owner")).body), Buffer.concat([pcm, parts[3]]), String(split));
+  }
+});
+
+test("Gemini failures before any audio fall back to Deepgram within the same counted request and never relay Gemini bodies", async () => {
+  let cancelled = 0;
+  const failures = {
+    "429 quota": () => new Response(new ReadableStream({
+      start: (c) => { c.enqueue(new TextEncoder().encode(secret)); c.close(); },
+      cancel: () => { cancelled++; },
+    }), { status: 429 }),
+    "500": () => Response.json({ error: { message: secret } }, { status: 500 }),
+    "network error": async () => { throw new Error(secret); },
+    "zero audio": () => sse([{ candidates: [{ finishReason: "STOP" }] }]),
+    "empty body": () => new Response(""),
+    "error event": () => sse([{ error: { code: 429, message: secret } }]),
+    "malformed event": () => new Response("data: {" + secret + "\r\n\r\n"),
+    "wrong format": () => sse([{ candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/mpeg", data: "AAAA" } }] } }] }]),
+    "stream error before audio": () => sse([], { fail: new Error(secret) }),
+  };
+  for (const [name, failure] of Object.entries(failures)) {
+    const f = gemini({ gemini: failure });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    for (let i = 0; i < 3; i++) {
+      const audio = await f.service.speech(speechOf(input), "owner");
+      assert.equal(audio.mimeType, "audio/mpeg", name);
+      assert.equal((await read(audio.body)).toString(), "MP3 output", name);
+    }
+    assert.deepEqual(hosts(f), Array(3).fill([geminiHost, "api.deepgram.com"]).flat(), name);
+    // The fallback is part of the same request: a fourth play is still refused.
+    await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 429, name);
+  }
+  assert.equal(cancelled, 3, "the 429 body is cancelled, never read");
+  for (const key of [undefined, " "]) {
+    const keyless = gemini({ geminiApiKey: () => key });
+    const input = recording();
+    await keyless.service.turn(input, "owner");
+    assert.equal((await keyless.service.speech(speechOf(input), "owner")).mimeType, "audio/mpeg");
+    assert.deepEqual(hosts(keyless), ["api.deepgram.com"], "no request is made without a Gemini key");
+  }
+  const both = gemini({
+    gemini: failures["429 quota"],
+    request: async (url) => new URL(url).pathname.endsWith("listen") ? transcript() : new Response(secret, { status: 503 }),
+  });
+  const input = recording();
+  await both.service.turn(input, "owner");
+  await assert.rejects(both.service.speech(speechOf(input), "owner"), (e) => e.status === 502 && !e.message.includes(secret));
+});
+
+test("a Gemini failure after audio has started errors the stream instead of switching voices", async () => {
+  for (const response of [
+    () => sse([pcmEvent(pcm)], { fail: new Error(secret) }),
+    () => sse([pcmEvent(pcm), { error: { message: secret } }]),
+    () => sse([pcmEvent(pcm), { candidates: [{ content: { parts: [{ inlineData: { mimeType: "audio/l16; rate=16000", data: "AAAA" } }] } }] }]),
+  ]) {
+    const f = gemini({ gemini: response });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    const audio = await f.service.speech(speechOf(input), "owner");
+    assert.equal(audio.mimeType, "audio/L16; rate=24000; channels=1");
+    // An errored stream aborts the HTTP response; no error text reaches the browser.
+    await assert.rejects(read(audio.body));
+    assert.deepEqual(hosts(f), [geminiHost]);
+  }
+});
+
+test("Gemini PCM is capped separately: the exact limit streams, one byte more errors the stream", async () => {
+  const head = Buffer.alloc(1024, 1);
+  for (const [extra, ok] of [[0, true], [1, false]]) {
+    const f = gemini({ gemini: () => sse([pcmEvent(head), pcmEvent(Buffer.alloc(GEMINI_PCM_BYTE_LIMIT - head.length + extra, 2))]) });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    const audio = await f.service.speech(speechOf(input), "owner");
+    if (ok) assert.equal((await read(audio.body)).length, GEMINI_PCM_BYTE_LIMIT);
+    else await assert.rejects(read(audio.body));
+  }
+  assert.equal(GEMINI_PCM_BYTE_LIMIT, 4 * 1024 * 1024);
+});
+
+test("Gemini speech keeps ownership, readiness and the three-request limit", async () => {
+  let finish;
+  const gate = new Promise((resolve) => { finish = resolve; });
+  const f = gemini({ generate: async () => { await gate; return "Gated reply"; } });
+  const input = recording();
+  const pending = f.service.turn(input, "owner");
+  await new Promise(setImmediate);
+  await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 409);
+  finish();
+  await pending;
+  await assert.rejects(f.service.speech(speechOf(input), "attacker"), (e) => e.status === 403);
+  await assert.rejects(f.service.speech({ ...speechOf(input), threadId: "other-thread" }, "owner"), (e) => e.status === 403);
+  await assert.rejects(f.service.speech({ ...speechOf(input), turnId: randomUUID() }, "owner"), (e) => e.status === 404);
+  assert.deepEqual(hosts(f), []);
+  for (let i = 0; i < 3; i++) await read((await f.service.speech(speechOf(input), "owner")).body);
+  await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 429);
+  assert.deepEqual(hosts(f), [geminiHost, geminiHost, geminiHost]);
+});
+
+test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and the Gemini model and voice from env", async () => {
+  const providers = loadBackendSource("src/backend/src/lib/providers.ts");
+  const prompts = loadBackendSource("src/backend/src/lib/prompts.ts");
+  const envNames = ["MING_TTS_PROVIDER", "GEMINI_TTS_MODEL", "GEMINI_TTS_VOICE", "GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY", "MING_TEXT_PROVIDER"];
+  const original = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const requests = [];
+  const { deepgramVoice } = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
+    "@mastra/core/agent": { Agent: class { async generateVNext() { return { text: "A spoken reply." }; } } },
+    "../lib/deepgramVoice": { createDeepgramVoiceService: (dependencies) => createDeepgramVoiceService({
+      ...dependencies,
+      apiKey: () => secret,
+      request: async (url, options) => {
+        requests.push({ url: new URL(url), options });
+        const { hostname, pathname } = new URL(url);
+        return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? sse([pcmEvent(pcm)]) : speech();
+      },
+    }) },
+    "../lib/prompts": prompts,
+    "../lib/providers": providers,
+    "../lib/security": { reserveGeneration: () => () => {} },
+    "../lib/voice": voice,
+    "./agents/defaultAgent": { defaultAgent: { getMemory: async () => ({
+      getThreadById: async () => ({ resourceId: "owner" }),
+      saveMessages: async () => {},
+    }) } },
+    "./models": { isTextConfigured: () => true, textModel: {} },
+  });
+  const speak = async () => {
+    const input = recording();
+    await deepgramVoice.turn(input, "owner");
+    requests.length = 0;
+    const audio = await deepgramVoice.speech(speechOf(input), "owner");
+    await read(audio.body);
+    return { mimeType: audio.mimeType, request: requests[0] };
+  };
+  try {
+    for (const name of envNames) delete process.env[name];
+    process.env.GEMINI_API_KEY = "first-key";
+    assert.equal((await speak()).request.url.hostname, "api.deepgram.com", "unset provider means Deepgram");
+    process.env.MING_TTS_PROVIDER = "gemini";
+    process.env.GEMINI_API_KEY = " ";
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = "second-key";
+    process.env.GOOGLE_API_KEY = "third-key";
+    let spoken = await speak();
+    assert.equal(spoken.mimeType, "audio/L16; rate=24000; channels=1");
+    assert.equal(spoken.request.options.headers["x-goog-api-key"], "second-key");
+    assert.match(spoken.request.url.pathname, /\/models\/gemini-3\.8-flash-lite-tts:streamGenerateContent$/);
+    assert.equal(JSON.parse(spoken.request.options.body).generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Puck");
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    process.env.GEMINI_TTS_MODEL = "gemini-3.8-flash-tts";
+    process.env.GEMINI_TTS_VOICE = "Charon";
+    spoken = await speak();
+    assert.equal(spoken.request.options.headers["x-goog-api-key"], "third-key");
+    assert.match(spoken.request.url.pathname, /\/models\/gemini-3\.8-flash-tts:streamGenerateContent$/);
+    assert.equal(JSON.parse(spoken.request.options.body).generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Charon");
+    delete process.env.GOOGLE_API_KEY;
+    spoken = await speak();
+    assert.equal(spoken.mimeType, "audio/mpeg", "gemini without a key falls back to Deepgram");
+    assert.equal(spoken.request.url.hostname, "api.deepgram.com");
   } finally {
     for (const [name, value] of Object.entries(original)) {
       if (value === undefined) delete process.env[name];

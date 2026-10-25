@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { createDeepgramVoiceService } from "../lib/deepgramVoice";
 import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
-import { resolveTextProvider } from "../lib/providers";
+import { resolveGeminiKey, resolveTextProvider } from "../lib/providers";
 import { reserveGeneration } from "../lib/security";
 import { chatType } from "../lib/voice";
 import { defaultAgent } from "./agents/defaultAgent";
@@ -22,6 +22,10 @@ export const deepgramVoice = createDeepgramVoiceService({
   apiKey: () => process.env.DEEPGRAM_API_KEY,
   sttModel: () => process.env.DEEPGRAM_STT_MODEL,
   ttsModel: () => process.env.DEEPGRAM_TTS_MODEL,
+  ttsProvider: () => process.env.MING_TTS_PROVIDER,
+  geminiApiKey: () => resolveGeminiKey(),
+  geminiTtsModel: () => process.env.GEMINI_TTS_MODEL,
+  geminiTtsVoice: () => process.env.GEMINI_TTS_VOICE,
   reserve: (identity) => reserveGeneration(identity, 3),
   async generate(messages, context, signal) {
     if (!isTextConfigured()) throw new Error("Text AI is not configured.");

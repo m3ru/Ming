@@ -54,6 +54,13 @@ type Session = {
   audioURL?: string;
   speech?: AbortController;
   audioReader?: ReadableStreamDefaultReader<Uint8Array>;
+  // Web Audio playback of a raw PCM reply, scheduled buffer after buffer.
+  pcm?: {
+    context: AudioContext;
+    sources: Set<AudioBufferSourceNode>;
+    next: number;
+    done: boolean;
+  };
 };
 const initial: VoiceSnapshot = {
   status: "idle",
@@ -66,6 +73,10 @@ const initial: VoiceSnapshot = {
 const MAX_AUDIO_BYTES = 512 * 1024;
 // Matches the server's DEEPGRAM_AUDIO_BYTE_LIMIT for one spoken reply.
 const MAX_REPLY_AUDIO_BYTES = 1024 * 1024;
+// Matches the server's GEMINI_PCM_BYTE_LIMIT for raw PCM speech.
+const MAX_REPLY_PCM_BYTES = 4 * 1024 * 1024;
+// Lead before a buffer that starts from silence, so its start is not clipped.
+const PCM_LEAD_SECONDS = 0.05;
 const AUDIO_FAILED = "The audio reply could not play. Its text is saved.";
 const MAX_RECORDING_MS = 30_000;
 const MIME_TYPES = [
@@ -178,6 +189,16 @@ export class DeepgramVoiceController {
     }
     if (active.audioURL) URL.revokeObjectURL(active.audioURL);
     active.audioURL = undefined;
+    if (active.pcm) {
+      const { context, sources } = active.pcm;
+      active.pcm = undefined;
+      context.onstatechange = null;
+      sources.forEach((source) => {
+        source.onended = null;
+        source.stop();
+      });
+      void context.close().catch(() => {});
+    }
     if (this.active === active)
       this.update({ speaking: false, playbackBlocked: false });
   }
@@ -648,17 +669,27 @@ export class DeepgramVoiceController {
       const reader = response.body?.getReader();
       if (!reader) throw new Error(AUDIO_FAILED);
       active.audioReader = reader;
+      const type = response.headers.get("Content-Type") ?? "";
+      const pcm = /^audio\/l16\s*(?:;|$)/i.test(type);
+      const limit = pcm ? MAX_REPLY_PCM_BYTES : MAX_REPLY_AUDIO_BYTES;
       let bytes = 0;
       const read = async () => {
         const chunk = await reader.read();
         bytes += chunk.value?.byteLength ?? 0;
-        if (bytes > MAX_REPLY_AUDIO_BYTES)
+        if (bytes > limit)
           throw new Error(
             "The audio reply is too large to play. Its text is saved.",
           );
         return chunk;
       };
-      if (
+      if (pcm)
+        await this.playPcm(
+          active,
+          abort,
+          read,
+          Number(/;\s*rate=(\d+)/i.exec(type)?.[1]) || 24_000,
+        );
+      else if (
         typeof MediaSource !== "undefined" &&
         MediaSource.isTypeSupported("audio/mpeg")
       ) {
@@ -712,6 +743,68 @@ export class DeepgramVoiceController {
       }
     }
   }
+  // Streams 16-bit little-endian mono PCM into Web Audio as it arrives.
+  private async playPcm(
+    active: Session,
+    abort: AbortController,
+    read: () => Promise<ReadableStreamReadResult<Uint8Array>>,
+    rate: number,
+  ) {
+    const context = new AudioContext();
+    const pcm: NonNullable<Session["pcm"]> = {
+      context,
+      sources: new Set(),
+      next: 0,
+      done: false,
+    };
+    active.pcm = pcm;
+    // A context suspended by autoplay rules is blocked until resumePlayback.
+    const sync = () => {
+      if (this.active === active && active.pcm === pcm)
+        this.update({
+          speaking: context.state === "running" && pcm.sources.size > 0,
+          playbackBlocked: context.state === "suspended",
+        });
+    };
+    context.onstatechange = sync;
+    // A sample's two bytes can be split across network chunks.
+    let carry: number | undefined;
+    while (true) {
+      const chunk = await read();
+      if (abort.signal.aborted) return;
+      if (chunk.done) break;
+      let data = chunk.value;
+      if (carry !== undefined) {
+        data = new Uint8Array(chunk.value.byteLength + 1);
+        data[0] = carry;
+        data.set(chunk.value, 1);
+      }
+      const length = data.byteLength >> 1;
+      carry = data.byteLength % 2 ? data[data.byteLength - 1] : undefined;
+      if (!length) continue;
+      const buffer = context.createBuffer(1, length, rate);
+      const samples = buffer.getChannelData(0);
+      const view = new DataView(data.buffer, data.byteOffset, length * 2);
+      for (let i = 0; i < length; i++)
+        samples[i] = view.getInt16(i * 2, true) / 32768;
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      const start = Math.max(pcm.next, context.currentTime + PCM_LEAD_SECONDS);
+      source.start(start);
+      pcm.next = start + length / rate;
+      pcm.sources.add(source);
+      source.onended = () => {
+        pcm.sources.delete(source);
+        if (pcm.done && !pcm.sources.size && active.pcm === pcm)
+          this.clearPlayback(active);
+        else sync();
+      };
+      sync();
+    }
+    pcm.done = true;
+    if (!pcm.sources.size && active.pcm === pcm) this.clearPlayback(active);
+  }
   private watchPlayback(active: Session, audio: HTMLAudioElement, url: string) {
     active.audio = audio;
     active.audioURL = url;
@@ -750,10 +843,11 @@ export class DeepgramVoiceController {
   resumePlayback = async () => {
     const active = this.active;
     const audio = active?.audio;
-    if (!active || !audio || active.stopPromise) return;
+    const pcm = active?.pcm;
+    if (!active || (!audio && !pcm) || active.stopPromise) return;
     try {
-      await audio.play();
-      if (this.active === active && active.audio === audio)
+      await (pcm ? pcm.context.resume() : audio?.play());
+      if (this.active === active && active.audio === audio && active.pcm === pcm)
         this.update({ playbackBlocked: false });
     } catch {
       if (this.active === active)
