@@ -4,6 +4,7 @@ import {
   createLiveVoiceService,
   VoiceError,
   voiceMessageSchema,
+  VOICE_LEASE_MS,
 } from "../src/backend/src/lib/voice";
 import {
   VoiceTranscript,
@@ -108,7 +109,12 @@ function service(
 
 test("session capabilities bind saves to the correct conversation and delegation retries are deduplicated", async () => {
   let generated = 0;
-  const saved: unknown[] = [];
+  const saved: {
+    messages: Parameters<
+      Parameters<typeof createLiveVoiceService>[0]["save"]
+    >[0];
+    scope: Parameters<Parameters<typeof createLiveVoiceService>[0]["save"]>[1];
+  }[] = [];
   const backend = service({
     generate: async () => {
       generated++;
@@ -118,7 +124,7 @@ test("session capabilities bind saves to the correct conversation and delegation
       saved.push({ messages, scope });
     },
   });
-  const session = await backend.create(offer);
+  const session = await backend.create(offer, offer.resourceId);
   assert.equal(session.sdp, "answer");
   assert.notEqual(session.token, "test-secret");
   const input = {
@@ -128,20 +134,21 @@ test("session capabilities bind saves to the correct conversation and delegation
     context: {},
   };
   await assert.rejects(
-    backend.delegate(input, "wrong-token"),
+    backend.delegate(input, "wrong-token", offer.resourceId),
     (error) => error instanceof VoiceError && error.status === 403,
   );
   const replies = await Promise.all([
-    backend.delegate(input, session.token),
-    backend.delegate(input, session.token),
+    backend.delegate(input, session.token, offer.resourceId),
+    backend.delegate(input, session.token, offer.resourceId),
   ]);
   assert.equal(generated, 1);
   assert.equal(replies[0].delegationId, "task-1");
   await backend.sync(
     { sessionId: session.sessionId, messages: [message] },
     session.token,
+    offer.resourceId,
   );
-  assert.equal((saved[0] as any).scope.threadId, offer.threadId);
+  assert.equal(saved[0].scope.threadId, offer.threadId);
   await assert.rejects(
     backend.sync(
       {
@@ -149,6 +156,7 @@ test("session capabilities bind saves to the correct conversation and delegation
         messages: [{ ...message, id: "another-session" }],
       },
       session.token,
+      offer.resourceId,
     ),
     /does not belong/,
   );
@@ -156,14 +164,14 @@ test("session capabilities bind saves to the correct conversation and delegation
 
 test("provider failures and missing credentials are actionable without exposing secrets", async () => {
   await assert.rejects(
-    service({ apiKey: () => undefined }).create(offer),
+    service({ apiKey: () => undefined }).create(offer, offer.resourceId),
     /root .env/,
   );
   await assert.rejects(
     service({
       request: async () =>
         Response.json({ error: "test-secret" }, { status: 403 }),
-    }).create(offer),
+    }).create(offer, offer.resourceId),
     (error) => {
       assert.match((error as Error).message, /GPT-Live access/);
       assert.doesNotMatch((error as Error).message, /test-secret/);
@@ -174,7 +182,7 @@ test("provider failures and missing credentials are actionable without exposing 
 
 class FakeChannel {
   readyState = "open";
-  sent: any[] = [];
+  sent: { type: string; content?: string }[] = [];
   onmessage?: (event: { data: string }) => void;
   onclose?: () => void;
   finalize = true;
@@ -229,10 +237,14 @@ class FakePeer extends EventTarget {
   }
 }
 class FakeAudio {
+  static latest: FakeAudio;
   autoplay = false;
   paused = true;
   muted = false;
   srcObject = null;
+  constructor() {
+    FakeAudio.latest = this;
+  }
   async play() {
     this.paused = false;
   }
@@ -245,6 +257,10 @@ function controller(
   t: TestContext,
   permission?: () => Promise<unknown>,
   delegate?: () => Promise<Response>,
+  transport?: (
+    url: string,
+    init?: RequestInit,
+  ) => Promise<Response> | undefined,
 ) {
   const track = {
     enabled: true,
@@ -260,10 +276,14 @@ function controller(
   let messages: ConversationMessage[] = [];
   let context: Record<string, unknown> = offer.context;
   const saves: ConversationMessage[][] = [];
+  const requests: { url: string; init?: RequestInit }[] = [];
   t.mock.method(
     globalThis,
     "fetch",
     async (url: string | URL | Request, init?: RequestInit) => {
+      requests.push({ url: String(url), init });
+      const custom = transport?.(String(url), init);
+      if (custom) return custom;
       if (String(url).endsWith("/voice/session"))
         return Response.json({
           sessionId: "live-1",
@@ -274,6 +294,14 @@ function controller(
         return delegate
           ? delegate()
           : Response.json({ text: "Backend answer" });
+      if (String(url).endsWith("/voice/end")) {
+        const input = JSON.parse(init!.body as string);
+        assert.equal(input.sessionId, "live-1");
+        assert.equal(Object.hasOwn(input, "messages"), false);
+        return Response.json({ ended: true });
+      }
+      if (String(url).endsWith("/voice/heartbeat"))
+        return Response.json({ renewed: true });
       saves.push(JSON.parse(init!.body as string).messages);
       return Response.json({ saved: true });
     },
@@ -313,6 +341,7 @@ function controller(
     track,
     microphone,
     saves,
+    requests,
     setContext: (value: Record<string, unknown>) => {
       context = value;
     },
@@ -338,12 +367,7 @@ test("speaking stays visible through short pauses and clears after silence or st
   let now = 0;
   let loud = false;
   let frame!: FrameRequestCallback;
-  let playback!: FakeAudio;
   t.mock.method(performance, "now", () => now);
-  t.mock.method(FakeAudio.prototype, "play", async function (this: FakeAudio) {
-    playback = this;
-    this.paused = false;
-  });
   const prior = new Map<string, PropertyDescriptor | undefined>();
   for (const [key, value] of Object.entries({
     MediaStream: class {},
@@ -388,6 +412,7 @@ test("speaking stays visible through short pauses and clears after silence or st
   };
 
   await fixture.voice.start();
+  const playback = FakeAudio.latest;
   FakePeer.latest.ontrack?.({ track: { stop() {} } });
   assert.equal(fixture.voice.getSnapshot().speaking, false);
   assert.equal(sample(100, true), true);
@@ -579,7 +604,7 @@ test("backend replies to an outdated request are not spoken after a user correct
     channel.sent.some(
       (event) =>
         event.type === "session.thinking.append" &&
-        event.content.includes("discarded"),
+        event.content?.includes("discarded"),
     ),
   );
   await voice.stop();
@@ -610,7 +635,7 @@ test("scenario changes invalidate old contextual facts without duplicating updat
     (event) => event.type === "session.instructions.append",
   );
   assert.equal(updates.length, 1);
-  assert.match(updates[0].content, /Earlier details may be outdated/);
+  assert.match(updates[0].content!, /Earlier details may be outdated/);
   await fixture.voice.stop();
 });
 
@@ -622,7 +647,7 @@ test("failed backend work can be retried without caching a rejected promise", as
       return "Recovered";
     },
   });
-  const session = await backend.create(offer);
+  const session = await backend.create(offer, offer.resourceId);
   const request = {
     sessionId: session.sessionId,
     delegationId: "retry",
@@ -630,11 +655,11 @@ test("failed backend work can be retried without caching a rejected promise", as
     context: {},
   };
   await assert.rejects(
-    backend.delegate(request, session.token),
+    backend.delegate(request, session.token, offer.resourceId),
     /Temporary failure/,
   );
   assert.equal(
-    (await backend.delegate(request, session.token)).text,
+    (await backend.delegate(request, session.token, offer.resourceId)).text,
     "Recovered",
   );
   assert.equal(attempts, 2);
@@ -657,6 +682,7 @@ test("duplicate starts share one connection and startup HTTP errors release it",
 
 test("missing session.closed reports incomplete finalization and still saves received captions", async (t) => {
   const fixture = controller(t);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   await fixture.voice.start();
   FakePeer.latest.channel.finalize = false;
   FakePeer.latest.channel.emit({
@@ -666,7 +692,6 @@ test("missing session.closed reports incomplete finalization and still saves rec
     start_ms: 1000,
     end_ms: 1200,
   });
-  t.mock.timers.enable({ apis: ["setTimeout"] });
   const stopping = fixture.voice.stop();
   const assertion = assert.rejects(stopping, /finalization timed out/);
   t.mock.timers.tick(15000);
@@ -675,4 +700,320 @@ test("missing session.closed reports incomplete finalization and still saves rec
   assert.match(fixture.voice.getSnapshot().error!, /incomplete/);
   assert.equal(fixture.saves.at(-1)![0].content, "Keep this");
   assert.ok(fixture.track.stopped);
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/end")).length,
+    1,
+  );
+});
+
+test("released and expired media leases free slots while transcript recovery stays authorized", async () => {
+  let now = 1000;
+  let sequence = 0;
+  const backend = service({
+    now: () => now,
+    request: async () =>
+      Response.json({
+        session: { id: "lease-" + ++sequence },
+        transport: { sdp: "answer" },
+      }),
+  });
+  const first = await backend.create(offer, offer.resourceId);
+  const second = await backend.create(offer, offer.resourceId);
+  await assert.rejects(backend.create(offer, offer.resourceId), {
+    status: 429,
+  });
+  await assert.rejects(
+    backend.heartbeat(first.sessionId, first.token, "other"),
+    { status: 403 },
+  );
+  now += VOICE_LEASE_MS / 2;
+  await backend.heartbeat(first.sessionId, first.token, offer.resourceId);
+  now += VOICE_LEASE_MS / 2;
+  await assert.rejects(
+    backend.heartbeat(second.sessionId, second.token, offer.resourceId),
+    { status: 409 },
+  );
+  const third = await backend.create(offer, offer.resourceId);
+  await assert.rejects(backend.create(offer, offer.resourceId), {
+    status: 429,
+  });
+  await backend.end(first.sessionId, first.token, offer.resourceId);
+  await backend.end(first.sessionId, first.token, offer.resourceId);
+  await backend.create(offer, offer.resourceId);
+  for (const session of [first, second]) {
+    await backend.sync(
+      { sessionId: session.sessionId, messages: [] },
+      session.token,
+      offer.resourceId,
+    );
+    await assert.rejects(
+      backend.delegate(
+        {
+          sessionId: session.sessionId,
+          messages: [],
+          context: {},
+          delegationId: "after-close",
+        },
+        session.token,
+        offer.resourceId,
+      ),
+      { status: 409 },
+    );
+  }
+  now += 90 * 60_000;
+  await assert.rejects(
+    backend.sync(
+      { sessionId: third.sessionId, messages: [] },
+      third.token,
+      offer.resourceId,
+    ),
+    { status: 401 },
+  );
+  await backend.create(offer, offer.resourceId);
+});
+
+test("concurrent pending offers still reserve the two available slots", async () => {
+  const completed: (() => void)[] = [];
+  let sequence = 0;
+  const backend = service({
+    request: async () => {
+      const id = "pending-" + ++sequence;
+      await new Promise<void>((resolve) => completed.push(resolve));
+      return Response.json({ session: { id }, transport: { sdp: "answer" } });
+    },
+  });
+  const first = backend.create(offer, offer.resourceId);
+  const second = backend.create(offer, offer.resourceId);
+  await assert.rejects(backend.create(offer, offer.resourceId), {
+    status: 429,
+  });
+  completed.forEach((resolve) => resolve());
+  await Promise.all([first, second]);
+});
+
+test("refresh and disconnect releases permit more than two immediate reconnects", async (t) => {
+  let sequence = 0;
+  const backend = service({
+    request: async () =>
+      Response.json({
+        session: { id: "reconnect-" + ++sequence },
+        transport: { sdp: "answer" },
+      }),
+  });
+  const fixture = controller(t, undefined, undefined, (url, init) => {
+    const body = JSON.parse(init!.body as string);
+    const token =
+      new Headers(init?.headers).get("authorization")?.slice(7) ?? "";
+    return (async () => {
+      try {
+        if (url.endsWith("/voice/session"))
+          return Response.json(await backend.create(body, offer.resourceId));
+        if (url.endsWith("/voice/end"))
+          return Response.json(
+            await backend.end(body.sessionId, token, offer.resourceId),
+          );
+        if (url.endsWith("/voice/sync"))
+          return Response.json(
+            await backend.sync(body, token, offer.resourceId),
+          );
+        throw new Error("Unexpected test request");
+      } catch (error) {
+        return Response.json(
+          { error: (error as Error).message },
+          { status: (error as VoiceError).status ?? 500 },
+        );
+      }
+    })();
+  });
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await fixture.voice.start();
+    assert.equal(fixture.voice.getSnapshot().status, "connected");
+    if (attempt % 2) {
+      FakePeer.latest.connectionState = "disconnected";
+      FakePeer.latest.onconnectionstatechange?.();
+    } else fixture.voice.dispose();
+    await tick();
+  }
+  assert.equal(sequence, 6);
+  const releases = fixture.requests.filter(({ url }) =>
+    url.endsWith("/voice/end"),
+  );
+  assert.equal(releases.length, 6);
+  for (const { init } of releases) {
+    assert.equal(init?.keepalive, true);
+    assert.equal(init?.signal?.aborted, false);
+  }
+});
+
+test("failed disconnect saves survive repeated sessions and stop retries every retained transcript", async (t) => {
+  let failSaves = true;
+  let sequence = 0;
+  const recovered: string[] = [];
+  const fixture = controller(t, undefined, undefined, (url, init) => {
+    const input = JSON.parse(init!.body as string);
+    if (url.endsWith("/voice/session"))
+      return Promise.resolve(
+        Response.json({
+          sessionId: "recover-" + ++sequence,
+          token: "capability",
+          sdp: "answer",
+        }),
+      );
+    if (url.endsWith("/voice/end"))
+      return Promise.resolve(Response.json({ ended: true }));
+    if (url.endsWith("/voice/sync")) {
+      if (failSaves)
+        return Promise.resolve(
+          Response.json({ error: "Save unavailable" }, { status: 503 }),
+        );
+      recovered.push(input.messages[0].content);
+      return Promise.resolve(Response.json({ saved: true }));
+    }
+  });
+  for (let index = 0; index < 3; index++) {
+    await fixture.voice.start();
+    FakePeer.latest.channel.emit({
+      type: "session.input_transcript.delta",
+      event_id: "caption",
+      delta: "Caption " + index,
+      start_ms: 0,
+      end_ms: 100,
+    });
+    FakePeer.latest.connectionState = "failed";
+    FakePeer.latest.onconnectionstatechange?.();
+    await tick();
+  }
+  await assert.rejects(fixture.voice.stop(), /Save unavailable/);
+  failSaves = false;
+  await fixture.voice.stop();
+  assert.deepEqual(recovered, ["Caption 0", "Caption 1", "Caption 2"]);
+});
+
+test("failed final transcript saves release capacity and remain retryable after stop", async (t) => {
+  let failSaves = true;
+  const fixture = controller(t, undefined, undefined, (url) =>
+    url.endsWith("/voice/sync") && failSaves
+      ? Promise.resolve(
+          Response.json({ error: "Save unavailable" }, { status: 503 }),
+        )
+      : undefined,
+  );
+  await fixture.voice.start();
+  FakePeer.latest.channel.emit({
+    type: "session.input_transcript.delta",
+    event_id: "caption",
+    delta: "Recover final captions",
+    start_ms: 0,
+    end_ms: 100,
+  });
+  await assert.rejects(fixture.voice.stop(), /Save unavailable/);
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/end")).length,
+    1,
+  );
+  assert.equal(fixture.voice.getSnapshot().status, "idle");
+  failSaves = false;
+  await fixture.voice.stop();
+  assert.equal(
+    fixture.saves.at(-1)?.[0].content,
+    "Recover final captions final",
+  );
+});
+
+test("dispose during pending create releases a late session response with a fresh signal", async (t) => {
+  let complete!: (response: Response) => void;
+  const pending = new Promise<Response>((resolve) => {
+    complete = resolve;
+  });
+  const fixture = controller(t, undefined, undefined, (url) =>
+    url.endsWith("/voice/session") ? pending : undefined,
+  );
+  const starting = fixture.voice.start();
+  await tick();
+  fixture.voice.dispose();
+  complete(
+    Response.json({ sessionId: "live-1", token: "capability", sdp: "answer" }),
+  );
+  await starting;
+  await tick();
+  const releases = fixture.requests.filter(({ url }) =>
+    url.endsWith("/voice/end"),
+  );
+  assert.equal(releases.length, 1);
+  assert.equal(releases[0].init?.signal?.aborted, false);
+  assert.equal(releases[0].init?.keepalive, true);
+  assert.equal(fixture.voice.getSnapshot().status, "idle");
+});
+
+test("concurrent stop and dispose send one release and retain captions after failed finalization", async (t) => {
+  const fixture = controller(t);
+  await fixture.voice.start();
+  FakePeer.latest.channel.finalize = false;
+  FakePeer.latest.channel.emit({
+    type: "session.input_transcript.delta",
+    event_id: "caption",
+    delta: "Keep this",
+    start_ms: 0,
+    end_ms: 100,
+  });
+  const stopping = fixture.voice.stop();
+  const assertion = assert.rejects(stopping, /closed before finalization/);
+  fixture.voice.dispose();
+  await assertion;
+  await fixture.voice.stop();
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/end")).length,
+    1,
+  );
+  assert.equal(fixture.saves.at(-1)?.[0].content, "Keep this");
+  assert.equal(fixture.voice.getSnapshot().status, "idle");
+});
+
+test("connected sessions renew the lease and heartbeat failure releases media", async (t) => {
+  const fixture = controller(t, undefined, undefined, (url) =>
+    url.endsWith("/voice/heartbeat")
+      ? Promise.resolve(
+          Response.json({ error: "Voice connection expired" }, { status: 409 }),
+        )
+      : undefined,
+  );
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  await fixture.voice.start();
+  t.mock.timers.tick(15000);
+  await tick();
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/heartbeat"))
+      .length,
+    1,
+  );
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/end")).length,
+    1,
+  );
+  assert.equal(fixture.voice.getSnapshot().status, "idle");
+  assert.ok(FakePeer.latest.closed);
+});
+
+test("heartbeats continue while connected and stop after dispose", async (t) => {
+  const fixture = controller(t);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  await fixture.voice.start();
+  for (let count = 1; count <= 3; count++) {
+    t.mock.timers.tick(15000);
+    await tick();
+    assert.equal(
+      fixture.requests.filter(({ url }) => url.endsWith("/voice/heartbeat"))
+        .length,
+      count,
+    );
+  }
+  fixture.voice.dispose();
+  await tick();
+  t.mock.timers.tick(60000);
+  await tick();
+  assert.equal(
+    fixture.requests.filter(({ url }) => url.endsWith("/voice/heartbeat"))
+      .length,
+    3,
+  );
 });

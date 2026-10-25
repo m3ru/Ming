@@ -1,10 +1,10 @@
-import React from 'react';
-import { createMessageRenderer, CustomMessage } from 'cedar-os';
-import { ShimmerText } from './components/text/ShimmerText';
+import React from "react";
+import { createMessageRenderer, CustomMessage } from "cedar-os";
+import { ConversationError } from "./components/chatMessages/ConversationError";
 
 // Define custom message types for tool events
 type ToolCallMessage = CustomMessage<
-  'tool-call',
+  "tool-call",
   {
     payload?: {
       toolName?: string;
@@ -14,7 +14,7 @@ type ToolCallMessage = CustomMessage<
 >;
 
 type ToolResultMessage = CustomMessage<
-  'tool-result',
+  "tool-result",
   {
     payload?: {
       toolName?: string;
@@ -26,29 +26,43 @@ type ToolResultMessage = CustomMessage<
 
 // Tool Call Renderer - Hidden from UI but still processes in background
 export const ToolCallRenderer = createMessageRenderer<ToolCallMessage>({
-  type: 'tool-call',
-  namespace: 'agent-tools',
-  render: (message) => {
+  type: "tool-call",
+  namespace: "agent-tools",
+  render: () => {
     // Return null to hide from UI while tool still executes in background
     return null;
   },
   validateMessage: (msg): msg is ToolCallMessage => {
-    return msg.type === 'tool-call';
+    return msg.type === "tool-call";
   },
 });
 
 // Tool Result Renderer - Hidden from UI but still processes in background
 export const ToolResultRenderer = createMessageRenderer<ToolResultMessage>({
-  type: 'tool-result',
-  namespace: 'agent-tools',
-  render: (message) => {
+  type: "tool-result",
+  namespace: "agent-tools",
+  render: () => {
     // Return null to hide from UI while tool result is still captured
     return null;
   },
   validateMessage: (msg): msg is ToolResultMessage => {
-    return msg.type === 'tool-result';
+    return msg.type === "tool-result";
   },
 });
 
 // Export all renderers for easy registration
-export const messageRenderers = [ToolCallRenderer, ToolResultRenderer];
+export const ConversationErrorRenderer = createMessageRenderer<
+  CustomMessage<"error">
+>({
+  type: "error",
+  namespace: "conversation",
+  render: () => <ConversationError />,
+  validateMessage: (message): message is CustomMessage<"error"> =>
+    message.type === "error",
+});
+
+export const messageRenderers = [
+  ToolCallRenderer,
+  ToolResultRenderer,
+  ConversationErrorRenderer,
+];

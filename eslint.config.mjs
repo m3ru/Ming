@@ -9,6 +9,25 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-const eslintConfig = [...compat.extends('next/core-web-vitals', 'next/typescript')];
+const eslintConfig = [
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/.mastra/**',
+      '**/.open-next/**',
+      '**/.wrangler/**',
+      'out/**',
+      'cloudflare-env.d.ts',
+      'next-env.d.ts',
+    ],
+  },
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  {
+    files: ['scripts/**/*.mjs', 'tests/**/*.mjs', 'docs/**/*.mjs'],
+    // These Node harnesses evaluate CommonJS modules, outside the Next runtime.
+    rules: { '@next/next/no-assign-module-variable': 'off' },
+  },
+];
 
 export default eslintConfig;

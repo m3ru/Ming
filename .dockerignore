@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/.next
+**/.mastra
+**/.open-next
+**/.wrangler
+**/.env*
+**/*.db
+**/*.db-*
+**/tsconfig.tsbuildinfo
+docs/demo-readiness-2026/evidence
+output.txt

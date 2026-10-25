@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-25",
+  "scope": "OpenAI abandoned-session recovery and Deepgram explicit text fallback",
+  "automated": {
+    "openaiVoiceTestsPassed": 28,
+    "combinedRegressionTestsPassed": 88,
+    "frontendTypecheck": "passed",
+    "backendTypecheck": "passed",
+    "eslintErrors": 0,
+    "eslintWarnings": 61,
+    "diffCheck": "passed"
+  },
+  "browser": {
+    "tool": "Codex in-app browser",
+    "fixtureUrl": "http://127.0.0.1:3002/scenario",
+    "actualUiSource": "Next development app at http://127.0.0.1:3000",
+    "syntheticMicrophoneAndProviderResponses": true,
+    "liveProviderValidation": false,
+    "verifiedSequence": [
+      "Hold microphone produces a failed voice request and visible Continue by text action",
+      "End Scenario retries the recording and explains voice recovery rather than reporting a report-service failure",
+      "Type a draft and select Continue by text: draft preserved, microphone released, retry latch discarded",
+      "Send message: typed user and assistant dialogue appears and draft clears",
+      "End Scenario navigates to /report with summary, scores and annotated transcript"
+    ],
+    "finalCounters": {
+      "voice": 2,
+      "chat": 1,
+      "report": 1,
+      "sentiment": 1,
+      "microphoneAcquired": 1,
+      "microphoneStopped": 1,
+      "recordingStarted": 1,
+      "recordingStopped": 1
+    },
+    "voiceRequestsAfterExplicitRecovery": 0,
+    "reportPayloadContainsTranscript": true,
+    "realLocalhostPageStillRenders": true,
+    "screenshot": "voice-recovery-report.png"
+  },
+  "realRuntimeProbe": {
+    "route": "POST http://127.0.0.1:3000/api/backend/voice/heartbeat",
+    "input": "Invalid synthetic session and capability",
+    "status": 401,
+    "result": "Registered route reached real backend and rejected unknown session",
+    "providerCalls": 0
+  },
+  "limitations": [
+    "OpenAI lifecycle tests use mocked provider transport; no live OpenAI call was made",
+    "Browser failure and success responses are deterministic fixtures, not a real microphone-to-provider-to-report validation",
+    "Production builds were not rerun for these recovery changes"
+  ],
+  "pushed": false
+}

@@ -9,7 +9,7 @@ import {
 	CommandSeparator,
 } from '@/cedar/components/ui/command';
 import { KeyboardShortcut } from '@/cedar/components/ui/KeyboardShortcut';
-import { EditorContent } from '@tiptap/react';
+import { CedarEditorContent as EditorContent } from 'cedar-os';
 import type { ActivationEvent, ActivationMode } from 'cedar-os';
 import {
 	ActivationMode as ActivationModeEnum,

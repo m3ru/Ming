@@ -106,7 +106,7 @@ export const CollapsedButton = forwardRef<
 				document.body.style.setProperty('-webkit-user-select', 'none');
 			}
 		},
-		[bottomOffset, sideOffset, side]
+		[bottomOffset, sideOffset]
 	);
 
 	const handleMouseMove = useCallback(
@@ -135,7 +135,7 @@ export const CollapsedButton = forwardRef<
 				setSideOffset(newRightOffset);
 			}
 		},
-		[isDragging, bottomOffset, sideOffset, side]
+		[isDragging, side]
 	);
 
 	const handleMouseUp = useCallback(() => {

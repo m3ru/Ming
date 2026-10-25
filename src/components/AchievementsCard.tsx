@@ -1,15 +1,17 @@
 "use client";
 
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, Trophy, Star } from "lucide-react";
+import { useEffect, useState } from "react";
+import { readCompletedScenarioIds } from "@/lib/completedScenarios";
+import { Trophy, Star } from "lucide-react";
 
 export default function AchievementsCard() {
-  // Example achievements
+  const [count, setCount] = useState(0);
+  useEffect(() => { setCount(readCompletedScenarioIds(localStorage).length); }, []);
   const achievements = [
-    { title: "First Scenario Complete", icon: Trophy, unlocked: true },
-    { title: "Conflict Resolver", icon: Star, unlocked: false },
-    { title: "Empathy Master", icon: Star, unlocked: false },
+    { title: "First Scenario Complete", icon: Trophy, unlocked: count >= 1 },
+    { title: "Three Practice Sessions", icon: Star, unlocked: count >= 3 },
+    { title: "Five Practice Sessions", icon: Star, unlocked: count >= 5 },
   ];
   return (
     <Card className="w-full shadow-lg border border-gray-200">

@@ -1,16 +1,13 @@
-import React, { useEffect } from "react";
-import { X } from "lucide-react";
-import { AnimatePresence } from "motion/react";
+import React, { useEffect, useRef } from "react";
 import { useCedarStore } from "cedar-os";
 import "dotenv/config";
-import { mastraClient } from "@/lib/mastra-client";
-import { SidePanelContainer } from "@/cedar/components/structural/SidePanelContainer";
-import { CollapsedButton } from "@/cedar/components/chatMessages/structural/CollapsedChatButton";
+import Parser from "@/app/report/parser";
+import { recordCompletedScenario } from "@/lib/completedScenarios";
+import { buildReportTranscript } from "@/lib/reportTranscript";
 import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
 import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
-import Container3D from "@/cedar/components/containers/Container3D";
 import { useThreadMessages } from "cedar-os";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   useRegisterState,
   useStateBasedMentionProvider,
@@ -25,51 +22,8 @@ import { Scenarios } from "@/backend/src/lib/scenarios";
 import { analyzeSentiment, type Sentiment } from "@/lib/sentiment";
 import { useSubscribeStateToAgentContext } from "cedar-os";
 import { Separator } from "@/components/ui/separator";
-import { billPrompt } from "@/lib/prompts";
-import { bartPrompt } from "@/lib/prompts";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
 import type { Scenario } from "@/lib/types";
-
-// Patch Cedar's sendMessage to prepend document references only (patch only once, globally)
-const cedarStoreGlobal = useCedarStore.getState();
-// Use type assertion to allow custom property
-const storeWithPatchFlag = cedarStoreGlobal as typeof cedarStoreGlobal & {
-  _sendMessageDocPatchPatched?: boolean;
-};
-if (!storeWithPatchFlag._sendMessageDocPatchPatched) {
-  const origSend = cedarStoreGlobal.sendMessage;
-  storeWithPatchFlag.sendMessage = (msg, ...args) => {
-    if (typeof msg === "string") {
-      let modifiedMsg = msg as string;
-
-      // Always get the latest contextDocs and documents from the store
-      const state = useCedarStore.getState();
-      const contextDocsVal: number[] =
-        ((state as any)["contextDocs"] as number[]) || [];
-      const documentsVal =
-        ((state as any)["documents"] as Array<{ title: string }>) || [];
-
-      // Prepend document references if they exist
-      if (
-        contextDocsVal &&
-        contextDocsVal.length > 0 &&
-        documentsVal.length > 0
-      ) {
-        const docNames = contextDocsVal
-          .map((idx: number) => documentsVal[idx]?.title)
-          .filter(Boolean)
-          .join(", ");
-        if (docNames && !modifiedMsg.startsWith("re: (")) {
-          modifiedMsg = `re: (${docNames}) ${modifiedMsg}`;
-        }
-      }
-
-      msg = modifiedMsg as any;
-    }
-    return origSend(msg as any, ...args);
-  };
-  storeWithPatchFlag._sendMessageDocPatchPatched = true;
-}
 
 interface SidePanelCedarChatProps {
   children?: React.ReactNode; // Page content to wrap
@@ -100,53 +54,21 @@ export const SidePanelCedarChat: React.FC<
     setUserSentiment: (sentiment: Sentiment) => void;
   }
 > = ({
-  children, // Page content
-  side = "right",
   title = "Transcript",
-  collapsedLabel = "Start with Hello.",
-  showCollapsedButton = true,
   companyLogo,
-  dimensions = {
-    width: 350,
-    minWidth: 300,
-    maxWidth: 340,
-  },
-  resizable = true,
-  className = "",
-  topOffset = 0,
   stream = true,
   documents = [],
   scenario,
   setUserSentiment,
 }) => {
-  // Get showChat state and setShowChat from store
-  const showChat = useCedarStore((state) => state.showChat);
-  const setShowChat = useCedarStore((state) => state.setShowChat);
   const router = useRouter();
   const voiceSession = useVoiceSession();
   const [stopError, setStopError] = useState<string | null>(null);
   const currentThreadId = useCedarStore((state) => state.mainThreadId);
   const { messages } = useThreadMessages();
-
-  // Generate transcript string in the format: user: .../bill: ...
-  const transcript = messages
-    .map((m) => {
-      // Skip messages with undefined/empty content or tool-related messages
-      if (
-        !m.content ||
-        m.content.trim() === "" ||
-        m.type === "tool-call" ||
-        m.type === "tool-result"
-      ) {
-        return null;
-      }
-      if (m.role === "user") return `user: ${m.content}`;
-      if (m.role === "assistant" || m.role === "bot")
-        return `bart: ${m.content}`;
-      return null;
-    })
-    .filter(Boolean)
-    .join("\n");
+  const isProcessing = useCedarStore((state) => state.isProcessing);
+  const finishing = useRef<AbortController | null>(null);
+  useEffect(() => () => finishing.current?.abort(), []);
 
   // Persistent resourceId per session (like SimpleChatPanel)
   const [resourceId, setResourceId] = useState(() => {
@@ -213,8 +135,8 @@ export const SidePanelCedarChat: React.FC<
     setValue: setCedarDocuments,
   });
 
-  // Get contextDocs (indices of docs in context) from Cedar state
-  const [contextDocs] = useCedarState({ key: "contextDocs", initialValue: [] });
+  // Initialize the document mention selection in Cedar state.
+  useCedarState({ key: "contextDocs", initialValue: [] });
 
   // Register mention provider for scenario documents
   useStateBasedMentionProvider({
@@ -256,80 +178,83 @@ export const SidePanelCedarChat: React.FC<
     },
   );
 
-  // Custom onSend handler is no longer needed; sendMessage patch handles doc prepending
-
   const [showSpinner, setShowSpinner] = useState(false);
-  const [hideCompletely, setHideCompletely] = useState(false);
 
   const handleStop = async () => {
+    if (finishing.current || isProcessing) return;
+    const controller = new AbortController();
+    finishing.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 120_000);
     setShowSpinner(true);
     setStopError(null);
     try {
-      await voiceSession.stop();
-      // Read after final transcript events, rather than using the render's snapshot.
-      const finalTranscript = useCedarStore
-        .getState()
-        .getThreadMessages(currentThreadId)
-        .filter((message) => message.type === "text" && message.content?.trim())
-        .map(
-          (message) =>
-            (message.role === "user" ? "user: " : "bart: ") + message.content,
-        )
-        .join("\n");
-      const workflow = await mastraClient.getWorkflow(
-        "feedbackOrchestratorWorkflow",
+      try {
+        await voiceSession.stop();
+      } catch {
+        setStopError(voiceSession.provider === "deepgram"
+          ? "Voice could not finish. Retry the recording, or select Continue by text to discard the failed recording before ending the scenario."
+          : "The voice transcript could not finish saving. Your conversation is still here. Select End Scenario to try saving it again.");
+        return;
+      }
+      const finalTranscript = buildReportTranscript(
+        useCedarStore.getState().getThreadMessages(currentThreadId),
       );
-      console.log("Workflow", workflow);
-      const run = await workflow.createRunAsync();
-
-      const result = await run.startAsync({
-        inputData: {
+      if (!finalTranscript) {
+        setStopError("Have a conversation with Bart before ending the scenario. Send a message and wait for his reply.");
+        return;
+      }
+      const response = await fetch("/api/backend/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          threadId: currentThreadId,
           transcript: finalTranscript,
           additionalContext: {
-            scenario: `${contextForAnalysis(scenario ?? Scenarios.demandingClient)}`,
+            scenario: contextForAnalysis(scenario ?? Scenarios.negativeReview),
             participants: ["user", "bart"],
             meetingType: "project_review",
           },
-          memory: {
-            thread: currentThreadId,
-            resource: resourceId,
-          },
-        },
+        }),
       });
-
-      console.log("Full workflow result:", result);
-
-      // Check if the workflow succeeded before accessing the data
-      if (result.status === "success") {
-        const workflowOutput = result.result;
-        console.log("Workflow output:", workflowOutput);
-        localStorage.setItem(
-          "reportData",
-          JSON.stringify({
-            summary: workflowOutput?.summaryAnalysis,
-            detail: workflowOutput?.detailedFeedback,
-            analysis: workflowOutput?.segmentedAnalysis,
-          }),
-        );
-        // Mark scenario as completed for new prompt generation
-        localStorage.setItem("scenarioCompleted", "true");
-        console.log(localStorage.getItem("reportData"));
-        router.push("/report");
-      } else if (result.status === "failed") {
-        setStopError("Report generation failed. Please try again.");
-        console.error("Workflow failed:", (result as any).error);
-        // Handle the failure case appropriately
-      } else {
-        console.error("Workflow in unexpected state:", result.status);
+      if (!response.ok) throw new Error("Report service unavailable");
+      const result = await response.json() as {
+        status: string;
+        result?: { summaryAnalysis?: string; detailedFeedback?: string; segmentedAnalysis?: string };
+      };
+      if (controller.signal.aborted) return;
+      if (result.status !== "success") {
+        setStopError("The report could not be generated. Your conversation is still here. Select End Scenario to try again.");
+        return;
       }
-    } catch (e) {
-      console.error("Failed to send transcript to analyzer:", e);
-      setStopError(
-        e instanceof Error
-          ? e.message
-          : "Could not finish the scenario. Please try again.",
-      );
+      const savedReport = JSON.stringify({
+        summary: result.result?.summaryAnalysis,
+        detail: result.result?.detailedFeedback,
+        analysis: result.result?.segmentedAnalysis,
+        sessionId: currentThreadId,
+        transcript: finalTranscript,
+        createdAt: new Date().toISOString(),
+      });
+      const parsedReport = Parser(savedReport);
+      if (parsedReport.status === "invalid" || !parsedReport.summary || !parsedReport.segments.length) {
+        setStopError("The report was incomplete. Your conversation is still here. Select End Scenario to try again.");
+        return;
+      }
+      try {
+        localStorage.setItem("reportData", savedReport);
+        recordCompletedScenario(localStorage, currentThreadId);
+      } catch {
+        setStopError("The report could not be saved in this browser. Allow site storage, then select End Scenario to try again.");
+        return;
+      }
+      router.push("/report");
+    } catch {
+      setStopError(controller.signal.aborted
+        ? "Report generation stopped. Your conversation is still here. Select End Scenario to try again."
+        : "The report service is unavailable. Your conversation is still here. Select End Scenario to try again.");
     } finally {
+      clearTimeout(timeout);
+      if (finishing.current === controller) finishing.current = null;
       setShowSpinner(false);
     }
   };
@@ -369,6 +294,7 @@ export const SidePanelCedarChat: React.FC<
           <div className="mt-4 text-lg font-medium text-gray-700">
             Generating report...
           </div>
+          <Button variant="outline" className="mt-4" onClick={() => finishing.current?.abort()}>Cancel report</Button>
           <div className="flex flex-col items-center mt-6">
             <Image
               src="/bill.png.jpeg"
@@ -383,20 +309,6 @@ export const SidePanelCedarChat: React.FC<
           </div>
         </div>
       )}
-      {/* {showCollapsedButton && !hideCompletely && (
-						<AnimatePresence mode='wait'>
-							{!showChat && (
-								<CollapsedButton
-									side={side}
-									label={collapsedLabel}
-									onClick={() => setShowChat(true)}
-									layoutId='cedar-sidepanel-chat'
-									position='fixed'
-								/>
-							)}
-						</AnimatePresence>
-					)} */}
-
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="flex flex-col">
@@ -411,18 +323,11 @@ export const SidePanelCedarChat: React.FC<
               <Button
                 variant="destructive"
                 onClick={handleStop}
-                disabled={showSpinner}
+                disabled={showSpinner || isProcessing}
                 className="mr-2 cursor-pointer"
               >
                 End Scenario
               </Button>
-              {/* <button
-                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                  onClick={() => setShowChat(false)}
-                  aria-label="Close chat"
-                >
-                  <X className="w-4 h-4" strokeWidth={2.5} />
-                </button> */}
             </div>
           </div>
           {stopError && (

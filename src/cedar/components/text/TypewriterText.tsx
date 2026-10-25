@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { animate, motion } from 'motion/react';
 import { useStyling } from 'cedar-os';
 import MarkdownRenderer from '../chatMessages/MarkdownRenderer';
@@ -92,10 +92,16 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
 
 	const { styling } = useStyling();
 
+	// Callback changes should be observed without restarting in-progress typing.
+	const typingCallbacks = useRef({ onTypingStart, onTypingComplete });
+	useEffect(() => {
+		typingCallbacks.current = { onTypingStart, onTypingComplete };
+	}, [onTypingStart, onTypingComplete]);
+
 	useEffect(() => {
 		setIsTypingComplete(false);
 		setDisplayedText('');
-		onTypingStart?.();
+		typingCallbacks.current.onTypingStart?.();
 		const animation = animate(0, fullText.length, {
 			duration: totalDuration,
 			ease: 'linear',
@@ -104,12 +110,12 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
 			},
 			onComplete: () => {
 				setIsTypingComplete(true);
-				onTypingComplete?.();
+				typingCallbacks.current.onTypingComplete?.();
 			},
 		});
 
 		return () => animation.stop();
-	}, [fullText, effectiveCharDelay]);
+	}, [fullText, totalDuration]);
 
 	// Process the displayed text to handle prefix
 	let processedText = displayedText;

@@ -1,21 +1,18 @@
 import React from "react";
-import { Badge } from "./ui/badge";
 
 export default function SentimentBar({ sentiment }: { sentiment: number }) {
   const value = (sentiment + 1) / 2; // Normalize score from [-1, 1] to [0, 1]
 
   const [displayValue, setDisplayValue] = React.useState(0.5);
-  const [lastUpdateTime, setLastUpdateTime] = React.useState(Date.now());
 
   React.useEffect(() => {
+    let lastUpdateTime = Date.now();
     const interval = setInterval(() => {
+      const now = Date.now();
+      const deltaTime = now - lastUpdateTime;
+      lastUpdateTime = now;
       setDisplayValue((prev) => {
-        const now = Date.now();
-        // Calculate delta time
-        const deltaTime = now - lastUpdateTime;
-        setLastUpdateTime(now);
-
-        const maxChange = (deltaTime / 1000) * 0.05; // Max change per 100ms
+        const maxChange = (deltaTime / 1000) * 0.05; // Move 5% of the bar per second
 
         if (Math.abs(value - prev) <= maxChange) {
           return value; // Close enough, snap to target

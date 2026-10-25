@@ -1,0 +1,53 @@
+{
+  "checkedAt": "2026-10-25",
+  "configuration": {
+    "envFile": ".env",
+    "voiceProvider": "deepgram",
+    "textProvider": "gemini",
+    "keysPrinted": false
+  },
+  "automated": {
+    "regressionTestsPassed": 150,
+    "frontendTypecheck": "pass",
+    "backendTypecheck": "pass",
+    "lintErrors": 0,
+    "lintWarnings": 53,
+    "frontendProductionBuild": "pass",
+    "backendProductionBuild": "pass",
+    "deepgramBuiltStackSmoke": "pass",
+    "designDetectorFindings": 0,
+    "openaiBuiltStackSmoke": "pass"
+  },
+  "browser": {
+    "tool": "Codex in-app browser",
+    "fixtureOrigin": "http://127.0.0.1:3002",
+    "providerValidation": false,
+    "checks": [
+      "failed generation keeps report and enables retry",
+      "malformed generation cannot start",
+      "cancellation ignores delayed response",
+      "successful preview shows supporting document",
+      "Start Follow-up opens generated scenario with empty transcript",
+      "generated scenario survives reload",
+      "New Session restores original Bart with empty transcript",
+      "saved report and cached follow-up remain available"
+    ],
+    "realAppOrigin": "http://127.0.0.1:3000/scenario",
+    "realAppChecks": [
+      "New Session visible",
+      "Deepgram selected",
+      "scenario and video visible"
+    ]
+  },
+  "productionRegressionFixed": "Fresh Deepgram recovery check no longer compiles browser-only Cedar context during SSR. Covered by regression and built-stack smoke.",
+  "liveProviderEvidence": "adaptive-live-check.json",
+  "veoHelpers": "preserved",
+  "pushed": false,
+  "liveProviderResult": {
+    "provider": "gemini",
+    "input": "synthetic QA feedback",
+    "httpStatus": 502,
+    "elapsedMs": 91236,
+    "result": "No valid scenario returned within the bounded generation window. Live generation is not yet verified."
+  }
+}

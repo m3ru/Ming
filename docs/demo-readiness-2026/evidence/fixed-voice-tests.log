@@ -1,0 +1,30 @@
+npm notice run cedar-mastra-starter@0.1.0 test:voice
+npm notice run node scripts/test-voice.mjs
+OpenAI Live session failed 403
+✔ overlapping, duplicated and late fragments preserve text and stable persisted IDs (6.185166ms)
+✔ context chunks preserve Unicode and stay within the Live append limit (0.494083ms)
+✔ caption timing metadata survives the server request schema (0.791041ms)
+✔ session capabilities bind saves to the correct conversation and delegation retries are deduplicated (8.573375ms)
+✔ provider failures and missing credentials are actionable without exposing secrets (0.499542ms)
+✔ microphone denial shows an error and releases the connection (0.669792ms)
+✔ speaking stays visible through short pauses and clears after silence or stopped playback (1.288042ms)
+✔ stopping during permission setup stops tracks even when permission resolves late (0.193708ms)
+✔ releasing push to talk before microphone permission resolves keeps capture muted (0.380666ms)
+✔ chat connects muted before any press and push to talk immediately streams on that session (0.340125ms)
+✔ captions and backend replies are processed while push to talk is still held (701.764083ms)
+✔ startup during the previous conversation's finalization opens a new connection (0.450208ms)
+✔ graceful stop includes final captions, persists them, and releases microphone and peer (0.226625ms)
+✔ backend replies to an outdated request are not spoken after a user correction (701.515917ms)
+✔ typed messages update voice context once without triggering another generation (0.408792ms)
+✔ scenario changes invalidate old contextual facts without duplicating updates (0.222458ms)
+✔ failed backend work can be retried without caching a rejected promise (0.211959ms)
+✔ duplicate starts share one connection and startup HTTP errors release it (0.250625ms)
+✔ missing session.closed reports incomplete finalization and still saves received captions (0.3995ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3495.697625

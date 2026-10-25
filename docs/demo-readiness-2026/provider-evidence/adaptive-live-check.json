@@ -1,0 +1,8 @@
+{
+  "syntheticInput": true,
+  "realProvider": true,
+  "httpStatus": 502,
+  "status": "failed",
+  "durationMs": 91236,
+  "error": "The scenario could not be generated. Try again."
+}

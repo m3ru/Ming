@@ -1,15 +1,15 @@
-import { Memory } from '@mastra/memory';
-import { LibSQLStore } from '@mastra/libsql';
+import { Memory } from "@mastra/memory";
+import { LibSQLStore } from "@mastra/libsql";
+import { databaseUrl } from "../lib/storage";
 
 const storage = new LibSQLStore({
-  url: 'file:./storage.db', // Local SQLite database file
+  url: databaseUrl("file:./storage.db"),
 });
-
 
 export const memory_bill = new Memory({
   options: {
-	lastMessages: 30,
-  }
+    lastMessages: 30,
+  },
 });
 
 export const memory = new Memory({

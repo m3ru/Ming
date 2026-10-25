@@ -1,6 +1,35 @@
 "use client";
 
 import React from "react";
+import ReactMarkdown from "react-markdown";
+
+export function ReportMarkdown({ children }: { children: string }) {
+  return (
+    <div className="space-y-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:underline [&_a]:underline-offset-4 [&_pre]:overflow-auto">
+      <ReactMarkdown
+        skipHtml
+        allowedElements={[
+          "p",
+          "br",
+          "strong",
+          "em",
+          "ul",
+          "ol",
+          "li",
+          "blockquote",
+          "code",
+          "pre",
+          "a",
+          "h3",
+          "h4",
+        ]}
+        unwrapDisallowed
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 const parseInlineMarkdown = (text: string) => {
   const elements: React.ReactNode[] = [];
@@ -36,9 +65,8 @@ const renderMarkdownBlocks = (text: string) => {
 
   text.split("\n\n").forEach((block) => {
     let remaining = block.trim();
-    let elements: React.ReactNode[] = [];
+    const elements: React.ReactNode[] = [];
     const commentTexts: { idx: number; text: string }[] = [];
-    let highlightIndex: number | undefined;
 
     // Process either <highlight> or <comment ...> tags in order of appearance
     while (true) {
@@ -62,7 +90,7 @@ const renderMarkdownBlocks = (text: string) => {
         if (!openTagMatch) break; // malformed
         const attrText = openTagMatch[1];
         const afterOpen = remaining.slice(
-          nextCommentTag + openTagMatch[0].length
+          nextCommentTag + openTagMatch[0].length,
         );
         const closeIdx = afterOpen.indexOf("</comment>");
         if (closeIdx === -1) break; // malformed
@@ -82,7 +110,7 @@ const renderMarkdownBlocks = (text: string) => {
         const color = attrs.color || "yellow";
         const feedback = attrs.feedback || "";
 
-        // determine background style class for common colors, otherwise inline style
+        // Restrict model-provided highlight colors to this known palette.
         const colorMap: Record<string, string> = {
           yellow: "bg-yellow-200",
           red: "bg-red-200",
@@ -105,7 +133,6 @@ const renderMarkdownBlocks = (text: string) => {
           <span
             key={blocks.length + elements.length}
             className={`${bgClass ?? "bg-yellow-200"} px-1 rounded`}
-            style={bgClass ? undefined : { backgroundColor: color }}
           >
             {parseInlineMarkdown(inner)}
             {marker && (
@@ -113,7 +140,7 @@ const renderMarkdownBlocks = (text: string) => {
                 {marker}
               </sup>
             )}
-          </span>
+          </span>,
         );
         remaining = after;
       } else {
@@ -151,7 +178,7 @@ const renderMarkdownBlocks = (text: string) => {
                 {marker}
               </sup>
             )}
-          </span>
+          </span>,
         );
         remaining = after;
       }
@@ -194,30 +221,16 @@ export default function AnnotatedTranscript({
 }: {
   segments?: { title: string; content: string }[];
 }) {
-  const [md, setMd] = React.useState("");
-
-  // Show transcript content without the generated internal segment labels.
-  React.useEffect(() => {
-    if (segments && segments.length > 0) {
-      const built = segments
-        .map((s) => s.content)
-        .join("\n\n");
-      setMd(built);
-      return;
-    }
-
-    // Fallback: load sample markdown once
-    let mounted = true;
-    fetch("/sample.md")
-      .then((res) => res.text())
-      .then((text) => mounted && setMd(text))
-      .catch(() => mounted && setMd("Error: Could not load markdown file."));
-    return () => {
-      mounted = false;
-    };
-  }, [segments]);
-
+  const md = (segments || []).map((segment) => segment.content).join("\n\n");
   const blocks = React.useMemo(() => renderMarkdownBlocks(md), [md]);
+
+  if (!md.trim()) {
+    return (
+      <p className="p-4 text-gray-700">
+        No annotated transcript is available for this report.
+      </p>
+    );
+  }
 
   return (
     <div className="bg-white p-0 pl-5 rounded-md overflow-auto">

@@ -7,7 +7,7 @@ import { transcript } from "./lib/placeholder-data";
 
 const run = await mastra.getWorkflow("feedbackOrchestratorWorkflow").createRunAsync();
 
-const result = await run.start({
+await run.start({
   inputData: {
     transcript: transcript,
     additionalContext: {
@@ -19,14 +19,5 @@ const result = await run.start({
 });
 
 console.log("Segmented Analysis:");
-// console.log(result.result.segmentedAnalysis);
 console.log("Summary Analysis:");
-// console.log(result.result.summaryAnalysis);
 console.log("Detailed Analysis:");
-// console.log(result.result.detailedFeedback);
-
-// console.log(result);
- 
-// if (result.status === 'success') {
-//   console.log(result.result.output);
-// }

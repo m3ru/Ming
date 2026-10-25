@@ -1,7 +1,5 @@
 import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
-import { contextForAnalysis } from "../../lib/scenarioUtil";
-import { Scenarios } from "../../lib/scenarios";
 
 /**
  * Transcript Summary Analyzer Agent

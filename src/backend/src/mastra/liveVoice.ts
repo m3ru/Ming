@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
-import { bartPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
 
@@ -15,7 +15,7 @@ export const liveVoice = createLiveVoiceService({
   apiKey: () => process.env.OPENAI_API_KEY,
   async generate(messages, context) {
     const prompt =
-      chatType(context) === "transcript" ? feedbackReplyPrompt : bartPrompt;
+      chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context);
     const result = await voiceBackend.generateVNext(
       [
         {

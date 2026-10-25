@@ -1,0 +1,17 @@
+{
+  "model": "gemini-3.5-flash",
+  "syntheticAudio": true,
+  "realProviders": true,
+  "httpStatus": 200,
+  "status": "partial",
+  "persisted": true,
+  "elapsedMs": 8332,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bart, let us agree on one realistic milestone for Friday. What support would help you?"
+    }
+  ],
+  "audioBytes": 0,
+  "error": "Your transcript was saved, but the reply could not be generated. Try speaking again or continue by text."
+}

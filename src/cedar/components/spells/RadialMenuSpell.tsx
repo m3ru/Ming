@@ -1,7 +1,7 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	useCedarStore,
 	useStyling,
@@ -130,7 +130,7 @@ const RadialMenuSpell: React.FC<RadialMenuSpellProps> = ({
 	// Update ref for next render
 	rotationRef.current = targetRotation;
 
-	const getIndexFromAngle = (angleDegRaw: number): number | null => {
+	const getIndexFromAngle = useCallback((angleDegRaw: number): number | null => {
 		// Normalize angle to 0-360°
 		let angleDeg = angleDegRaw;
 		if (angleDeg < 0) angleDeg += 360;
@@ -144,7 +144,7 @@ const RadialMenuSpell: React.FC<RadialMenuSpellProps> = ({
 
 		const idx = Math.floor(shifted / sliceDeg);
 		return idx;
-	};
+	}, [items.length, sliceDeg]);
 
 	// Event handlers -------------------------------------------------
 	useEffect(() => {
@@ -214,7 +214,7 @@ const RadialMenuSpell: React.FC<RadialMenuSpellProps> = ({
 			window.removeEventListener('click', handleClick);
 			window.removeEventListener('keydown', handleEscape);
 		};
-	}, [menuPosition, items]);
+	}, [menuPosition, items, getIndexFromAngle]);
 
 	// Don't render if menu is not active
 	if (!menuPosition) return null;

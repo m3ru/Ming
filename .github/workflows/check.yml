@@ -1,0 +1,60 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            src/backend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install backend dependencies
+        run: npm ci --prefix src/backend
+      - name: Check frontend types
+        run: npm run typecheck
+      - name: Check backend types
+        run: npm run typecheck --prefix src/backend
+      - name: Lint source and regression tests
+        run: npm run lint
+      - name: Test voice without provider calls
+        run: npm run test:voice
+      - name: Test text provider selection and restored Veo helpers
+        run: npm run test:providers
+      - name: Test Deepgram voice and transcript persistence without provider calls
+        run: npm run test:deepgram
+      - name: Test chat, streaming, and reports without provider calls
+        run: npm run test:demo
+      - name: Test adaptive follow-up and fresh sessions without provider calls
+        run: npm run test:adaptive
+      - name: Test backend security without provider calls
+        run: node --test tests/backend-security.test.mjs
+      - name: Test frontend build safeguards
+        run: node --test tests/quality-gates.test.mjs
+      - name: Test frontend security without provider calls
+        run: node --test tests/frontend-security.test.mjs
+      - name: Test model markdown rendering without provider calls
+        run: node --test tests/markdown-security.test.mjs
+      - name: Build backend
+        run: npm run build --prefix src/backend
+      - name: Build frontend
+        run: npm run build
+      - name: Verify built production security boundary without provider calls
+        run: node tests/production-security-smoke.mjs
+      - name: Verify built Deepgram configuration without provider calls
+        run: node tests/production-security-smoke.mjs --deepgram

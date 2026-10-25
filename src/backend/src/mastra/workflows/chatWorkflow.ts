@@ -6,16 +6,20 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { RuntimeContext } from "@mastra/core/di";
 import { z } from "zod";
-import { helloWorldAgent } from "../agents/helloWorldAgent";
-import { handleTextStream, streamJSONEvent } from "../../utils/streamUtils";
+import type { MastraMessageV2 } from "@mastra/core/agent";
+import {
+  ChatStreamError,
+  handleTextStream,
+  streamJSONEvent,
+} from "../../utils/streamUtils";
 import { ActionSchema } from "./chatWorkflowTypes";
 import { defaultAgent } from "../agents/defaultAgent";
 
 export const ChatInputSchema = z.object({
-  prompt: z.string(),
-  temperature: z.number().optional(),
-  maxTokens: z.number().optional(),
-  systemPrompt: z.string().optional(),
+  prompt: z.string().trim().min(1).max(16000),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().min(1).max(2048).default(768),
+  systemPrompt: z.string().max(16000).optional(),
   streamController: z.instanceof(ReadableStreamDefaultController).optional(),
   additionalContext: z.any().optional(),
   resourceId: z.string().optional(),
@@ -41,7 +45,6 @@ const callAgent = createStep({
       prompt,
       temperature,
       maxTokens,
-      systemPrompt,
       streamController,
       additionalContext,
       resourceId,
@@ -52,8 +55,6 @@ const callAgent = createStep({
       throw new Error("Stream controller is required");
     }
 
-    console.log("Chat workflow received input data", inputData);
-
     // Create runtime context with additionalContext and streamController
     const runtimeContext = new RuntimeContext();
     runtimeContext.set("additionalContext", additionalContext);
@@ -61,56 +62,43 @@ const callAgent = createStep({
 
     // Check if we need to prepend a system prompt based on context
     let modifiedPrompt = prompt;
-    
-    console.log("Checking additionalContext for chat type:", {
-      fullContext: additionalContext,
-      hasAdditionalContext: !!additionalContext
-    });
-    
     // Look for chatType in the subscribed context data
     let chatType = null;
     if (additionalContext) {
       // Cedar sends subscribed context as { data: value, source: 'subscription' }
       if (additionalContext.chatType && additionalContext.chatType.data) {
         chatType = additionalContext.chatType.data;
-        console.log(`Found chatType '${chatType}' from Cedar subscription`);
       }
     }
-    
-    console.log("Prompt modification check:", {
-      originalPrompt: prompt,
-      detectedChatType: chatType,
-      fullAdditionalContext: additionalContext
-    });
+    if (chatType === "scenario") {
+      const { scenarioRoleplayPrompt } = await import("../../lib/prompts");
+      modifiedPrompt = `${scenarioRoleplayPrompt(additionalContext)}\n\nUser: ${prompt}`;
+    } else if (chatType === "transcript") {
+      const { feedbackReplyPrompt } = await import("../../lib/prompts");
 
-    console.log("======Prompt====\n", prompt)
-
-    if (chatType === 'scenario') {
-      const { bartPrompt } = await import('../../lib/prompts');
-      modifiedPrompt = `${bartPrompt}\n\nUser: ${prompt}`;
-      console.log("Applied bart prompt in workflow");
-    } else if (chatType === 'transcript') {
-      const { feedbackReplyPrompt } = await import('../../lib/prompts');
-      
       // Check if the combined prompt would be too long
-      const combinedLength = feedbackReplyPrompt.length + prompt.length + JSON.stringify(additionalContext).length;
-      console.log("Combined prompt length would be:", combinedLength);
-      
-      if (combinedLength > 120000) { // Conservative limit
-        console.log("Prompt too long, using shorter version");
+      const combinedLength =
+        feedbackReplyPrompt.length +
+        prompt.length +
+        JSON.stringify(additionalContext).length;
+
+      if (combinedLength > 120000) {
+        // Conservative limit
         modifiedPrompt = `You are a communication coach helping analyze workplace performance. Answer questions about communication skills, empathy, and conflict management based on the conversation analysis provided.\n\nUser: ${prompt}`;
       } else {
         modifiedPrompt = `${feedbackReplyPrompt}\n\nUser: ${prompt}`;
       }
-      console.log("Applied feedback prompt in workflow");
     }
 
-    const messages = [
-      "User message: " + modifiedPrompt,
-      "Additional context (for background knowledge): " +
-        JSON.stringify(additionalContext),
-    ];
-    console.log("DING DONG WOIII:", modifiedPrompt);
+    const userMessage: MastraMessageV2 = {
+      id: crypto.randomUUID(),
+      role: "user",
+      type: "text",
+      content: { format: 2, parts: [{ type: "text", text: prompt }] },
+      createdAt: new Date(),
+      threadId,
+      resourceId,
+    };
     let responseText = "";
     /**
      * Using Mastra streamVNext for enhanced streaming capabilities.
@@ -118,61 +106,75 @@ const callAgent = createStep({
      * and properly handle different event types such as text-delta, tool calls, etc.
      */
 
-    console.log("====================");
-    console.log("modifiedPrompt", modifiedPrompt);
-    console.log("=====================");
-    const streamResult = await defaultAgent.streamVNext(messages, {
-      // If system prompt is provided, overwrite the default system prompt for this agent
-      ...(modifiedPrompt ? ({ instructions: modifiedPrompt } as const) : {}),
-      modelSettings: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      },
-      runtimeContext,
-      ...(threadId && resourceId
-        ? {
-            memory: {
-              thread: threadId,
-              resource: resourceId,
-            },
+    try {
+      if (threadId && resourceId) {
+        const memory = await defaultAgent.getMemory();
+        if (memory) {
+          const thread = await memory.getThreadById({ threadId });
+          if (thread && thread.resourceId !== resourceId) {
+            throw new ChatStreamError("PROVIDER_UNAVAILABLE");
           }
-        : {}),
-    });
-
-    console.log("Starting stream processing...");
-    console.log("Modified prompt length:", modifiedPrompt.length);
-    console.log("Modified prompt preview:", modifiedPrompt.substring(0, 300) + "...");
-    
-    // Process streaming chunks from streamVNext
-    for await (const chunk of streamResult.fullStream) {
-      console.log("Received chunk type:", chunk.type);
-      
-      if (chunk.type === "text-delta") {
-        console.log("Text delta received:", chunk.payload.text);
-        await handleTextStream(chunk.payload.text, streamController);
-        responseText += chunk.payload.text;
-      } else if (chunk.type === "tool-result" || chunk.type === "tool-call") {
-        console.log("Tool chunk received:", chunk.type);
-        streamJSONEvent(streamController, chunk.type, chunk);
-      } else {
-        console.log("Other chunk type:", chunk.type);
+          if (!thread) {
+            await memory.createThread({
+              threadId,
+              resourceId,
+              title: "Practice conversation",
+            });
+          }
+          // Mastra saves on successful completion, so save the user's actual
+          // words first. Supplying the same ID below avoids a duplicate on
+          // success and keeps the latest turn available after provider errors.
+          await memory.saveMessages({ format: "v2", messages: [userMessage] });
+        }
       }
+      const streamResult = await defaultAgent.streamVNext([userMessage], {
+        instructions:
+          modifiedPrompt +
+          "\n\nAdditional context (for background knowledge): " +
+          JSON.stringify(additionalContext),
+        modelSettings: {
+          temperature,
+          maxOutputTokens: maxTokens,
+        },
+        runtimeContext,
+        ...(threadId && resourceId
+          ? {
+              memory: {
+                thread: threadId,
+                resource: resourceId,
+              },
+            }
+          : {}),
+      });
+
+      // Mastra may yield provider errors as chunks instead of rejecting the
+      // iterator. Ignoring them turns a failed response into an empty success.
+      for await (const chunk of streamResult.fullStream) {
+        if (
+          chunk.type === "error" ||
+          chunk.type === "abort" ||
+          chunk.type === "tripwire"
+        ) {
+          throw new ChatStreamError("PROVIDER_UNAVAILABLE");
+        }
+        if (chunk.type === "text-delta") {
+          await handleTextStream(chunk.payload.text, streamController);
+          responseText += chunk.payload.text;
+        } else if (chunk.type === "tool-result" || chunk.type === "tool-call") {
+          streamJSONEvent(streamController, chunk.type, chunk);
+        }
+      }
+
+      if (!responseText.trim()) throw new ChatStreamError("EMPTY_RESPONSE");
+      const usage = await streamResult.usage;
+      return { content: responseText, usage };
+    } catch (error) {
+      // Do not attach the raw provider error as a cause: workflow diagnostics
+      // can serialize it, including request data and credentials.
+      throw error instanceof ChatStreamError
+        ? error
+        : new ChatStreamError("PROVIDER_UNAVAILABLE");
     }
-
-    console.log("Final responseText length:", responseText.length);
-    console.log("Final responseText preview:", responseText.substring(0, 200));
-
-    const usage = await streamResult.usage;
-
-    console.log("Chat workflow result", {
-      content: responseText,
-      usage: usage,
-    });
-
-    return {
-      content: responseText,
-      usage: usage,
-    };
   },
 });
 

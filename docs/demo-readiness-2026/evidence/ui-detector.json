@@ -1,0 +1,22 @@
+[
+  {
+    "antipattern": "bounce-easing",
+    "name": "Bounce or elastic easing",
+    "description": "Bounce and elastic easing feel dated and tacky. Real objects decelerate smoothly — use exponential easing (ease-out-quart/quint/expo) instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/Users/sllee/coding/Ming/src/app/page.tsx",
+    "line": 136,
+    "snippet": "animate-bounce (Tailwind)"
+  },
+  {
+    "antipattern": "side-tab",
+    "name": "Side-tab accent border",
+    "description": "Thick colored border on one side of a card — the most recognizable tell of AI-generated UIs. Use a subtler accent or remove it entirely.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "/Users/sllee/coding/Ming/src/components/AnnotatedTranscript.tsx",
+    "line": 236,
+    "snippet": "border-l-4"
+  }
+]

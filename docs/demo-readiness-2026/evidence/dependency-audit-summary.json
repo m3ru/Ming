@@ -1,0 +1,1027 @@
+{
+  "frontend": {
+    "counts": {
+      "info": 0,
+      "low": 6,
+      "moderate": 97,
+      "high": 44,
+      "critical": 6,
+      "total": 153
+    },
+    "note": "Counts include transitive and tooling dependencies; not a count of exploitable application vulnerabilities. Do not add the two lockfile counts together.",
+    "direct_dependencies": [
+      {
+        "name": "@mastra/client-js",
+        "installed": "0.13.2",
+        "severity": "low",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "@mastra/client-js",
+          "version": "1.56.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "@mastra/voice-google",
+        "installed": "0.11.6",
+        "severity": "moderate",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@opennextjs/cloudflare",
+        "installed": "1.9.0",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1113991,
+            "name": "@opennextjs/cloudflare",
+            "dependency": "@opennextjs/cloudflare",
+            "title": "opennextjs-cloudflare has SSRF vulnerability via /cdn-cgi/ path normalization bypass",
+            "url": "https://github.com/advisories/GHSA-c7mq-gh6q-6q7c",
+            "severity": "high",
+            "cwe": [
+              "CWE-706",
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": "<1.17.1"
+          },
+          {
+            "source": 1242289,
+            "name": "@opennextjs/cloudflare",
+            "dependency": "@opennextjs/cloudflare",
+            "title": "OpenNext Cloudflare: Cache interception can bypass middleware protection for encoded paths",
+            "url": "https://github.com/advisories/GHSA-2vc4-c4r6-p6v6",
+            "severity": "high",
+            "cwe": [
+              "CWE-177",
+              "CWE-180"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=0.3.0 <1.20.2"
+          }
+        ],
+        "fixAvailable": true
+      },
+      {
+        "name": "ai",
+        "installed": "5.0.56",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1111095,
+            "name": "ai",
+            "dependency": "ai",
+            "title": "Vercel\u2019s AI SDK's filetype whitelists can be bypassed when uploading files",
+            "url": "https://github.com/advisories/GHSA-rwvc-j5jr-mgvh",
+            "severity": "low",
+            "cwe": [
+              "CWE-20",
+              "CWE-682"
+            ],
+            "cvss": {
+              "score": 3.7,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+            },
+            "range": "<5.0.52"
+          }
+        ],
+        "fixAvailable": {
+          "name": "@mastra/client-js",
+          "version": "1.56.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "cedar-os",
+        "installed": "0.1.23",
+        "severity": "moderate",
+        "advisories": [],
+        "fixAvailable": false
+      },
+      {
+        "name": "diff",
+        "installed": "8.0.2",
+        "severity": "low",
+        "advisories": [
+          {
+            "source": 1112706,
+            "name": "diff",
+            "dependency": "diff",
+            "title": "jsdiff has a Denial of Service vulnerability in parsePatch and applyPatch",
+            "url": "https://github.com/advisories/GHSA-73rr-hh4g-fpgx",
+            "severity": "low",
+            "cwe": [
+              "CWE-400",
+              "CWE-1333"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=6.0.0 <8.0.3"
+          }
+        ],
+        "fixAvailable": false
+      },
+      {
+        "name": "next",
+        "installed": "15.4.4",
+        "severity": "critical",
+        "advisories": [
+          {
+            "source": 1107228,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js Affected by Cache Key Confusion for Image Optimization API Routes",
+            "url": "https://github.com/advisories/GHSA-g5qg-72qw-gw5v",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-524"
+            ],
+            "cvss": {
+              "score": 6.2,
+              "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=15.0.0 <=15.4.4"
+          },
+          {
+            "source": 1107514,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js Content Injection Vulnerability for Image Optimization",
+            "url": "https://github.com/advisories/GHSA-xv57-4mr9-wg8v",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-20"
+            ],
+            "cvss": {
+              "score": 4.3,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:L/A:N"
+            },
+            "range": ">=15.0.0 <=15.4.4"
+          },
+          {
+            "source": 1107515,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js Improper Middleware Redirect Handling Leads to SSRF",
+            "url": "https://github.com/advisories/GHSA-4342-x723-ch2f",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 6.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N"
+            },
+            "range": ">=15.0.0-canary.0 <15.4.7"
+          },
+          {
+            "source": 1111369,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js is vulnerable to RCE in React flight protocol",
+            "url": "https://github.com/advisories/GHSA-9qr9-h5gf-34mp",
+            "severity": "critical",
+            "cwe": [
+              "CWE-502"
+            ],
+            "cvss": {
+              "score": 10,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+            },
+            "range": ">=15.4.0-canary.0 <15.4.8"
+          },
+          {
+            "source": 1111377,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next Server Actions Source Code Exposure ",
+            "url": "https://github.com/advisories/GHSA-w37m-7fhw-fmv9",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-497",
+              "CWE-502",
+              "CWE-1395"
+            ],
+            "cvss": {
+              "score": 5.3,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+            },
+            "range": ">=15.4.0-canary.0 <15.4.9"
+          },
+          {
+            "source": 1111386,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next Vulnerable to Denial of Service with Server Components",
+            "url": "https://github.com/advisories/GHSA-mwv6-3258-q52c",
+            "severity": "high",
+            "cwe": [
+              "CWE-400",
+              "CWE-502",
+              "CWE-1395"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=15.4.0-canary.0 <15.4.9"
+          },
+          {
+            "source": 1112593,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js self-hosted applications vulnerable to DoS via Image Optimizer remotePatterns configuration",
+            "url": "https://github.com/advisories/GHSA-9g9p-9gw9-jx7f",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-400",
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 5.9,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=10.0.0 <15.5.10"
+          },
+          {
+            "source": 1112649,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components",
+            "url": "https://github.com/advisories/GHSA-h25m-26qc-wcjf",
+            "severity": "high",
+            "cwe": [
+              "CWE-400",
+              "CWE-502"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=15.4.0-canary.0 <15.4.11"
+          },
+          {
+            "source": 1114897,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: HTTP request smuggling in rewrites",
+            "url": "https://github.com/advisories/GHSA-ggv3-7p47-pfv8",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-444"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=9.5.0 <15.5.13"
+          },
+          {
+            "source": 1114940,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unbounded next/image disk cache growth can exhaust storage",
+            "url": "https://github.com/advisories/GHSA-3x4c-7xq6-9pq8",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-400"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=10.0.0 <15.5.14"
+          },
+          {
+            "source": 1116376,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Denial of Service with Server Components",
+            "url": "https://github.com/advisories/GHSA-q4gf-8mx6-v5v3",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=13.0.0 <15.5.15"
+          },
+          {
+            "source": 1117931,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js Vulnerable to Denial of Service with Server Components",
+            "url": "https://github.com/advisories/GHSA-8h8q-6873-q5fj",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=13.0.0 <15.5.16"
+          },
+          {
+            "source": 1118939,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes - Incomplete Fix Follow-Up",
+            "url": "https://github.com/advisories/GHSA-26hh-7cqf-hhc6",
+            "severity": "high",
+            "cwe": [
+              "CWE-288"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=15.2.0 <15.5.18"
+          },
+          {
+            "source": 1118942,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js's Middleware / Proxy redirects can be cache-poisoned",
+            "url": "https://github.com/advisories/GHSA-3g8h-86w9-wvmq",
+            "severity": "low",
+            "cwe": [
+              "CWE-349"
+            ],
+            "cvss": {
+              "score": 3.7,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+            },
+            "range": ">=12.2.0 <15.5.16"
+          },
+          {
+            "source": 1118944,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js vulnerable to cross-site scripting in App Router applications using CSP nonces",
+            "url": "https://github.com/advisories/GHSA-ffhc-5mcf-pf4q",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-79"
+            ],
+            "cvss": {
+              "score": 4.7,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:C/C:L/I:L/A:N"
+            },
+            "range": ">=13.4.0 <15.5.16"
+          },
+          {
+            "source": 1118946,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js vulnerable to cache poisoning via collisions in React Server Component cache-busting",
+            "url": "https://github.com/advisories/GHSA-vfv6-92ff-j949",
+            "severity": "low",
+            "cwe": [
+              "CWE-328"
+            ],
+            "cvss": {
+              "score": 3.7,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+            },
+            "range": ">=13.4.6 <15.5.16"
+          },
+          {
+            "source": 1118948,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has cross-site scripting in beforeInteractive scripts with untrusted input",
+            "url": "https://github.com/advisories/GHSA-gx5p-jg67-6x7h",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-79"
+            ],
+            "cvss": {
+              "score": 6.1,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+            },
+            "range": ">=13.0.0 <15.5.16"
+          },
+          {
+            "source": 1118950,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js vulnerable to Denial of Service via connection exhaustion in applications using Cache Components",
+            "url": "https://github.com/advisories/GHSA-mg66-mrh9-m8jx",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=15.0.0 <15.5.16"
+          },
+          {
+            "source": 1118952,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Denial of Service in the Image Optimization API",
+            "url": "https://github.com/advisories/GHSA-h64f-5h5j-jqjh",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 5.9,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": ">=10.0.0 <15.5.16"
+          },
+          {
+            "source": 1118954,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+            "url": "https://github.com/advisories/GHSA-c4j6-fc7j-m34r",
+            "severity": "high",
+            "cwe": [
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 8.6,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:N/A:N"
+            },
+            "range": ">=13.4.13 <15.5.16"
+          },
+          {
+            "source": 1118956,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Middleware / Proxy bypass through dynamic route parameter injection",
+            "url": "https://github.com/advisories/GHSA-492v-c6pp-mqqv",
+            "severity": "high",
+            "cwe": [
+              "CWE-288"
+            ],
+            "cvss": {
+              "score": 8.1,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+            },
+            "range": ">=15.4.0 <15.5.16"
+          },
+          {
+            "source": 1118958,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js vulnerable to cache poisoning in React Server Component responses",
+            "url": "https://github.com/advisories/GHSA-wfc6-r584-vfw7",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-436"
+            ],
+            "cvss": {
+              "score": 5.4,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:N/I:L/A:L"
+            },
+            "range": ">=14.2.0 <15.5.16"
+          },
+          {
+            "source": 1118960,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Middleware / Proxy bypass in App Router applications via segment-prefetch routes",
+            "url": "https://github.com/advisories/GHSA-267c-6grr-h53f",
+            "severity": "high",
+            "cwe": [
+              "CWE-288"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=15.2.0 <15.5.16"
+          },
+          {
+            "source": 1118962,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has a Middleware / Proxy bypass in Pages Router applications using i18n",
+            "url": "https://github.com/advisories/GHSA-36qx-fr4f-26g5",
+            "severity": "high",
+            "cwe": [
+              "CWE-863"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=12.2.0 <15.5.16"
+          },
+          {
+            "source": 1124172,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Denial of Service in App Router using Server Actions",
+            "url": "https://github.com/advisories/GHSA-m99w-x7hq-7vfj",
+            "severity": "high",
+            "cwe": [
+              "CWE-834"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <15.5.21"
+          },
+          {
+            "source": 1124185,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Server-Side Request Forgery in Server Actions on custom servers",
+            "url": "https://github.com/advisories/GHSA-89xv-2m56-2m9x",
+            "severity": "high",
+            "cwe": [
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=14.1.1 <15.5.21"
+          },
+          {
+            "source": 1124187,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Cache confusion of response bodies for requests with bodies",
+            "url": "https://github.com/advisories/GHSA-68g3-v927-f742",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-524"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <15.5.21"
+          },
+          {
+            "source": 1124189,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Cache confusion of response bodies for requests with bodies containing invalid UTF-8 byte sequences",
+            "url": "https://github.com/advisories/GHSA-4633-3j49-mh5q",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-116"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <15.5.21"
+          },
+          {
+            "source": 1124191,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unbounded Server Action payload in Edge runtime",
+            "url": "https://github.com/advisories/GHSA-4c39-4ccg-62r3",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <15.5.21"
+          },
+          {
+            "source": 1124193,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname",
+            "url": "https://github.com/advisories/GHSA-p9j2-gv94-2wf4",
+            "severity": "high",
+            "cwe": [
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=12.0.0 <15.5.21"
+          },
+          {
+            "source": 1124197,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unauthenticated disclosure of internal Server Function endpoints",
+            "url": "https://github.com/advisories/GHSA-955p-x3mx-jcvp",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-201"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <15.5.21"
+          },
+          {
+            "source": 1193677,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+            "url": "https://github.com/advisories/GHSA-p293-qw3h-jr36",
+            "severity": "critical",
+            "cwe": [
+              "CWE-22"
+            ],
+            "cvss": {
+              "score": 9,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:C/C:H/I:H/A:H"
+            },
+            "range": ">=13.4.0 <15.5.24"
+          },
+          {
+            "source": 1193733,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+            "url": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4",
+            "severity": "critical",
+            "cwe": [
+              "CWE-1395"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=10.0.0 <15.5.24"
+          },
+          {
+            "source": 1241491,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has cache poisoning of SSG and ISR pages in self-hosted applications",
+            "url": "https://github.com/advisories/GHSA-4jqv-mc3x-m676",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-524"
+            ],
+            "cvss": {
+              "score": 5.3,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+            },
+            "range": ">=15.0.0 <15.5.27"
+          },
+          {
+            "source": 1241494,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js has cache poisoning in SSG/ISR rendering that leads to cross-user content substitution and persistent denial of service",
+            "url": "https://github.com/advisories/GHSA-mcj8-r9mp-w47p",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-524"
+            ],
+            "cvss": {
+              "score": 4.8,
+              "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:L"
+            },
+            "range": ">=15.0.0 <15.5.27"
+          },
+          {
+            "source": 1242817,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when SVG files are used",
+            "url": "https://github.com/advisories/GHSA-2464-fhr4-w9xw",
+            "severity": "critical",
+            "cwe": [
+              "CWE-1395"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=10.0.0 <=15.5.27"
+          },
+          {
+            "source": 1242819,
+            "name": "next",
+            "dependency": "next",
+            "title": "Next.js: Denial of Service in App Router using Server Actions",
+            "url": "https://github.com/advisories/GHSA-p3m5-59mp-jv5r",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=13.0.0 <=15.5.27"
+          }
+        ],
+        "fixAvailable": {
+          "name": "next",
+          "version": "15.5.28",
+          "isSemVerMajor": false
+        }
+      },
+      {
+        "name": "uuid",
+        "installed": "11.1.0",
+        "severity": "moderate",
+        "advisories": [
+          {
+            "source": 1119441,
+            "name": "uuid",
+            "dependency": "uuid",
+            "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+            "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+            "severity": "moderate",
+            "cwe": [
+              "CWE-787",
+              "CWE-1285"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+            },
+            "range": "<11.1.1"
+          }
+        ],
+        "fixAvailable": true
+      },
+      {
+        "name": "wrangler",
+        "installed": "4.40.2",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1112456,
+            "name": "wrangler",
+            "dependency": "wrangler",
+            "title": "Wrangler affected by OS Command Injection in `wrangler pages deploy`",
+            "url": "https://github.com/advisories/GHSA-36p8-mvp6-cv38",
+            "severity": "high",
+            "cwe": [
+              "CWE-78"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=4.0.0 <4.59.1"
+          }
+        ],
+        "fixAvailable": true
+      },
+      {
+        "name": "zod",
+        "installed": "3.25.76",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1243066,
+            "name": "zod",
+            "dependency": "zod",
+            "title": "Zod can exhaust memory while validating oversized constrained collections",
+            "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": "<4.6.6"
+          }
+        ],
+        "fixAvailable": {
+          "name": "@mastra/client-js",
+          "version": "1.56.0",
+          "isSemVerMajor": true
+        }
+      }
+    ]
+  },
+  "backend": {
+    "counts": {
+      "info": 0,
+      "low": 11,
+      "moderate": 69,
+      "high": 46,
+      "critical": 4,
+      "total": 130
+    },
+    "note": "Counts include transitive and tooling dependencies; not a count of exploitable application vulnerabilities. Do not add the two lockfile counts together.",
+    "direct_dependencies": [
+      {
+        "name": "@ai-sdk/google",
+        "installed": "2.0.17",
+        "severity": "low",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@ai-sdk/openai",
+        "installed": "2.0.38",
+        "severity": "low",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@mastra/core",
+        "installed": "0.18.0",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "@mastra/core",
+          "version": "1.79.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "@mastra/libsql",
+        "installed": "0.14.3",
+        "severity": "low",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "@mastra/libsql",
+          "version": "1.27.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "@mastra/loggers",
+        "installed": "0.10.13",
+        "severity": "low",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@mastra/mcp-docs-server",
+        "installed": "0.13.24",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "@mastra/mcp-docs-server",
+          "version": "1.3.9",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "@mastra/memory",
+        "installed": "0.15.3",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "@mastra/memory",
+          "version": "1.39.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "@mastra/voice-google",
+        "installed": "0.11.6",
+        "severity": "moderate",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@mastra/voice-openai",
+        "installed": "0.11.6",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": true
+      },
+      {
+        "name": "@opennextjs/cloudflare",
+        "installed": "1.9.0",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1113991,
+            "name": "@opennextjs/cloudflare",
+            "dependency": "@opennextjs/cloudflare",
+            "title": "opennextjs-cloudflare has SSRF vulnerability via /cdn-cgi/ path normalization bypass",
+            "url": "https://github.com/advisories/GHSA-c7mq-gh6q-6q7c",
+            "severity": "high",
+            "cwe": [
+              "CWE-706",
+              "CWE-918"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": "<1.17.1"
+          },
+          {
+            "source": 1242289,
+            "name": "@opennextjs/cloudflare",
+            "dependency": "@opennextjs/cloudflare",
+            "title": "OpenNext Cloudflare: Cache interception can bypass middleware protection for encoded paths",
+            "url": "https://github.com/advisories/GHSA-2vc4-c4r6-p6v6",
+            "severity": "high",
+            "cwe": [
+              "CWE-177",
+              "CWE-180"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+            },
+            "range": ">=0.3.0 <1.20.2"
+          }
+        ],
+        "fixAvailable": true
+      },
+      {
+        "name": "mastra",
+        "installed": "0.13.2",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": {
+          "name": "mastra",
+          "version": "1.35.0",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "wrangler",
+        "installed": "4.40.2",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1112456,
+            "name": "wrangler",
+            "dependency": "wrangler",
+            "title": "Wrangler affected by OS Command Injection in `wrangler pages deploy`",
+            "url": "https://github.com/advisories/GHSA-36p8-mvp6-cv38",
+            "severity": "high",
+            "cwe": [
+              "CWE-78"
+            ],
+            "cvss": {
+              "score": 0,
+              "vectorString": null
+            },
+            "range": ">=4.0.0 <4.59.1"
+          }
+        ],
+        "fixAvailable": true
+      },
+      {
+        "name": "zod",
+        "installed": "3.25.76",
+        "severity": "high",
+        "advisories": [
+          {
+            "source": 1243066,
+            "name": "zod",
+            "dependency": "zod",
+            "title": "Zod can exhaust memory while validating oversized constrained collections",
+            "url": "https://github.com/advisories/GHSA-mrhx-c7xc-m3w5",
+            "severity": "high",
+            "cwe": [
+              "CWE-770"
+            ],
+            "cvss": {
+              "score": 7.5,
+              "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+            },
+            "range": "<4.6.6"
+          }
+        ],
+        "fixAvailable": {
+          "name": "zod",
+          "version": "4.6.7",
+          "isSemVerMajor": true
+        }
+      },
+      {
+        "name": "zod-to-json-schema",
+        "installed": "3.24.6",
+        "severity": "high",
+        "advisories": [],
+        "fixAvailable": true
+      }
+    ]
+  }
+}

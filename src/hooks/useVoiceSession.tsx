@@ -10,9 +10,32 @@ import {
 import { usePathname } from "next/navigation";
 import { useCedarStore } from "cedar-os";
 import { LiveVoiceController } from "@/lib/liveVoice";
+import { DeepgramVoiceController } from "@/lib/deepgramVoice";
+import { isChatErrorMessage } from "@/lib/chatErrors";
 import type { ConversationMessage } from "@/lib/voiceTranscript";
 
-const VoiceContext = createContext<LiveVoiceController | null>(null);
+type VoiceSessionController = Pick<
+  LiveVoiceController,
+  | "getSnapshot"
+  | "subscribe"
+  | "start"
+  | "stop"
+  | "flush"
+  | "beginTalking"
+  | "endTalking"
+  | "resumePlayback"
+  | "syncContext"
+  | "syncTypedMessages"
+  | "dispose"
+> & {
+  canContinueByText?: () => boolean;
+  continueByText?: () => Promise<void>;
+};
+type VoiceProvider = "openai" | "deepgram";
+const VoiceContext = createContext<{
+  controller: VoiceSessionController;
+  provider: VoiceProvider;
+} | null>(null);
 function messages(threadId: string): ConversationMessage[] {
   return useCedarStore
     .getState()
@@ -20,6 +43,8 @@ function messages(threadId: string): ConversationMessage[] {
     .filter(
       (message) =>
         message.type === "text" &&
+        !isChatErrorMessage(message) &&
+        message.metadata?.generationFailed !== true &&
         (message.role === "user" ||
           message.role === "assistant" ||
           message.role === "bot"),
@@ -38,19 +63,23 @@ function messages(threadId: string): ConversationMessage[] {
 
 export function VoiceSessionProvider({
   children,
+  provider = "openai",
 }: {
   children: React.ReactNode;
+  provider?: VoiceProvider;
 }) {
   const pathname = usePathname();
-  const [controller] = useState(
-    () =>
-      new LiveVoiceController({
+  const [session] = useState(() => {
+    const Controller =
+      provider === "deepgram" ? DeepgramVoiceController : LiveVoiceController;
+    return {
+      provider,
+      controller: new Controller({
         baseURL: () => {
           const config = useCedarStore.getState().providerConfig;
           return (
             (config && "baseURL" in config ? config.baseURL : undefined) ||
-            process.env.NEXT_PUBLIC_URL ||
-            "http://localhost:4111"
+            "/api/backend"
           );
         },
         scope: () => {
@@ -93,7 +122,9 @@ export function VoiceSessionProvider({
           }
         },
       }),
-  );
+    };
+  });
+  const { controller } = session;
 
   useEffect(() => {
     const unsubscribe = useCedarStore.subscribe((state, previous) => {
@@ -123,13 +154,14 @@ export function VoiceSessionProvider({
     [pathname, controller],
   );
   return (
-    <VoiceContext.Provider value={controller}>{children}</VoiceContext.Provider>
+    <VoiceContext.Provider value={session}>{children}</VoiceContext.Provider>
   );
 }
 
 export function useVoiceSession() {
-  const controller = useContext(VoiceContext);
-  if (!controller) throw new Error("VoiceSessionProvider is missing");
+  const session = useContext(VoiceContext);
+  if (!session) throw new Error("VoiceSessionProvider is missing");
+  const { controller, provider } = session;
   const state = useSyncExternalStore(
     controller.subscribe,
     controller.getSnapshot,
@@ -137,11 +169,14 @@ export function useVoiceSession() {
   );
   return {
     ...state,
+    provider,
     start: controller.start,
     stop: controller.stop,
     flush: controller.flush,
     beginTalking: controller.beginTalking,
     endTalking: controller.endTalking,
     resumePlayback: controller.resumePlayback,
+    canContinueByText: controller.canContinueByText?.() ?? false,
+    continueByText: controller.continueByText,
   };
 }

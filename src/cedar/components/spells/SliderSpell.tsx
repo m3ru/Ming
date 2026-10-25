@@ -324,7 +324,7 @@ const SliderSpell: React.FC<SliderSpellProps> = ({
 			window.removeEventListener('mousemove', handleMouseMove);
 			window.removeEventListener('keydown', handleEscape);
 		};
-	}, [sliderPosition, initialMouseX, initialValue, min, max, step]);
+	}, [sliderPosition, initialMouseX, initialValue, min, max, step, deactivate]);
 
 	// Don't render if not active
 	if (!sliderPosition) return null;

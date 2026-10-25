@@ -1,0 +1,1 @@
+PASS: real built backend returned HTTP503 AI_NOT_CONFIGURED twice and stayed alive; no provider key or network call.

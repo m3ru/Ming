@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-25",
+  "scope": "Optional lint and dead-code cleanup",
+  "lint": {
+    "errors": 0,
+    "warnings": 0,
+    "enforcedMaxWarnings": 0
+  },
+  "regressions": {
+    "existingNodeTests": 122,
+    "newHookTests": 2,
+    "openaiVoiceTests": 28,
+    "totalPassed": 152
+  },
+  "frontendTypes": "pass via production build",
+  "backendTypes": "pass",
+  "frontendProductionBuild": "pass",
+  "backendProductionBuild": "pass",
+  "deepgramBuiltStackSmoke": "pass without provider calls",
+  "browser": {
+    "tool": "Codex in-app browser",
+    "url": "http://127.0.0.1:3000/",
+    "checks": [
+      "homepage renders after rebuild",
+      "scenario card image renders",
+      "New Session control remains visible"
+    ],
+    "screenshot": "cleanup-home.png"
+  },
+  "behaviorFixes": [
+    "Sentiment timer uses elapsed time per interval",
+    "Typing animation retains progress across callback changes",
+    "Homepage wheel listener is removed on unmount"
+  ],
+  "limitations": [
+    "Real Gemini follow-up previously timed out; not retested during cleanup",
+    "Complete real microphone-to-report-to-follow-up rehearsal remains unverified"
+  ],
+  "committed": false,
+  "pushed": false
+}

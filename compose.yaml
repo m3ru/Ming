@@ -1,0 +1,83 @@
+services:
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        MING_APP_ORIGIN: ${MING_APP_ORIGIN:-}
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      MING_APP_ORIGIN: ${MING_APP_ORIGIN:-}
+      MING_BACKEND_TOKEN: ${MING_BACKEND_TOKEN:?Set a random token of at least 32 characters}
+      MING_BACKEND_URL: http://backend:4111
+      MING_VOICE_PROVIDER: ${MING_VOICE_PROVIDER:-openai}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache:uid=1000,gid=1000,mode=0700
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 768m
+    networks: [application]
+
+  backend:
+    build:
+      context: .
+      target: backend
+    # No published port: browser traffic passes through the local Next proxy.
+    environment:
+      NODE_ENV: production
+      PORT: 4111
+      MING_APP_ORIGIN: ${MING_APP_ORIGIN:-}
+      MING_BACKEND_TOKEN: ${MING_BACKEND_TOKEN:?Set a random token of at least 32 characters}
+      MING_DATABASE_URL: file:/data/storage.db
+      MASTRA_DEFAULT_STORAGE_URL: file:/data/mastra.db
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      MING_TEXT_PROVIDER: ${MING_TEXT_PROVIDER:-gemini}
+      MING_VOICE_PROVIDER: ${MING_VOICE_PROVIDER:-openai}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-5.4-mini}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
+      DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-thalia-en}
+    volumes:
+      - ming-data:/data
+    healthcheck:
+      # A rejected empty chat proves the internal gateway route is available without
+      # sending a provider request or creating a conversation.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4111/chat/stream',{method:'POST',headers:{'content-type':'application/ming+json','x-ming-gateway-token':process.env.MING_BACKEND_TOKEN,'x-ming-user-id':'healthcheck'},body:'{}'}).then(r=>process.exit(r.status===400?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 1g
+    networks: [application]
+
+# Docker isolates service ports from the host unless explicitly published above.
+# Egress stays enabled so the backend can contact the selected AI/audio providers.
+networks:
+  application:
+    driver: bridge
+
+volumes:
+  ming-data:

@@ -1,0 +1,30 @@
+Frontend offline audit evidence
+Node: v26.5.0
+Harness evaluates extracted current source with synthetic data and in-memory doubles.
+This is logic evidence, not a React/browser or production end-to-end test.
+
+CONFIRMED: Missing-rating payload returns fabricated parser scores: [85,90,80,75,88,99]
+Same payload returns null evaluation scores: [null,null,null,null,null,null]
+CONTROL: A complete six-rating payload preserves the same real scores in both outputs.
+
+CONFIRMED: Simulated mount plus two visible-event checks records 3 completions with no report or completion flag.
+CONTROL: The next-scenario workflow double was invoked 0 times.
+
+CONFIRMED: Tab default traversal is prevented and editor focus is forced.
+CONFIRMED: Shift+Tab default traversal is prevented and editor focus is forced.
+CONTROL: ArrowDown is not intercepted.
+
+CONFIRMED: Actual scenarioData getter passes undefined as document input when the producer stores reports.
+Actual XML wrapper then produces: <root>undefined</root>
+CONTROL: Scenario and prompt arguments remain intact. DOM parsing/rendering was not exercised.
+
+Source SHA-256 at reproduction time:
+7be3b2e030c03e6a659a0cfe8c25e0c277ad79031f2a2fa8d0c9c2d96b0700ec  src/lib/evaluation.ts
+c396652736e5d8690e5acb5884e12ffdc1f232f7c1b6575fb06f4ce1975bcc10  src/app/report/parser.tsx
+2439ca6d524ed3781800637065fde8ed5028e1852ae21a5c4dc83b2eebe070ae  src/app/scenario/page.tsx
+e0237a5bb4c0059ae618aa1abf0b117c9e140b091ba4c8fbc63382d85d502af3  src/cedar/components/chatInput/ChatInput.tsx
+fe6126292fd1492b9761654c1f6e506a020324f057575220e78a624c0d9ec451  src/lib/scenarioUtil.ts
+
+All observed-defect assertions and controls passed.
+(node:19515) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)

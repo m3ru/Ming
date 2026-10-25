@@ -7,33 +7,37 @@
     "dev": "mastra dev --env ../../.env",
     "build": "mastra build",
     "start": "mastra start --env ../../.env",
-	"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-	"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-	"cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
-},
+    "typecheck": "tsc --noEmit"
+  },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22"
   },
   "dependencies": {
-    "@ai-sdk/google": "^2.0.17",
+    "@ai-sdk/google": "2.0.106",
     "@ai-sdk/openai": "^2.0.32",
     "@cedar-os/backend": "^0.0.12",
-    "@mastra/core": "^0.18.0",
-    "@mastra/libsql": "^0.14.3",
-    "@mastra/loggers": "^0.10.13",
-    "@mastra/mcp-docs-server": "^0.13.24",
-    "@mastra/memory": "^0.15.3",
-    "@mastra/voice-google": "^0.11.6",
-    "@mastra/voice-openai": "^0.11.6",
-    "@opennextjs/cloudflare": "^1.9.0",
-    "marked": "^16.3.0",
+    "@google/genai": "2.31.0",
+    "@mastra/core": "0.18.0",
+    "@mastra/libsql": "0.14.3",
+    "@mastra/memory": "0.15.3",
     "zod": "^3.25.76",
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
+    "@mastra/deployer": "0.18.0",
     "@types/node": "^20.9.0",
-    "mastra": "^0.13.1",
-    "typescript": "^5.8.3",
-    "wrangler": "^4.40.2"
+    "mastra": "0.13.2",
+    "typescript": "^5.8.3"
+  },
+  "overrides": {
+    "@mastra/deployer": "$@mastra/deployer",
+    "@mastra/server": "0.18.0",
+    "@mastra/mcp": "0.13.1",
+    "@mastra/loggers": "0.10.13",
+    "ai-v5": "npm:ai@5.0.281",
+    "@ai-sdk/provider-utils-v5": "npm:@ai-sdk/provider-utils@3.0.42",
+    "rollup": "4.65.0",
+    "jsondiffpatch": "0.7.6",
+    "undici": "6.29.1"
   }
 }

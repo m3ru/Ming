@@ -1,33 +1,13 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import ScenarioCard from "@/components/ScenarioCard";
-import MenuBar from "@/components/MenuBar";
 import ScoreCard from "@/components/ScoreCard";
 import AchievementsCard from "@/components/AchievementsCard";
 import ProgressCard from "@/components/ProgressCard";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-
-type analyticsData = {
-  numScenariosCompleted?: number;
-  latestScores?: { category: string; score: number }[];
-  prevScores?: { category: string; score: number }[];
-};
-
 export default function HomePage() {
-  const router = useRouter();
-
-  const [mainText, setMainText] = React.useState("Budding Manager");
-
   const [showAnalytics, setShowAnalytics] = React.useState(false);
   const analyticsRef = React.useRef<HTMLDivElement>(null);
 
@@ -50,7 +30,7 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    window.addEventListener("wheel", (e: WheelEvent) => {
+    const handleWheel = (e: WheelEvent) => {
       if (analyticsRef.current) {
         const delta = e.deltaY;
 
@@ -62,7 +42,9 @@ export default function HomePage() {
           setShowAnalytics(false);
         }
       }
-    });
+    };
+    window.addEventListener("wheel", handleWheel, { passive: true });
+    return () => window.removeEventListener("wheel", handleWheel);
   }, []);
 
   const scenarioCards = [
@@ -104,10 +86,10 @@ export default function HomePage() {
           <h1 className="text-6xl font-bold text-gray-800 mb-4">
             Welcome back,
           </h1>
-          <h1 className="text-6xl font-bold text-blue-800 mb-4">{mainText}</h1>
+          <h1 className="text-6xl font-bold text-blue-800 mb-4">Budding Manager</h1>
           <p className="text-lg text-gray-600 md:mb-8">
             <span className="max-md:hidden">
-              Keep working hard to unlock new scenarios!
+              Practice a performance review. More scenarios coming soon.
             </span>
             <span className="md:hidden">Try this scenario to get started!</span>
           </p>

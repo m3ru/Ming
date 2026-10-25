@@ -2,6 +2,7 @@ import { textModel } from "../models";
 import { Agent } from "@mastra/core/agent";
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
+import { databaseUrl } from "../../lib/storage";
 /**
  * Default Agent
  * For adapting to CedarOS workflow
@@ -12,7 +13,7 @@ export const defaultAgent = new Agent({
   model: textModel,
   memory: new Memory({
     storage: new LibSQLStore({
-      url: "file:default-memory.db",
+      url: databaseUrl("file:default-memory.db"),
     }),
     options: {
       workingMemory: {

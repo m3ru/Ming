@@ -1,0 +1,20 @@
+{
+  "model": "gemini-3.5-flash-lite",
+  "syntheticAudio": true,
+  "realProviders": true,
+  "httpStatus": 200,
+  "status": "success",
+  "persisted": true,
+  "elapsedMs": 12433,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Bart, let us agree on one realistic milestone for Friday. What support would help you?"
+    },
+    {
+      "role": "assistant",
+      "content": "I am really sorry for letting things slip this week. If I can just focus on wrapping up the user authentication PR by Friday, that would be a realistic milestone. It would help me a lot if I could pair program with Sarah for an hour tomorrow to get past this roadblock. Thank you for being so patient with me while I sort things out."
+    }
+  ],
+  "audioBytes": 106128
+}

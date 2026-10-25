@@ -1,0 +1,1 @@
+PASS: built Next + Mastra: presenter gate, signed login, no secret leakage in HTML, security headers, anonymous denial, private API denial, CSRF rejection, input limits, two recoverable authorized 503s, authenticated page, logout. No provider call.

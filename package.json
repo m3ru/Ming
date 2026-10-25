@@ -3,23 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e .env -- concurrently -n \"NEXT,MASTRA\" -c \"blue.bold,magenta.bold\" \"npm run dev:next\" \"npm run dev:mastra\"",
-    "dev:next": "next dev --turbopack",
-    "dev:mastra": "npm --prefix src/backend run dev",
+    "dev": "dotenv -e .env -- node scripts/dev.mjs",
+    "dev:next": "next dev --turbopack --hostname 127.0.0.1",
+    "dev:mastra": "npm --prefix src/backend run dev --",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint . --max-warnings 0",
     "test:voice": "node scripts/test-voice.mjs",
+    "test:demo": "node --test tests/backend-streaming.test.mjs tests/chat-controls.test.mjs tests/demo-completion.test.mjs tests/hooks-cleanup.test.mjs src/lib/tests/report-regression.test.mjs",
     "pretty": "npx prettier --write .",
-	"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-	"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-	"cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "typecheck": "tsc --noEmit --incremental false",
+    "test:providers": "node --test tests/text-providers.test.mjs",
+    "test:deepgram": "node --test tests/deepgram-backend.test.mjs tests/deepgram-voice.test.mjs",
+    "test:adaptive": "node --test tests/adaptive-scenario.test.mjs tests/practice-session.test.mjs src/lib/tests/follow-up.test.mjs"
   },
   "dependencies": {
-    "@google/genai": "^1.21.0",
-    "@mastra/client-js": "^0.13.2",
-    "@mastra/voice-google": "^0.11.6",
-    "@opennextjs/cloudflare": "^1.9.0",
+    "@google/genai": "2.31.0",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -30,7 +29,6 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tiptap/react": "^3.4.2",
-    "ai": "^5.0.44",
     "cedar-os": "^0.1.18",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -39,14 +37,14 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.11",
     "lucide-react": "^0.532.0",
-    "marked": "^16.3.0",
     "motion": "^12.23.12",
     "motion-plus-react": "^1.5.1",
-    "next": "15.4.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "next": "15.5.28",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "server-only": "0.0.1",
     "tailwind-merge": "^3.3.1",
     "uuid": "^11.1.0",
     "zod": "^3.25.76"
@@ -61,11 +59,18 @@
     "concurrently": "^8.2.1",
     "dotenv-cli": "^7.3.0",
     "eslint": "^9",
-    "eslint-config-next": "15.4.4",
+    "eslint-config-next": "15.5.28",
     "prettier": "^3.2.4",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.6",
-    "typescript": "^5",
-    "wrangler": "^4.40.2"
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "postcss": "8.5.31",
+    "framer-motion": "$framer-motion",
+    "motion-plus-react": "$motion-plus-react"
   }
 }

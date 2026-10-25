@@ -1,12 +1,16 @@
 import { registerApiRoute } from "@mastra/core/server";
+import { ChatInputSchema, chatWorkflow } from "./workflows/chatWorkflow";
+import { feedbackOrchestratorWorkflow } from "./workflows/feedbackOrchestratorWorkflow";
+import { ScenarioPipelineInputSchema, ScenarioPipelineOutputSchema, scenarioPipelineWorkflow } from "./workflows/scenarioPipelineWorkflow";
 import {
-  ChatInputSchema,
-  ChatOutput,
-  chatWorkflow,
-} from "./workflows/chatWorkflow";
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { createSSEStream } from "../utils/streamUtils";
+  ChatStreamError,
+  createSSEStream,
+  publicChatError,
+} from "../utils/streamUtils";
 import { liveVoice } from "./liveVoice";
+import { deepgramVoice } from "./deepgramVoice";
+import { deepgramTurnSchema, DeepgramVoiceError } from "../lib/deepgramVoice";
+import { isTextConfigured } from "./models";
 import { scoreSentiment } from "./sentiment";
 import { sentimentRequestSchema } from "../lib/sentiment";
 import {
@@ -15,152 +19,268 @@ import {
   voiceDelegationSchema,
   voiceUpdateSchema,
 } from "../lib/voice";
+import {
+  AccessError,
+  analysisThread,
+  claimThread,
+  reserveGeneration,
+  threadIdSchema,
+  trustedIdentity,
+} from "../lib/security";
 import { z } from "zod";
+import type { Context } from "hono";
 
-// Helper function to convert Zod schema to OpenAPI schema
-function toOpenApiSchema(schema: Parameters<typeof zodToJsonSchema>[0]) {
-  return zodToJsonSchema(schema) as Record<string, unknown>;
+const feedbackSchema = z.object({
+  threadId: threadIdSchema,
+  transcript: z.string().trim().min(1).max(96000),
+  additionalContext: z.record(z.unknown()).optional(),
+});
+const scenarioRequestSchema = ScenarioPipelineInputSchema.pick({
+  analysis: true,
+  additionalContext: true,
+}).extend({
+  threadId: threadIdSchema,
+});
+const chatSchema = ChatInputSchema.extend({ threadId: threadIdSchema });
+function errorResponse(c: Context, error: unknown) {
+  if (error instanceof AccessError || error instanceof VoiceError || error instanceof DeepgramVoiceError)
+    return c.json({ error: error.message }, error.status);
+  if (error instanceof z.ZodError || error instanceof SyntaxError)
+    return c.json({ error: "Invalid request." }, 400);
+  // Provider bodies and workflow diagnostics may contain private conversation
+  // data. Never serialize or log them at this public application boundary.
+  return c.json(
+    { error: "The request could not be completed. Try again." },
+    502,
+  );
+}
+function configured() {
+  if (!isTextConfigured())
+    throw new AccessError(503, "AI is not configured on the server.");
+}
+function openaiVoiceConfigured() {
+  if (!process.env.OPENAI_API_KEY?.trim())
+    throw new AccessError(503, "OpenAI voice is not configured on the server.");
 }
 
-/**
- * API routes for the Mastra backend
- *
- * These routes handle chat interactions between the Cedar-OS frontend
- * and your Mastra agents. The chat UI will automatically use these endpoints.
- *
- * - /chat: Standard request-response chat endpoint
- * - /chat/stream: Server-sent events (SSE) endpoint for streaming responses
- */
 export const apiRoutes = [
   registerApiRoute("/sentiment", {
     method: "POST",
     handler: async (c) => {
+      let release: (() => void) | undefined;
       try {
-        const request = sentimentRequestSchema.safeParse(await c.req.json());
-        if (!request.success)
-          return c.json({ error: "Invalid sentiment request." }, 400);
-        if (!process.env.OPENAI_API_KEY)
-          return c.json(
-            { error: "OpenAI is not configured on the server." },
-            503,
-          );
+        const request = sentimentRequestSchema.parse(await c.req.json());
+        configured();
+        release = reserveGeneration(trustedIdentity(c));
         return c.json(
           await scoreSentiment(
-            request.data.text,
+            request.text,
             AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(20000)]),
           ),
         );
       } catch (error) {
-        if (error instanceof SyntaxError)
-          return c.json({ error: "Invalid sentiment request." }, 400);
-        console.error(
-          "Sentiment scoring failed",
-          error instanceof Error ? error.name : "Unknown error",
-        );
-        return c.json({ error: "Sentiment scoring is unavailable." }, 502);
+        return errorResponse(c, error);
+      } finally {
+        release?.();
       }
     },
   }),
   registerApiRoute("/chat/stream", {
     method: "POST",
-    openapi: {
-      requestBody: {
-        content: {
-          "application/json": {
-            schema: toOpenApiSchema(ChatInputSchema),
-          },
-        },
-      },
-    },
     handler: async (c) => {
+      let release: (() => void) | undefined;
       try {
-        const body = await c.req.json();
-        const {
-          prompt,
-          temperature,
-          maxTokens,
-          systemPrompt,
-          additionalContext,
-          resourceId,
-          threadId,
-        } = ChatInputSchema.parse(body);
-
+        const { prompt, temperature, maxTokens, additionalContext, threadId } =
+          chatSchema.parse(await c.req.json());
+        const resourceId = trustedIdentity(c);
+        if (!isTextConfigured()) {
+          const error = publicChatError(
+            new ChatStreamError("AI_NOT_CONFIGURED"),
+          );
+          return c.json({ ...error, error: error.message }, 503);
+        }
+        release = reserveGeneration(resourceId);
+        await claimThread(threadId, resourceId);
+        const releaseStream = release;
+        release = undefined;
         return createSSEStream(async (controller) => {
-          const run = await chatWorkflow.createRunAsync();
-          const result = await run.start({
-            inputData: {
-              prompt,
-              temperature,
-              maxTokens,
-              systemPrompt,
-              streamController: controller,
-              additionalContext,
-              resourceId,
-              threadId,
-            },
-          });
-
-          if (result.status !== "success") {
-            // TODO: Handle workflow errors appropriately
-            throw new Error(`Workflow failed: ${result.status}`);
+          try {
+            const run = await chatWorkflow.createRunAsync();
+            const result = await run.start({
+              inputData: {
+                prompt,
+                temperature,
+                maxTokens,
+                streamController: controller,
+                additionalContext,
+                resourceId,
+                threadId,
+              },
+            });
+            if (result.status !== "success")
+              throw new ChatStreamError("PROVIDER_UNAVAILABLE");
+          } finally {
+            releaseStream();
           }
         });
       } catch (error) {
-        console.error(error);
-        return c.json(
-          { error: error instanceof Error ? error.message : "Internal error" },
-          500,
+        if (error instanceof AccessError) return errorResponse(c, error);
+        const invalid =
+          error instanceof z.ZodError || error instanceof SyntaxError;
+        const safeError = publicChatError(
+          invalid ? new ChatStreamError("INVALID_CHAT_REQUEST") : error,
         );
+        return c.json(
+          { ...safeError, error: safeError.message },
+          invalid ? 400 : 502,
+        );
+      } finally {
+        release?.();
       }
     },
   }),
-  ...[
-    {
-      path: "/voice/session",
-      schema: voiceSessionSchema,
-      run: async (body: unknown, _token: string) =>
-        liveVoice.create(voiceSessionSchema.parse(body)),
-    },
-    {
-      path: "/voice/delegate",
-      schema: voiceDelegationSchema,
-      run: async (body: unknown, token: string) =>
-        liveVoice.delegate(voiceDelegationSchema.parse(body), token),
-    },
-    {
-      path: "/voice/sync",
-      schema: voiceUpdateSchema,
-      run: async (body: unknown, token: string) =>
-        liveVoice.sync(voiceUpdateSchema.parse(body), token),
-    },
-  ].map(({ path, run }) =>
-    registerApiRoute(path, {
-      method: "POST",
-      handler: async (c) => {
-        try {
-          const raw = await c.req.text();
-          if (Buffer.byteLength(raw) > 512000)
-            return c.json({ error: "Voice request is too large" }, 413);
-          const body = JSON.parse(raw);
-          const token =
-            c.req.header("Authorization")?.replace(/^Bearer /, "") ?? "";
-          return c.json(await run(body, token));
-        } catch (error) {
-          if (error instanceof z.ZodError || error instanceof SyntaxError)
-            return c.json({ error: "Invalid voice request" }, 400);
-          if (error instanceof VoiceError)
-            return c.json({ error: error.message }, error.status);
-          console.error(
-            "Voice request failed",
-            error instanceof Error ? error.name : "Unknown error",
-          );
+  registerApiRoute("/feedback", {
+    method: "POST",
+    handler: async (c) => {
+      let release: (() => void) | undefined;
+      try {
+        const input = feedbackSchema.parse(await c.req.json());
+        const resourceId = trustedIdentity(c);
+        configured();
+        release = reserveGeneration(resourceId, 8);
+        await claimThread(input.threadId, resourceId);
+        const run = await feedbackOrchestratorWorkflow.createRunAsync();
+        const result = await run.start({
+          inputData: {
+            ...input,
+            resourceId,
+            threadId: analysisThread(input.threadId, resourceId),
+          },
+        });
+        if (result.status !== "success")
           return c.json(
             {
-              error:
-                "Voice request failed. Check the server configuration and try again.",
+              status: "failed",
+              error: "The report could not be generated. Try again.",
             },
             502,
           );
+        const { summaryAnalysis, detailedFeedback, segmentedAnalysis } =
+          result.result;
+        return c.json({
+          status: "success",
+          result: { summaryAnalysis, detailedFeedback, segmentedAnalysis },
+        });
+      } catch (error) {
+        return errorResponse(c, error);
+      } finally {
+        release?.();
+      }
+    },
+  }),
+  registerApiRoute("/scenario-next", {
+    method: "POST",
+    handler: async (c) => {
+      let release: (() => void) | undefined;
+      try {
+        const input = scenarioRequestSchema.parse(await c.req.json());
+        const resourceId = trustedIdentity(c);
+        configured();
+        release = reserveGeneration(resourceId, 8);
+        await claimThread(input.threadId, resourceId);
+        const run = await scenarioPipelineWorkflow.createRunAsync();
+        const result = await run.start({
+          inputData: {
+            ...input,
+            resourceId,
+            threadId: analysisThread(input.threadId, resourceId),
+          },
+        });
+        if (result.status !== "success")
+          return c.json(
+            {
+              status: "failed",
+              error: "The scenario could not be generated. Try again.",
+            },
+            502,
+          );
+        // Validate the public boundary too, so a future workflow change cannot
+        // accidentally return raw generation strings or a partial scenario.
+        const output = ScenarioPipelineOutputSchema.safeParse(result.result);
+        if (!output.success)
+          return c.json(
+            { status: "failed", error: "The scenario could not be generated. Try again." },
+            502,
+          );
+        return c.json({
+          status: "success",
+          result: { scenario: output.data.scenario },
+        });
+      } catch (error) {
+        return errorResponse(c, error);
+      } finally {
+        release?.();
+      }
+    },
+  }),
+  registerApiRoute("/voice/deepgram/turn", {
+    method: "POST",
+    handler: async (c) => {
+      try {
+        if (process.env.MING_VOICE_PROVIDER?.trim().toLowerCase() !== "deepgram")
+          return c.json({ error: "Deepgram voice is not enabled on the server." }, 404);
+        const input = deepgramTurnSchema.parse(await c.req.json());
+        const identity = trustedIdentity(c);
+        if (!process.env.DEEPGRAM_API_KEY?.trim())
+          throw new AccessError(503, "Deepgram voice is not configured on the server.");
+        await claimThread(input.threadId, identity);
+        return c.json(await deepgramVoice.turn(input, identity));
+      } catch (error) {
+        return errorResponse(c, error);
+      }
+    },
+  }),
+  ...["session", "delegate", "sync", "end", "heartbeat"].map((action) =>
+    registerApiRoute("/voice/" + action, {
+      method: "POST",
+      handler: async (c) => {
+        let release: (() => void) | undefined;
+        try {
+          const raw = await c.req.json();
+          const identity = trustedIdentity(c);
+          const token =
+            c.req.header("Authorization")?.replace(/^Bearer /, "") ?? "";
+          if (action === "session") {
+            const input = voiceSessionSchema.parse({
+              ...raw,
+              resourceId: identity,
+            });
+            openaiVoiceConfigured();
+            release = reserveGeneration(identity, 12);
+            await claimThread(input.threadId, identity);
+            return c.json(await liveVoice.create(input, identity));
+          }
+          if (action === "delegate") {
+            const input = voiceDelegationSchema.parse(raw);
+            configured();
+            release = reserveGeneration(identity);
+            return c.json(await liveVoice.delegate(input, token, identity));
+          }
+          if (action === "end" || action === "heartbeat") {
+            const input = z
+              .object({ sessionId: z.string().min(1).max(256) })
+              .parse(raw);
+            return c.json(
+              await liveVoice[action](input.sessionId, token, identity),
+            );
+          }
+          return c.json(
+            await liveVoice.sync(voiceUpdateSchema.parse(raw), token, identity),
+          );
+        } catch (error) {
+          return errorResponse(c, error);
+        } finally {
+          release?.();
         }
       },
     }),

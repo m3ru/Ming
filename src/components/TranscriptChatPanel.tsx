@@ -11,13 +11,14 @@ import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
 import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
 import { MessageSquare } from "lucide-react";
 import { feedbackReplyPrompt } from "@/lib/prompts";
+import type { ReportScore } from "@/app/report/parser";
 import "./TranscriptChatPanel.css";
 
 interface TranscriptChatPanelProps {
   segments: Array<{ title: string; content: string }>;
-  feedback: string;
-  suggestions: string;
-  scores: Array<{ category: string; score: number }>;
+  feedback: string | null;
+  suggestions: string | null;
+  scores: ReportScore[];
 }
 
 export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
@@ -29,7 +30,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
   // Generate a unique thread ID for the transcript chat to separate it from scenario chat
   const [transcriptThreadId] = useState(() => {
     return `transcript-${Array.from({ length: 20 }, () =>
-      Math.floor(Math.random() * 36).toString(36)
+      Math.floor(Math.random() * 36).toString(36),
     ).join("")}`;
   });
 
@@ -37,12 +38,14 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
   const createThread = useCedarStore((state) => state.createThread);
   const switchThread = useCedarStore((state) => state.switchThread);
   const clearMessages = useCedarStore((state) => state.clearMessages);
+  const getCurrentThreadId = useCedarStore((state) => state.getCurrentThreadId);
 
   useEffect(() => {
+    const previousThreadId = getCurrentThreadId();
     // Create and switch to transcript thread when this component mounts
     const threadId = createThread(
       transcriptThreadId,
-      "Transcript Analysis Chat"
+      "Transcript Analysis Chat",
     );
     switchThread(threadId);
 
@@ -50,10 +53,15 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     clearMessages();
 
     return () => {
-      // Optional: Could switch back to main thread when unmounting
-      // but probably not necessary since user navigates away
+      if (getCurrentThreadId() === threadId) switchThread(previousThreadId);
     };
-  }, [transcriptThreadId, createThread, switchThread, clearMessages]);
+  }, [
+    transcriptThreadId,
+    createThread,
+    switchThread,
+    clearMessages,
+    getCurrentThreadId,
+  ]);
   // Memoize the comprehensive context object to prevent infinite re-renders
   const transcriptContext = useMemo(
     () => ({
@@ -61,9 +69,11 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
       feedback,
       suggestions,
       scores,
+      scoreAvailability:
+        "A null score is unknown or not scored. Never infer a numeric score for it or treat it as zero.",
       summary: `${feedbackReplyPrompt}`,
     }),
-    [segments, feedback, suggestions, scores]
+    [segments, feedback, suggestions, scores],
   );
 
   // Register transcript data as Cedar state for AI context
@@ -86,7 +96,7 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     {
       showInChat: false,
       color: "#10b981",
-    }
+    },
   );
 
   // Transform segments to extract only feedback from comment tags

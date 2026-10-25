@@ -1,0 +1,40 @@
+✔ a complete report retains actual scores, transcript, and session metadata (2.766209ms)
+✔ missing rating section stays null across parsing, evaluation, and serialized context (0.726667ms)
+✔ the actual coaching state preserves null scores and explains their meaning (42.893208ms)
+✔ partial and malformed ratings never invent or clamp numbers (0.326125ms)
+✔ malformed JSON and unexpected field types return recoverable invalid reports (0.482083ms)
+✔ malformed and empty segments remain unavailable; valid content is retained as partial (0.890125ms)
+✔ restricted Markdown preserves formatting and excludes HTML, images, and unsafe URLs (10.058ms)
+✔ score bars distinguish unknown scores from valid zero and reject corrupt numbers (1.844792ms)
+✔ report coaching restores the prior thread and respects later thread changes (18.4465ms)
+✔ actual report loading handles missing, corrupt, and blocked storage without writing history (132.924458ms)
+✔ empty and invalid report pages expose navigation without fake report content or export (49.481291ms)
+✔ partial page renders available content with explicit gaps and safe summary output (23.494291ms)
+Chat stream failed PROVIDER_UNAVAILABLE
+✔ provider failures survive and subsequent requests recover (memory=false) (1371.540333ms)
+✔ provider failures survive and subsequent requests recover (memory=true) (1281.000291ms)
+✔ SSE sanitizes unexpected exceptions and does not signal completion (55.678208ms)
+✔ disconnecting during generation contains a later failure (8.006041ms)
+✔ structured stream failures are interface errors regardless of content (0.832625ms)
+✔ Cedar's swallowed HTTP and transport errors are recognized (0.131083ms)
+✔ a user quoting the failure text remains user content (0.093791ms)
+✔ ordinary dialogue, hidden tools, and empty messages remain unchanged (0.113958ms)
+✔ swallowed Cedar transport errors are observed without changing event handling (1.352167ms)
+✔ observer cleanup preserves later method replacement and healthy streams (0.249625ms)
+✔ structured SSE failures are observed even before Cedar stores them (0.293375ms)
+✔ stream completion waits for Cedar's asynchronous message handlers (0.2065ms)
+✔ real installed Cedar retains a partial reply but excludes failed generation from reports (281.325375ms)
+✔ legacy page-visit counts do not become completed sessions (1.323125ms)
+✔ successful session is counted once across retries and rereads (0.28275ms)
+✔ invalid storage is safe and failed writes remain failures (0.282625ms)
+✔ empty, system-only and failed conversations cannot generate reports (0.232375ms)
+✔ report transcript includes dialogue and excludes failures and tool output (0.124875ms)
+✔ a partial assistant turn from a failed stream is not a completed conversation (0.099792ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2913.051458

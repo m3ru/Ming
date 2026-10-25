@@ -1,0 +1,23 @@
+✔ real Mastra router enforces gateway, ownership, blocked built-ins and quotas without provider calls (1175.647667ms)
+✔ voice capacity reserves concurrent offers and end releases slots (87.651375ms)
+✔ configuration fails closed; HTTPS and deliberate loopback are the only allowed origins (0.932375ms)
+✔ sessions reject tampering, expiry, other signing secrets and password rotation (0.590334ms)
+✔ anonymous, forged-session and cross-origin proxy requests fail before upstream fetch (3.734291ms)
+✔ proxy denies framework APIs and path escapes even to authenticated users (1.557875ms)
+✔ gateway overwrites forged identity and secrets; streams permitted response without exposing upstream headers (1.96125ms)
+✔ byte and validation budgets reject hostile input before downstream schema work (3.213125ms)
+✔ login sets only HttpOnly Secure SameSite cookie; password and session stay out of JSON (3.366458ms)
+✔ logout requires same origin and expires the cookie (0.469458ms)
+✔ login brute-force budget is bounded independent of spoofed forwarding headers (6.887584ms)
+✔ real markdown rendering blocks automatic images, raw HTML, and executable links (20.305042ms)
+✔ frontend builds enforce checks and ship baseline security headers (0.975084ms)
+✔ HSTS applies only to an explicitly HTTPS deployment origin (0.245875ms)
+✔ sign out removes Ming conversations and reports without clearing unrelated storage (19.243875ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1529.278667

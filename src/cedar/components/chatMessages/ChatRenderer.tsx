@@ -1,20 +1,9 @@
 import { Scenarios } from "@/backend/src/lib/scenarios";
-import DialogueOptions from "@/cedar/components/chatMessages/DialogueOptions";
 import MarkdownRenderer from "@/cedar/components/chatMessages/MarkdownRenderer";
-import MultipleChoice from "@/cedar/components/chatMessages/MultipleChoice";
-import TodoList from "@/cedar/components/chatMessages/TodoList";
-import Flat3dContainer from "@/cedar/components/containers/Flat3dContainer";
+import { ConversationError } from "@/cedar/components/chatMessages/ConversationError";
+import { isChatErrorMessage } from "@/lib/chatErrors";
 import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
-import {
-  DialogueOptionsMessage,
-  Message,
-  MessageRenderer,
-  MultipleChoiceMessage,
-  TickerMessage,
-  TodoListMessage,
-  useCedarStore,
-} from "cedar-os";
-import { Ticker } from "motion-plus-react";
+import { Message, MessageRenderer, useCedarStore } from "cedar-os";
 import React from "react";
 
 interface ChatRendererProps {
@@ -23,8 +12,11 @@ interface ChatRendererProps {
 
 export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
   const getMessageRenderers = useCedarStore(
-    (state) => state.getMessageRenderers
+    (state) => state.getMessageRenderers,
   );
+
+  // Errors belong to the interface, rather than the role-play character.
+  if (isChatErrorMessage(message)) return <ConversationError />;
 
   // Check if there is a registered renderer for this message type
   const renderer = getMessageRenderers(message.type) as
@@ -38,9 +30,6 @@ export const ChatRenderer: React.FC<ChatRendererProps> = ({ message }) => {
     }
   }
 
-  // Gradient mask for ticker edges
-  const mask =
-    "linear-gradient(to right, transparent 5%, black 15%, black 85%, transparent 95%)";
   // Get common message styling
   const getMessageStyles = (role: string) => {
     const commonClasses =

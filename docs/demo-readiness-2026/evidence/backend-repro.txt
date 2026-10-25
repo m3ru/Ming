@@ -1,0 +1,11 @@
+Backend audit reproduction: synthetic data, in-memory execution.
+PASS real router: 3 unauthenticated memory reads returned 200; synthetic transcript exposed; message query has no resourceId.
+PASS real workflows: both status=success with UI-used fields; absent combinedReport/combinedPackage do not cause failure.
+PASS voice scope: caller-chosen thread/resource reach the save dependency after anonymous session creation.
+PASS voice instance split: a capability created in instance A receives 401 in instance B.
+PASS persona contradiction: Live startup says defensive/frustrated; delegated Bart prompt says apologetic/not defensive.
+PASS sequential capacity: create 101 receives 429; service has no close/release method for the retained entries.
+PASS concurrent capacity: 110 simultaneous creates all succeed despite the nominal 100-session cap.
+PASS history count: 128 accepted short messages produce 129 provider startup items; documented maximum is 128.
+PASS summary HTML: real Parser + marked preserve a harmless onerror attribute for the HTML sink; script does not execute it.
+PASS isolation: 0 network/provider calls; no real database or .env loaded.

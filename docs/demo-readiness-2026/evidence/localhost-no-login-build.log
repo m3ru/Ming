@@ -1,0 +1,134 @@
+
+> cedar-mastra-starter@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.28
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 6.0s
+   Linting and checking validity of types ...
+
+./src/app/page.tsx
+6:8  Warning: 'MenuBar' is defined but never used.  @typescript-eslint/no-unused-vars
+13:3  Warning: 'Carousel' is defined but never used.  @typescript-eslint/no-unused-vars
+14:3  Warning: 'CarouselContent' is defined but never used.  @typescript-eslint/no-unused-vars
+15:3  Warning: 'CarouselItem' is defined but never used.  @typescript-eslint/no-unused-vars
+16:3  Warning: 'CarouselNext' is defined but never used.  @typescript-eslint/no-unused-vars
+17:3  Warning: 'CarouselPrevious' is defined but never used.  @typescript-eslint/no-unused-vars
+20:6  Warning: 'analyticsData' is defined but never used.  @typescript-eslint/no-unused-vars
+27:9  Warning: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+29:20  Warning: 'setMainText' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/scenario/page.tsx
+6:8  Warning: 'SimpleChatPanel' is defined but never used.  @typescript-eslint/no-unused-vars
+9:8  Warning: 'MenuBar' is defined but never used.  @typescript-eslint/no-unused-vars
+10:10  Warning: 'useRouter' is defined but never used.  @typescript-eslint/no-unused-vars
+14:10  Warning: 'Progress' is defined but never used.  @typescript-eslint/no-unused-vars
+39:6  Warning: React Hook useEffect has a missing dependency: 'checkScenarioCompletion'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+51:6  Warning: React Hook useEffect has a missing dependency: 'checkScenarioCompletion'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/backend/src/mastra/agents/transcriptSummaryAnalyzerAgent.ts
+3:10  Warning: 'contextForAnalysis' is defined but never used.  @typescript-eslint/no-unused-vars
+4:10  Warning: 'Scenarios' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/mastra/workflows/chatWorkflow.ts
+48:7  Warning: 'systemPrompt' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts
+188:7  Warning: 'combineResults' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts
+93:32  Warning: 'runtimeContext' is defined but never used.  @typescript-eslint/no-unused-vars
+185:7  Warning: 'combinePackage' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/test-agent.ts
+6:7  Warning: 'threadId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+7:7  Warning: 'resourceId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/test-workflow.ts
+10:7  Warning: 'result' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/backend/src/utils/streamUtils.ts
+102:3  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any').
+
+./src/cedar/components/chatComponents/SidePanelCedarChat.tsx
+2:10  Warning: 'X' is defined but never used.  @typescript-eslint/no-unused-vars
+3:10  Warning: 'AnimatePresence' is defined but never used.  @typescript-eslint/no-unused-vars
+9:10  Warning: 'SidePanelContainer' is defined but never used.  @typescript-eslint/no-unused-vars
+10:10  Warning: 'CollapsedButton' is defined but never used.  @typescript-eslint/no-unused-vars
+13:8  Warning: 'Container3D' is defined but never used.  @typescript-eslint/no-unused-vars
+15:20  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+30:10  Warning: 'billPrompt' is defined but never used.  @typescript-eslint/no-unused-vars
+31:10  Warning: 'bartPrompt' is defined but never used.  @typescript-eslint/no-unused-vars
+64:3  Warning: 'children' is defined but never used.  @typescript-eslint/no-unused-vars
+65:3  Warning: 'side' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+67:3  Warning: 'collapsedLabel' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+68:3  Warning: 'showCollapsedButton' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+70:3  Warning: 'dimensions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+75:3  Warning: 'resizable' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+76:3  Warning: 'className' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+77:3  Warning: 'topOffset' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+84:9  Warning: 'showChat' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+85:9  Warning: 'setShowChat' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+96:9  Warning: 'transcript' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+181:10  Warning: 'contextDocs' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+226:10  Warning: 'hideCompletely' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+226:26  Warning: 'setHideCompletely' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/cedar/components/chatInput/ContextBadgeRow.tsx
+185:6  Warning: React Hook React.useMemo has an unnecessary dependency: 'mentionProviders'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/cedar/components/chatMessages/DialogueOptions.tsx
+42:10  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/cedar/components/chatMessages/structural/CollapsedChatButton.tsx
+109:3  Warning: React Hook useCallback has an unnecessary dependency: 'side'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+138:3  Warning: React Hook useCallback has unnecessary dependencies: 'bottomOffset' and 'sideOffset'. Either exclude them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/cedar/components/spells/RadialMenuSpell.tsx
+217:5  Warning: React Hook useEffect has a missing dependency: 'getIndexFromAngle'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/cedar/components/spells/RangeSliderSpell.tsx
+217:5  Warning: React Hook useEffect has a missing dependency: 'deactivate'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/cedar/components/spells/SliderSpell.tsx
+327:5  Warning: React Hook useEffect has a missing dependency: 'deactivate'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/cedar/components/text/TypewriterText.tsx
+112:5  Warning: React Hook useEffect has missing dependencies: 'onTypingComplete', 'onTypingStart', and 'totalDuration'. Either include them or remove the dependency array. If 'onTypingStart' changes too often, find the parent component that defines it and wrap that definition in useCallback.  react-hooks/exhaustive-deps
+
+./src/components/ScenarioCard.tsx
+9:3  Warning: 'description' is defined but never used.  @typescript-eslint/no-unused-vars
+47:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/ScenarioVideo.tsx
+5:41  Warning: 'scenario' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/SentimentBar.tsx
+2:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+27:6  Warning: React Hook React.useEffect has a missing dependency: 'lastUpdateTime'. Either include it or remove the dependency array. You can also replace multiple useState variables with useReducer if 'setDisplayValue' needs the current value of 'lastUpdateTime'.  react-hooks/exhaustive-deps
+
+./src/components/StopButton.tsx
+2:10  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/3) ...
+ ✓ Generating static pages (3/3)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ƒ /                                     6.5 kB         123 kB
+├ ƒ /_not-found                            995 B         103 kB
+├ ƒ /api/backend/[...path]                 124 B         103 kB
+├ ƒ /report                              8.94 kB         634 kB
+├ ƒ /scenario                             155 kB         776 kB
+└ ƒ /scenarioParser                      2.17 kB         111 kB
++ First Load JS shared by all             103 kB
+  ├ chunks/255-51cc180f6c33fa39.js       46.3 kB
+  ├ chunks/4bd1b696-409494caf8c83275.js  54.2 kB
+  └ other shared chunks (total)             2 kB
+
+
+ƒ  (Dynamic)  server-rendered on demand

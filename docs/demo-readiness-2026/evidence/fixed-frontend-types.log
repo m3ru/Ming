@@ -1,0 +1,10 @@
+src/cedar/components/CommandBar/CommandBar.tsx(607,10): error TS2322: Type 'import("/Users/sllee/coding/Ming/node_modules/cedar-os/node_modules/@tiptap/core/dist/Editor").Editor | null' is not assignable to type 'import("/Users/sllee/coding/Ming/node_modules/@tiptap/core/dist/index").Editor | null'.
+  Type 'Editor' is missing the following properties from type 'Editor': editorView, editorState, instanceId, mount, and 2 more.
+src/components/ChatInput.tsx(7,29): error TS7031: Binding element 'children' implicitly has an 'any' type.
+src/components/ChatInput.tsx(11,23): error TS2339: Property 'inputValue' does not exist on type 'CedarStore'.
+src/components/ChatInput.tsx(56,6): error TS2741: Property 'setUserSentiment' is missing in type '{ children: Element; }' but required in type '{ setUserSentiment: (sentiment: { score: number; magnitude: number; }) => void; }'.
+src/components/ChatInput.tsx(64,24): error TS2304: Cannot find name 'cn'.
+src/components/ChatInput.tsx(93,39): error TS18048: 'options' is possibly 'undefined'.
+src/components/ChatInput.tsx(94,54): error TS18048: 'options' is possibly 'undefined'.
+src/components/ChatInput.tsx(94,54): error TS2345: Argument of type 'BodyInit | null | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.

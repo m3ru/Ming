@@ -1,0 +1,1 @@
+PASS: login-free built standalone demo + Mastra: direct home access, static assets, no credential leakage, security headers, private backend denial, blocked framework APIs, cross-origin rejection, input limits, two recoverable cookie-free 503s. No provider call.

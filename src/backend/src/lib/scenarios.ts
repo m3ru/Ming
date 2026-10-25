@@ -1,7 +1,6 @@
 import { Scenario } from "./types";
 
-export namespace Scenarios {
-  export const negativeReview: Scenario = {
+  const negativeReview: Scenario = {
     title: "Performance Review with Bart",
     goal: "You must conduct a compassionate but firm performance review with Bart and align on a clear improvement plan.",
     goalForAnalyzer: `This scenario involves the user holding a difficult performance review with Bart, addressing recent underperformance while remaining empathetic and supportive.`,
@@ -137,7 +136,7 @@ Your mindset:
     ],
   };
   
-  export const demandingClient: Scenario = {
+  const demandingClient: Scenario = {
     title: "Meeting with Bill about a Demanding Client",
     goal: "You must work with Bill to handle a demanding client.",
     goalForAnalyzer: `This scenario involved the user talking with Bill about a difficult client.`,
@@ -353,4 +352,4 @@ Not in current timeline.`,
       },
     ],
   };
-}
+export const Scenarios = { negativeReview, demandingClient };

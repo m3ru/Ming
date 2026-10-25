@@ -1,0 +1,8 @@
+Stream failure matrix: Node v26.5.0; Mastra 0.18.0.
+Synthetic provider throws; actual chatWorkflow + SSE source; in-memory SQLite; fetch blocked.
+PASS tracing=off, memory=off: workflow=success, SSE=empty done, exit=0, network=0.
+PASS tracing=off, memory=on: workflow=success, SSE=empty done, exit=0, network=0.
+PASS tracing=on, memory=off: workflow=failed, SSE=error, exit=1, network=0.
+PASS tracing=on, memory=on: workflow=failed, SSE=error, exit=1, network=0.
+Confirmed: current tracing configuration makes a synthetic provider error fatal; disabling tracing alone silently reports empty success.
+Scope: reproduced on the displayed Node/Mastra versions; this script does not test other runtime versions.

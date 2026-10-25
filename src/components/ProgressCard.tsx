@@ -1,41 +1,19 @@
-"use client"
+"use client";
 
-import React from "react";
-import { Card, CardHeader, CardContent } from "./ui/card"
+import { useEffect, useState } from "react";
+import { Card, CardHeader, CardContent } from "./ui/card";
+import { readCompletedScenarioIds } from "@/lib/completedScenarios";
 
 export default function ProgressCard() {
-    // Progress tracker
-    const [scenariosCompleted, setScenariosCompleted] = React.useState(0);
-    
-    React.useEffect(() => {
-        const numScenesString = localStorage.getItem('numScenariosCompleted');
-        if (!numScenesString) {
-        localStorage.setItem('numScenariosCompleted', "0");
-        }
-        else {
-        setScenariosCompleted(parseInt(numScenesString));
-        }
-    }, []);
-    const totalScenarios = 5;
-    const progressPercent = Math.min((scenariosCompleted / totalScenarios) * 100, 100);
-    console.log('Progress percent:', progressPercent);
-
-    return (
-        <Card className="w-full shadow-lg border border-gray-200">
-            <CardHeader>
-                <h3 className="text-lg font-bold text-gray-800">Progress Tracker</h3>
-            </CardHeader>
-            <CardContent>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                <div
-                    className="h-3 rounded-full bg-blue-600"
-                    style={{ width: `${progressPercent}%` }}
-                />
-                </div>
-                <p className="mt-2 text-sm text-gray-600">
-                {Math.min(scenariosCompleted, totalScenarios)} of {totalScenarios} scenarios completed
-                </p>
-            </CardContent>
-        </Card>
-    );
+  const [count, setCount] = useState(0);
+  useEffect(() => { setCount(readCompletedScenarioIds(localStorage).length); }, []);
+  return (
+    <Card className="w-full shadow-lg border border-gray-200">
+      <CardHeader><h3 className="text-lg font-bold text-gray-800">Progress Tracker</h3></CardHeader>
+      <CardContent>
+        <p className="text-sm text-gray-600">{count} {count === 1 ? "scenario" : "scenarios"} completed</p>
+        <p className="mt-2 text-sm text-gray-500">Complete a conversation and generate its report to record your practice.</p>
+      </CardContent>
+    </Card>
+  );
 }

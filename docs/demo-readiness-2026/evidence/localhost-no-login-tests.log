@@ -1,0 +1,16 @@
+✔ localhost needs no login, password, session secret or configured origin (1.618333ms)
+✔ cross-origin requests fail before upstream fetch (2.195167ms)
+✔ proxy denies framework APIs and path escapes without a login (0.827291ms)
+✔ cookie-free demo requests work; gateway ignores forged identity and hides internal credentials (1.304167ms)
+✔ byte and validation budgets reject hostile input before downstream schema work (3.528667ms)
+✔ real markdown rendering blocks automatic images, raw HTML, and executable links (16.930875ms)
+✔ frontend builds enforce checks and ship baseline security headers (0.923375ms)
+✔ HSTS applies only to an explicitly HTTPS deployment origin (0.295958ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 556.975125

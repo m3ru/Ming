@@ -19,6 +19,7 @@ try {
     "src/lib/liveVoice.ts",
     "src/lib/voiceTranscript.ts",
     "src/backend/src/lib/voice.ts",
+    "src/backend/src/lib/prompts.ts",
   ]) {
     const target = join(output, file.replace(/\.ts$/, ".js"));
     mkdirSync(dirname(target), { recursive: true });

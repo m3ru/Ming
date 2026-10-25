@@ -3,109 +3,57 @@
 import ScenarioOverview from "@/components/ScenarioOverview";
 import ScenarioVideo from "@/components/ScenarioVideo";
 import { Scenarios } from "@/backend/src/lib/scenarios";
-import SimpleChatPanel from "@/components/SimpleChatPanel";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import { useState, useEffect, Suspense } from "react";
-import MenuBar from "@/components/MenuBar";
-import { mastraClient } from "@/lib/mastra-client";
-import { useRouter, useSearchParams } from "next/navigation";
-import { getScenarioFromLocalStorage } from "@/lib/scenarioUtil";
+import { readActiveScenario } from "@/lib/practiceSession";
+import Link from "next/link";
 import { Scenario } from "@/lib/types";
 import type { Sentiment } from "@/lib/sentiment";
-import { Progress } from "@/components/ui/progress";
 import SentimentBar from "@/components/SentimentBar";
 import useOrientation from "@/hooks/useOrientation";
 
 const scenario = Scenarios.negativeReview;
 
 function ScenarioPageContent() {
-  const [currentScenario, setCurrentScenario] = useState<Scenario>(scenario);
-  const [scenarioCompleted, setScenarioCompleted] = useState(false);
-  const [isLoadingNewScenario, setIsLoadingNewScenario] = useState(false);
-
-  const searchParams = useSearchParams();
+  const [loaded, setLoaded] = useState<
+    { scenario: Scenario } | { error: string }
+  >();
 
   useEffect(() => {
-    const nextScenarioFlag = searchParams.get("next");
-    if (nextScenarioFlag === "true") {
-      const newScenario = getScenarioFromLocalStorage();
-      if (newScenario) {
-        setCurrentScenario(newScenario);
-      }
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    checkScenarioCompletion();
-  }, []);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        checkScenarioCompletion();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, []);
-
-  const checkScenarioCompletion = () => {
-    const reportData = localStorage.getItem("reportData");
-    const scenarioCompletedFlag = localStorage.getItem("scenarioCompleted");
-
-    const scenesString = localStorage.getItem("numScenariosCompleted");
-    if (scenesString) {
-      localStorage.setItem(
-        "numScenariosCompleted",
-        (parseInt(scenesString) + 1).toString(),
-      );
-    } else {
-      localStorage.setItem("numScenariosCompleted", "1");
-    }
-
-    if (reportData && !scenarioCompleted && scenarioCompletedFlag === "true") {
-      console.log("User has completed a scenario, generating new prompt...");
-      setScenarioCompleted(true);
-      generateNewScenarioPrompt();
-    }
-  };
-
-  const generateNewScenarioPrompt = async () => {
-    setIsLoadingNewScenario(true);
     try {
-      const run = await mastraClient
-        .getWorkflow("scenarioPipelineWorkflow")
-        .createRunAsync();
-
-      const result = await run.startAsync({
-        inputData: {
-          analysis: JSON.parse(localStorage.getItem("reportData") || "{}")[
-            "analysis"
-          ],
-        },
+      setLoaded({ scenario: readActiveScenario() ?? scenario });
+    } catch {
+      setLoaded({
+        error:
+          "This browser could not load the active scenario. Return Home and start a new session, or allow site storage and reload this page.",
       });
-      console.log("result", result);
-      localStorage.removeItem("scenarioCompleted");
-      localStorage.setItem(
-        "scenarioData",
-        JSON.stringify({
-          prompts: (result as any).result.prompts,
-          reports: (result as any).result.reports,
-          scenario: (result as any).result.scenario,
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to generate new scenario prompt:", error);
-    } finally {
-      setIsLoadingNewScenario(false);
     }
-  };
+  }, []);
 
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
 
   const orientation = useOrientation();
+
+  // Do not mount chat or voice with the default context while saved context is loading.
+  if (!loaded)
+    return (
+      <p className="p-6" role="status">
+        Loading your scenario…
+      </p>
+    );
+  if ("error" in loaded)
+    return (
+      <section className="mx-auto mt-8 max-w-2xl rounded-md bg-white p-6 shadow-md">
+        <h1 className="text-2xl font-bold">Scenario unavailable</h1>
+        <p role="alert" className="mt-3">
+          {loaded.error}
+        </p>
+        <Link href="/" className="mt-4 inline-block font-medium underline">
+          Return Home
+        </Link>
+      </section>
+    );
+  const currentScenario = loaded.scenario;
 
   if (orientation === "portrait") {
     return (
@@ -124,13 +72,6 @@ function ScenarioPageContent() {
       <div className="flex w-full h-full">
         <ScenarioOverview scenario={currentScenario} />
         <div className="flex flex-col flex-grow">
-          {isLoadingNewScenario ? (
-            <div className="w-full p-3 text-center bg-blue-100 border-b">
-              <p className="font-medium text-blue-800">
-                🔄 Generating new scenario based on your performance...
-              </p>
-            </div>
-          ) : null}
           <div
             className="flex-grow relative flex items-center justify-center bg-black"
             style={{ height: "calc(100vh - 3rem)" }}

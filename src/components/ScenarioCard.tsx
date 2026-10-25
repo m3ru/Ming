@@ -2,6 +2,7 @@
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Lock } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function ScenarioCard({
   imageUrl,
@@ -44,12 +45,15 @@ export default function ScenarioCard({
           </h2>
         </CardHeader>
         <CardContent className="flex-1">
-          <img
-            src={imageUrl}
-            alt={title}
-            className={`w-full h-36 md:h-48 object-cover rounded ${locked ? "grayscale" : ""}`}
-            loading="lazy"
-          />
+          <div className="relative w-full h-36 md:h-48">
+            <Image
+              src={imageUrl}
+              alt={description || title}
+              fill
+              sizes="(max-width: 767px) 67vw, 33vw"
+              className={`object-cover rounded ${locked ? "grayscale" : ""}`}
+            />
+          </div>
 
           {role && (
             <div className="mt-2 text-center">

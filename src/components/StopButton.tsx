@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { useCallback } from "react";
 
 interface StopButtonProps {
   onStop: () => void;

@@ -9,8 +9,9 @@ import "./ChatInput.css";
 import { ContextBadgeRow } from "@/cedar/components/chatInput/ContextBadgeRow";
 import { useCedarEditor } from "cedar-os";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
-import { KeyboardShortcut } from "@/cedar/components/ui/KeyboardShortcut";
 import { HumanInTheLoopIndicator } from "@/cedar/components/chatInput/HumanInTheLoopIndicator";
+import { isChatErrorMessage, markFailedChatMessages } from "@/lib/chatErrors";
+import { observeNextChatStream } from "@/lib/chatStreamObserver";
 
 // ChatContainer component with position options
 export type ChatContainerPosition = "bottom-center" | "embedded" | "custom";
@@ -30,42 +31,127 @@ export const ChatInput: React.FC<{
   className = "",
   stream = true,
 }) => {
-  const [isFocused, setIsFocused] = React.useState(false);
   const [sendError, setSendError] = React.useState<string | null>(null);
+  const [isSending, setIsSending] = React.useState(false);
   const submitting = React.useRef(false);
   const voice = useVoiceSession();
   const threadId = useCedarStore((state) => state.mainThreadId);
   const userId = useCedarStore((state) => state.getCedarState("userId"));
+  const isProcessing = useCedarStore((state) => state.isProcessing);
   const { start } = voice;
 
-  // Connect as soon as Cedar has initialized the chat. Input starts muted;
-  // holding Space only opens the live microphone, without a connection delay.
+  // Prepare the configured voice path once Cedar has initialized the chat.
+  // Deepgram only requests microphone access when a press begins.
   useEffect(() => {
     if (threadId && userId) void start();
   }, [start, threadId, userId]);
 
   const { editor, isEditorEmpty, handleSubmit } = useCedarEditor({
-    onSubmit: async (_text, _editor, clearEditor) => {
-      if (submitting.current) return;
+    placeholder: "Type a message…",
+    onSubmit: async (_text, submittedEditor, clearEditor) => {
+      if (
+        !submittedEditor ||
+        submitting.current ||
+        useCedarStore.getState().isProcessing
+      )
+        return;
       submitting.current = true;
+      setIsSending(true);
       setSendError(null);
+      const submittedContent = JSON.stringify(submittedEditor.getJSON());
+      const requestedState = useCedarStore.getState();
+      const requestedThreadId = requestedState.getCurrentThreadId();
+      const requestedUserId = requestedState.getCedarState("userId");
+      let submission: { threadId: string; previousIds: Set<string> } | null =
+        null;
       try {
         await voice.flush();
-        const response = useCedarStore.getState().sendMessage({ stream });
-        clearEditor?.();
-        await response;
-      } catch {
-        setSendError("Could not send your message. Please try again.");
+        const state = useCedarStore.getState();
+        if (
+          state.getCurrentThreadId() !== requestedThreadId ||
+          state.getCedarState("userId") !== requestedUserId
+        )
+          throw new Error(
+            "The conversation changed before your message was sent. Review your draft in the current conversation.",
+          );
+        const submittedThreadId = state.getCurrentThreadId();
+        const previousIds = new Set(
+          state
+            .getThreadMessages(submittedThreadId)
+            .map((message) => message.id),
+        );
+        submission = { threadId: submittedThreadId, previousIds };
+        const streamObserver = stream
+          ? observeNextChatStream(useCedarStore.getState, (patch) =>
+              useCedarStore.setState(patch),
+            )
+          : null;
+        try {
+          await state.sendMessage({ stream });
+        } finally {
+          streamObserver?.restore();
+        }
+        // Cedar resolves even on HTTP errors and error objects in an SSE stream.
+        const newMessages = useCedarStore
+          .getState()
+          .getThreadMessages(submittedThreadId)
+          .filter((message) => !previousIds.has(message.id));
+        const failed =
+          streamObserver?.hasFailed() ||
+          newMessages.some(isChatErrorMessage) ||
+          !newMessages.some(
+            (message) =>
+              message.role !== "user" &&
+              message.type === "text" &&
+              message.content?.trim(),
+          );
+        if (failed) {
+          markFailedChatMessages(
+            useCedarStore.getState(),
+            submittedThreadId,
+            previousIds,
+          );
+          setSendError(
+            "The AI could not respond. Your draft is still here; select Send message to try again.",
+          );
+        } else if (
+          JSON.stringify(submittedEditor.getJSON()) === submittedContent
+        ) {
+          clearEditor?.();
+        }
+      } catch (error) {
+        if (submission) {
+          markFailedChatMessages(
+            useCedarStore.getState(),
+            submission.threadId,
+            submission.previousIds,
+          );
+        }
+        setSendError(
+          !submission && error instanceof Error
+            ? error.message
+            : "Could not send your message. Your draft is still here; select Send message to try again.",
+        );
       } finally {
+        // Cedar clears its input state after resolving. Keep the visible draft
+        // in sync, including anything typed while the response was pending.
+        if (
+          !submittedEditor.isDestroyed &&
+          useCedarStore.getState().getCurrentThreadId() === requestedThreadId &&
+          useCedarStore.getState().getCedarState("userId") === requestedUserId
+        ) {
+          useCedarStore
+            .getState()
+            .setChatInputContent(submittedEditor.getJSON());
+        }
         submitting.current = false;
+        setIsSending(false);
       }
     },
     onFocus: () => {
-      setIsFocused(true);
       handleFocus?.();
     },
     onBlur: () => {
-      setIsFocused(false);
       handleBlur?.();
     },
     stream,
@@ -85,31 +171,13 @@ export const ChatInput: React.FC<{
     }
   }, [isInputFocused, editor]);
 
-  // Handle tab key to focus the editor and escape to unfocus
+  // Label the actual contenteditable, rather than its presentation wrapper.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Tab") {
-        e.preventDefault();
-        if (editor) {
-          editor.commands.focus();
-          setIsFocused(true);
-        }
-      } else if (e.key === "Escape") {
-        if (isFocused && editor) {
-          editor.commands.blur();
-          setIsFocused(false);
-        }
-      }
-    };
-
-    // Add the event listener
-    window.addEventListener("keydown", handleKeyDown);
-
-    // Clean up
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [editor, isFocused]);
+    if (!editor) return;
+    editor.view.dom.setAttribute("role", "textbox");
+    editor.view.dom.setAttribute("aria-label", "Message");
+    editor.view.dom.setAttribute("aria-multiline", "true");
+  }, [editor]);
 
   // Keep the connection open between presses, but transmit only while held.
   const { beginTalking, endTalking } = voice;
@@ -180,8 +248,13 @@ export const ChatInput: React.FC<{
 
       {/* Chat editor row */}
       <div
-        className="max-lg:hidden relative w-full h-fit"
+        className="cedar-chat-editor relative w-full h-fit rounded-md focus-within:ring-2 focus-within:ring-blue-500"
         id="cedar-chat-input"
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && editor?.isFocused) {
+            editor.commands.blur();
+          }
+        }}
       >
         {isHumanInTheLoopSuspended ? (
           <div className="py-2 items-center justify-center w-full">
@@ -190,17 +263,10 @@ export const ChatInput: React.FC<{
             />
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            {!isFocused && (
-              <KeyboardShortcut
-                shortcut="⇥"
-                className="text-muted-foreground border-muted-foreground/30 flex-shrink-0"
-              />
-            )}
+          <div className="flex min-w-0 items-center gap-2">
             <motion.div
               layoutId="chatInput"
-              className="flex-1 justify-center py-3"
-              aria-label="Message input"
+              className="min-w-0 flex-1 justify-center py-3"
             >
               <EditorContent
                 editor={editor}
@@ -212,13 +278,34 @@ export const ChatInput: React.FC<{
       </div>
 
       <div className="text-xs space-y-1" aria-live="polite">
+        {voice.status === "connecting" && (
+          <p>
+            Connecting voice… Allow microphone access if prompted. You can type
+            while you wait.
+          </p>
+        )}
+        {voice.status === "idle" && !voice.error && (
+          <p>
+            Voice is off. Hold the microphone to connect, or type a message.
+          </p>
+        )}
+        {voice.status === "closing" && (
+          <p>Saving voice conversation… You can still type a message.</p>
+        )}
         {voice.status === "connected" && (
           <p>
+            {voice.provider === "deepgram"
+              ? "Deepgram voice · "
+              : "OpenAI Live · "}
             {voice.muted
               ? "Hold Space or the microphone to talk"
               : "Listening…"}
             {voice.speaking ? " · Speaking" : ""}
-            {voice.working ? " · Checking scenario…" : ""}
+            {voice.working
+              ? voice.provider === "deepgram"
+                ? " · Processing voice…"
+                : " · Checking scenario…"
+              : ""}
           </p>
         )}
         {voice.playbackBlocked && (
@@ -237,6 +324,36 @@ export const ChatInput: React.FC<{
             {voice.error}
           </p>
         )}
+        {voice.canContinueByText && (
+          <div>
+            <button
+              type="button"
+              className="min-h-11 rounded-md px-2 underline cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              disabled={isSending || isProcessing}
+              onClick={() => {
+                void voice
+                  .continueByText?.()
+                  .then(() => {
+                    setSendError(null);
+                    editor?.commands.focus();
+                  })
+                  .catch((error: unknown) => {
+                    setSendError(
+                      error instanceof Error
+                        ? error.message
+                        : "Could not continue by text. Please try again.",
+                    );
+                  });
+              }}
+            >
+              Continue by text
+            </button>
+            <p>
+              Discards the failed recording. Saved messages stay in the
+              conversation. Then send your draft or select End Scenario.
+            </p>
+          </div>
+        )}
         {sendError && (
           <p role="alert" className="text-red-600">
             {sendError}
@@ -252,7 +369,7 @@ export const ChatInput: React.FC<{
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-1 p-1 cursor-pointer disabled:opacity-50"
+            className="flex min-h-11 items-center gap-1 rounded-md p-1 cursor-pointer disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             onPointerDown={(event) => {
               if (event.button !== 0) return;
               event.preventDefault();
@@ -276,7 +393,11 @@ export const ChatInput: React.FC<{
             }}
             onBlur={voice.endTalking}
             disabled={voice.status === "closing"}
-            aria-label="Push to talk"
+            aria-label={
+              voice.status === "connected"
+                ? "Push to talk"
+                : "Hold to connect voice and talk"
+            }
             aria-pressed={!voice.muted}
             title="Hold Space or hold this button to talk"
           >
@@ -292,7 +413,9 @@ export const ChatInput: React.FC<{
                   ? "Finishing…"
                   : !voice.muted
                     ? "Microphone live"
-                    : "Hold Space to talk"}
+                    : voice.status === "connected"
+                      ? "Hold to talk"
+                      : "Hold to connect voice"}
             </span>
           </button>
           {(voice.status === "connected" || voice.status === "connecting") && (
@@ -301,20 +424,29 @@ export const ChatInput: React.FC<{
               onClick={() => {
                 void voice.stop().catch(() => {});
               }}
-              aria-label="End conversation"
-              className="p-1 cursor-pointer"
+              aria-label="Disconnect voice"
+              className="min-h-11 min-w-11 rounded-md p-1 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
             >
               <PhoneOff className="w-4 h-4" />
             </button>
           )}
         </div>
-        <div
+        <button
+          type="button"
           id="send-chat"
-          onClick={() => handleSubmit()}
-          className={`max-lg:hidden flex items-center flex-shrink-0 rounded-full ${isEditorEmpty ? "opacity-50 cursor-not-allowed" : "hover:shadow-lg cursor-pointer bg-blue-500 hover:bg-blue-600"} transition-all duration-300 p-2`}
+          onClick={() => void handleSubmit()}
+          disabled={
+            isEditorEmpty ||
+            isSending ||
+            isProcessing ||
+            isHumanInTheLoopSuspended
+          }
+          aria-label={isSending ? "Sending message" : "Send message"}
+          title={isSending ? "Sending message…" : "Send message"}
+          className="flex min-h-11 min-w-11 items-center justify-center flex-shrink-0 rounded-full bg-blue-500 text-white enabled:hover:bg-blue-600 enabled:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 transition-colors p-2"
         >
           <SendHorizonal className="w-4 h-4" />
-        </div>
+        </button>
       </div>
     </div>
   );

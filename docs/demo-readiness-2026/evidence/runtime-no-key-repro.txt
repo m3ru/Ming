@@ -1,0 +1,4 @@
+Node: v26.5.0
+HTTP: 200
+SSE: data: {"type":"error","message":"Workflow failed: failed"}
+Process outcome: {"code":1,"signal":null}

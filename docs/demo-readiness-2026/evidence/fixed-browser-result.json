@@ -1,0 +1,32 @@
+{
+  "environment": "Production Next build, Codex in-app browser, loopback-only synthetic API fixture; no real provider call",
+  "viewports": [
+    "1280x720",
+    "960x600"
+  ],
+  "checks": {
+    "empty_report_no_sample": true,
+    "empty_conversation_blocked": true,
+    "http_failure_preserves_draft": true,
+    "sse_failure_preserves_draft": true,
+    "retry_succeeds_without_reload": true,
+    "native_tab_moves_to_microphone": true,
+    "compact_text_controls_visible": true,
+    "failed_report_stays_on_scenario": true,
+    "malformed_report_rejected": true,
+    "cancel_report_retains_conversation": true,
+    "valid_report_navigation": true,
+    "report_revisit_no_extra_completion": true,
+    "partial_reply_cannot_generate_report": true,
+    "partial_reply_excluded_from_request": true,
+    "missing_scores_remain_unknown": true,
+    "coach_restores_scenario_thread": true,
+    "same_session_regeneration_not_double_counted": true
+  },
+  "finalFixtureCounts": {
+    "chat": 2,
+    "report": 2,
+    "sentiment": 2
+  },
+  "finalSubmittedTranscript": "user: Could we talk about the project delay?\nuser: Could we talk about the project delay?\nbart: I understand the concern. I missed the deadline and would like to agree on a plan."
+}

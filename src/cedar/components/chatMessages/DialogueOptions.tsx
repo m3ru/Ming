@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Image from 'next/image';
 import {
 	DialogueOptionChoice,
 	DialogueOptionsMessage,
@@ -39,7 +40,8 @@ const DialogueOptions: React.FC<DialogueOptionsProps> = ({ message }) => {
 							)}>
 							{opt.icon &&
 								(typeof opt.icon === 'string' ? (
-									<img
+									<Image
+										unoptimized
 										src={opt.icon}
 										alt={opt.title}
 										width={24}

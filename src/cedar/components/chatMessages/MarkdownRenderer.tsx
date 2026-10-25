@@ -62,6 +62,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 	return (
 		<Wrapper className={wrapperClassName}>
 			<ReactMarkdown
+				skipHtml
+				disallowedElements={['img']}
 				remarkPlugins={[remarkGfm]}
 				components={{
 					p: ({ children }) =>

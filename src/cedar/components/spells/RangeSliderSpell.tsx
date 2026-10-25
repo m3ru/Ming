@@ -214,7 +214,7 @@ const RangeSliderSpell: React.FC<RangeSliderSpellProps> = ({
 			window.removeEventListener('mousemove', handleMouseMove);
 			window.removeEventListener('keydown', handleEscape);
 		};
-	}, [sliderPosition, initialMouseX, initialIndex, optionPositions]);
+	}, [sliderPosition, initialMouseX, initialIndex, optionPositions, deactivate]);
 
 	// Don't render if not active
 	if (!sliderPosition) return null;

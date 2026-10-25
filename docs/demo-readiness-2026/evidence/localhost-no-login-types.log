@@ -1,0 +1,2 @@
+npm notice run cedar-mastra-starter@0.1.0 typecheck
+npm notice run tsc --noEmit --incremental false

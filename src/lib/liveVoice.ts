@@ -42,6 +42,7 @@ type ActiveSession = {
   frame?: number;
   syncTimer?: ReturnType<typeof setTimeout>;
   readyTimer?: ReturnType<typeof setTimeout>;
+  leaseTimer?: ReturnType<typeof setTimeout>;
   sessionId?: string;
   token?: string;
   transcript?: VoiceTranscript;
@@ -56,6 +57,9 @@ type ActiveSession = {
   closed?: (error?: Error) => void;
   stopPromise?: Promise<void>;
   readyResolve?: () => void;
+  cleaned?: boolean;
+  releasePromise?: Promise<void>;
+  recoveryPromise?: Promise<void>;
 };
 const initial: VoiceSnapshot = {
   status: "idle",
@@ -70,7 +74,7 @@ export class LiveVoiceController {
   private snapshot: VoiceSnapshot = initial;
   private listeners = new Set<() => void>();
   private active?: ActiveSession;
-  private interruptedSave?: ActiveSession;
+  private interruptedSaves = new Map<string, ActiveSession>();
   private talkRequested = false;
   constructor(private dependencies: Dependencies) {}
   getSnapshot = () => this.snapshot;
@@ -101,6 +105,7 @@ export class LiveVoiceController {
     body: unknown,
     active: ActiveSession,
     timeout = 45000,
+    options: { detached?: boolean; keepalive?: boolean } = {},
   ) {
     const response = await fetch(
       this.dependencies.baseURL().replace(/\/$/, "") + path,
@@ -111,10 +116,13 @@ export class LiveVoiceController {
           ...(active.token ? { Authorization: "Bearer " + active.token } : {}),
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.any([
-          active.abort.signal,
-          AbortSignal.timeout(timeout),
-        ]),
+        signal: options.detached
+          ? AbortSignal.timeout(timeout)
+          : AbortSignal.any([
+              active.abort.signal,
+              AbortSignal.timeout(timeout),
+            ]),
+        ...(options.keepalive ? { keepalive: true } : {}),
       },
     );
     const result = await response.json().catch(() => ({}));
@@ -125,6 +133,8 @@ export class LiveVoiceController {
     return result;
   }
   private cleanup(active: ActiveSession) {
+    if (active.cleaned) return;
+    active.cleaned = true;
     const current = this.active === active;
     if (current) {
       this.active = undefined;
@@ -132,6 +142,7 @@ export class LiveVoiceController {
     }
     clearTimeout(active.syncTimer);
     clearTimeout(active.readyTimer);
+    clearTimeout(active.leaseTimer);
     active.pendingDelegations.forEach(clearTimeout);
     active.readyResolve?.();
     active.abort.abort();
@@ -151,6 +162,60 @@ export class LiveVoiceController {
         playbackBlocked: false,
       });
   }
+  private release(active: ActiveSession) {
+    if (!active.token) return Promise.resolve();
+    // Keep this tiny request alive across pagehide, independently of the media
+    // abort signal. Concurrent stop/dispose paths share one release request.
+    if (!active.releasePromise)
+      active.releasePromise = this.request(
+        "/voice/end",
+        { sessionId: active.sessionId },
+        active,
+        5000,
+        { detached: true, keepalive: true },
+      )
+        .then(() => {})
+        .catch((error) => {
+          active.releasePromise = undefined;
+          throw error;
+        });
+    return active.releasePromise;
+  }
+  private recover(active: ActiveSession, keepalive = false) {
+    if (!active.token || !active.sessionId) return;
+    this.interruptedSaves.set(active.sessionId, active);
+    if (active.recoveryPromise) return;
+    // The server retains the transcript capability after releasing the slot.
+    // Saving and release can race safely, even when an unload loses one request.
+    active.recoveryPromise = Promise.all([
+      this.sync(active, keepalive),
+      this.release(active),
+    ])
+      .then(() => {
+        if (this.interruptedSaves.get(active.sessionId!) === active)
+          this.interruptedSaves.delete(active.sessionId!);
+      })
+      .catch(() => {})
+      .finally(() => {
+        active.recoveryPromise = undefined;
+      });
+  }
+  private renewLease(active: ActiveSession) {
+    active.leaseTimer = setTimeout(() => {
+      if (this.active !== active || active.stopPromise) return;
+      void this.request(
+        "/voice/heartbeat",
+        { sessionId: active.sessionId },
+        active,
+        10000,
+      )
+        .then(() => {
+          if (this.active === active && !active.stopPromise)
+            this.renewLease(active);
+        })
+        .catch((error) => this.fail(active, error));
+    }, 15000);
+  }
   private fail(active: ActiveSession, error: unknown) {
     if (this.active !== active) return;
     this.update({
@@ -164,18 +229,9 @@ export class LiveVoiceController {
         ? error
         : new Error("Voice disconnected before finalization."),
     );
-    if (active.token) {
-      // A media disconnect does not invalidate the server's transcript capability.
-      // Save the last captions with a fresh request signal after closing media.
-      this.interruptedSave = {
-        ...active,
-        abort: new AbortController(),
-        syncQueue: Promise.resolve(),
-      };
-      void this.sync(this.interruptedSave).catch(() => {});
-    }
     // Retain captions locally even when saving or finalization is impossible.
     this.cleanup(active);
+    this.recover(active);
   }
   start = async (): Promise<void> => {
     // A chat can mount while the previous conversation is still finalizing.
@@ -344,9 +400,15 @@ export class LiveVoiceController {
         active,
         35000,
       );
-      if (this.active !== active) return;
       active.sessionId = result.sessionId;
       active.token = result.token;
+      // A create response may arrive after stop/dispose, despite aborting its
+      // request. Release the newly discovered slot instead of losing its token.
+      if (this.active !== active) {
+        this.recover(active, true);
+        return;
+      }
+      this.renewLease(active);
       active.transcript = new VoiceTranscript(
         result.sessionId,
         active.startedAt,
@@ -370,7 +432,7 @@ export class LiveVoiceController {
       this.fail(active, error);
     }
   };
-  private onEvent(active: ActiveSession, event: Record<string, any>) {
+  private onEvent(active: ActiveSession, event: Record<string, unknown>) {
     if (event.type === "session.started") {
       if (!active.ready) {
         active.startedAt = Date.now();
@@ -390,7 +452,12 @@ export class LiveVoiceController {
       this.update({
         error:
           "OpenAI Voice: " +
-          (event.error?.message || "The session reported an error."),
+          (event.error &&
+          typeof event.error === "object" &&
+          "message" in event.error &&
+          typeof event.error.message === "string"
+            ? event.error.message
+            : "The session reported an error."),
       });
       return;
     }
@@ -398,9 +465,8 @@ export class LiveVoiceController {
       if (active.closed) active.closed();
       else {
         this.update({ error: "Voice session ended. Reconnect to continue." });
-        void this.sync(active)
-          .catch(() => {})
-          .finally(() => this.cleanup(active));
+        this.cleanup(active);
+        this.recover(active);
       }
       return;
     }
@@ -411,7 +477,9 @@ export class LiveVoiceController {
       if (
         typeof event.delta !== "string" ||
         typeof event.event_id !== "string" ||
+        typeof event.start_ms !== "number" ||
         !Number.isFinite(event.start_ms) ||
+        typeof event.end_ms !== "number" ||
         !Number.isFinite(event.end_ms)
       )
         return;
@@ -450,7 +518,11 @@ export class LiveVoiceController {
     }
     if (
       event.type === "session.delegation.created" &&
-      event.delegation?.target === "client" &&
+      event.delegation &&
+      typeof event.delegation === "object" &&
+      "target" in event.delegation &&
+      event.delegation.target === "client" &&
+      "id" in event.delegation &&
       typeof event.delegation.id === "string" &&
       !active.stopPromise
     ) {
@@ -525,13 +597,20 @@ export class LiveVoiceController {
         this.update({ working: active.runningDelegations > 0 });
     }
   }
-  private sync(active: ActiveSession) {
+  private sync(active: ActiveSession, keepalive = false) {
     if (!active.token) return Promise.resolve();
-    const messages = this.dependencies
-      .messages(active.threadId)
-      .filter((message) =>
-        message.id.startsWith("voice-" + active.sessionId + "-"),
-      );
+    const messages = [
+      ...new Map(
+        [
+          ...(active.transcript?.messages() ?? []),
+          ...this.dependencies
+            .messages(active.threadId)
+            .filter((message) =>
+              message.id.startsWith("voice-" + active.sessionId + "-"),
+            ),
+        ].map((message) => [message.id, message]),
+      ).values(),
+    ];
     // Serialize saves so an older partial caption cannot overwrite its final text.
     active.syncQueue = active.syncQueue
       .catch(() => {})
@@ -545,6 +624,7 @@ export class LiveVoiceController {
             },
             active,
             15000,
+            { detached: true, keepalive },
           );
         }
       });
@@ -553,7 +633,7 @@ export class LiveVoiceController {
   stop = () => {
     this.talkRequested = false;
     const active = this.active;
-    if (!active) return Promise.resolve();
+    if (!active) return this.flush();
     if (active.stopPromise) return active.stopPromise;
     this.update({ status: "closing" });
     active.microphone?.getTracks().forEach((track) => {
@@ -561,6 +641,7 @@ export class LiveVoiceController {
     });
     active.audio.muted = true;
     clearTimeout(active.syncTimer);
+    clearTimeout(active.leaseTimer);
     active.pendingDelegations.forEach(clearTimeout);
     active.pendingDelegations.clear();
     active.stopPromise = (async () => {
@@ -584,9 +665,11 @@ export class LiveVoiceController {
             this.send(active, { type: "session.close" });
           });
         }
+        await this.flushInterrupted();
         await this.sync(active);
       } catch (error) {
         await this.sync(active).catch(() => {});
+        this.recover(active);
         this.update({
           error:
             error instanceof Error
@@ -596,6 +679,13 @@ export class LiveVoiceController {
         throw error;
       } finally {
         this.cleanup(active);
+        // Release even if provider finalization or transcript persistence fails.
+        // A failed save remains recoverable with this session's capability.
+        try {
+          await this.release(active);
+        } catch {
+          this.recover(active);
+        }
       }
     })();
     return active.stopPromise;
@@ -628,12 +718,17 @@ export class LiveVoiceController {
     });
     this.applyTalkIntent();
   };
+  private async flushInterrupted() {
+    for (const [id, active] of this.interruptedSaves) {
+      await active.recoveryPromise;
+      await this.sync(active);
+      await this.release(active);
+      this.interruptedSaves.delete(id);
+    }
+  }
   flush = async () => {
     try {
-      if (this.interruptedSave) {
-        await this.sync(this.interruptedSave);
-        this.interruptedSave = undefined;
-      }
+      await this.flushInterrupted();
       if (!this.active) return;
       await this.sync(this.active);
     } catch (error) {
@@ -694,9 +789,14 @@ export class LiveVoiceController {
   }
   dispose = () => {
     if (this.active) {
-      this.send(this.active, { type: "session.close" });
-      this.active.closed?.(new Error("Voice closed before finalization."));
-      this.cleanup(this.active);
+      const active = this.active;
+      this.send(active, { type: "session.close" });
+      active.closed?.(new Error("Voice closed before finalization."));
+      this.cleanup(active);
+      this.recover(active, true);
     }
+    // Retry earlier failed saves when a page is leaving as well.
+    for (const active of this.interruptedSaves.values())
+      this.recover(active, true);
   };
 }

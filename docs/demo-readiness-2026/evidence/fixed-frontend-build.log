@@ -1,0 +1,33 @@
+npm notice run cedar-mastra-starter@0.1.0 build
+npm notice run next build
+   ▲ Next.js 15.4.4
+
+   Creating an optimized production build ...
+(node:32796) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ ✓ Compiled successfully in 2000ms
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/8) ...
+Parsed scenario: {}
+   Generating static pages (2/8)
+   Generating static pages (4/8)
+   Generating static pages (6/8)
+ ✓ Generating static pages (8/8)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    6.48 kB         119 kB
+├ ○ /_not-found                            997 B         101 kB
+├ ○ /report                              7.88 kB         633 kB
+├ ○ /scenario                             173 kB         795 kB
+└ ○ /scenarioParser                      2.17 kB         108 kB
++ First Load JS shared by all             100 kB
+  ├ chunks/4bd1b696-9911af18dede28aa.js  54.1 kB
+  ├ chunks/964-a417128dc1794916.js       43.9 kB
+  └ other shared chunks (total)          1.99 kB
+
+
+○  (Static)  prerendered as static content

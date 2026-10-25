@@ -26,7 +26,7 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
   const additionalContext = useCedarStore((s) => s.additionalContext);
   const collapsingConfigs = useCedarStore((s) => s.collapsingConfigs);
 
-  const renderContextBadge = (key: string, entry: ContextEntry) => {
+  const renderContextBadge = React.useCallback((key: string, entry: ContextEntry) => {
     // Try to find a provider that might have created this entry
     const provider = mentionProviders.get(key);
 
@@ -103,7 +103,7 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
         <span>{label}</span>
       </div>
     );
-  };
+  }, [editor, mentionProviders, removeContextEntry]);
 
   // Process and render context with collapsing logic
   const contextElements = React.useMemo(() => {
@@ -184,7 +184,6 @@ export const ContextBadgeRow: React.FC<ContextBadgeRowProps> = ({ editor }) => {
     return elements;
   }, [
     additionalContext,
-    mentionProviders,
     collapsingConfigs,
     renderContextBadge,
   ]);

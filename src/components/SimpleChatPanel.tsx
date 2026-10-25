@@ -14,6 +14,16 @@ interface Message {
   role: MessageRole;
 }
 
+interface AgentResponse {
+  text?: string;
+  response?: {
+    messages?: {
+      role: string;
+      content?: { text?: string }[];
+    }[];
+  };
+}
+
 function randomId(length = 16) {
   return Array.from({ length }, () => Math.floor(Math.random() * 36).toString(36)).join("");
 }
@@ -27,7 +37,6 @@ export default function SimpleChatPanel() {
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
   const [transcript, setTranscript] = useState("");
-  const [analyzerResponse, setAnalyzerResponse] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Update transcript string whenever messages changes
@@ -56,7 +65,6 @@ export default function SimpleChatPanel() {
         }),
       });
       const data = await response.json();
-      setAnalyzerResponse(data);
       localStorage.setItem("reportData", JSON.stringify(data));
       console.log("Analyzer response:", data);
       router.push("/report");
@@ -98,7 +106,7 @@ export default function SimpleChatPanel() {
         }
       );
       if (!response.ok) throw new Error("Failed to export chat");
-      const data = await response.json();
+      const data: AgentResponse = await response.json();
 
       console.log("Response data:", data);
 
@@ -113,7 +121,7 @@ export default function SimpleChatPanel() {
       ) {
         // Try to get from response.messages[0].content[0].text
         const msg = data.response.messages.find(
-          (m: any) => m.role === "assistant"
+          (m) => m.role === "assistant"
         );
         if (
           msg &&
@@ -131,7 +139,7 @@ export default function SimpleChatPanel() {
         ]);
       }
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
     } finally {
       setTimeout(() => setStatus("idle"), 2000);

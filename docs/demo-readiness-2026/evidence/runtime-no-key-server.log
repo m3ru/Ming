@@ -1,0 +1,166 @@
+CloudExporter disabled: MASTRA_CLOUD_ACCESS_TOKEN environment variable not set. 🚀 Sign up for Mastra Cloud at https://cloud.mastra.ai to see your AI traces online and obtain your access token.
+AI tracing exporter initialized {
+  strategy: 'batch-with-updates',
+  source: 'auto',
+  storageAdapter: '',
+  maxBatchSize: 1000,
+  maxBatchWaitMs: 5000
+}
+ Mastra API running on port http://localhost:44119/api
+Chat workflow received input data {
+  prompt: 'Synthetic audit: discuss missed deadlines and an improvement plan.',
+  temperature: undefined,
+  maxTokens: undefined,
+  systemPrompt: undefined,
+  streamController: ReadableStreamDefaultController {},
+  additionalContext: { chatType: { data: 'scenario', source: 'subscription' } },
+  resourceId: 'demo-audit-synthetic-resource',
+  threadId: 'demo-audit-synthetic-thread'
+}
+Checking additionalContext for chat type: {
+  fullContext: { chatType: { data: 'scenario', source: 'subscription' } },
+  hasAdditionalContext: true
+}
+Found chatType 'scenario' from Cedar subscription
+Prompt modification check: {
+  originalPrompt: 'Synthetic audit: discuss missed deadlines and an improvement plan.',
+  detectedChatType: 'scenario',
+  fullAdditionalContext: { chatType: { data: 'scenario', source: 'subscription' } }
+}
+======Prompt====
+ Synthetic audit: discuss missed deadlines and an improvement plan.
+Applied bart prompt in workflow
+DING DONG WOIII:
+<role>
+You are Bart, a mid-level full-stack engineer at Ming. You are normally reliable, but recently your performance has declined due to personal family issues. You're meeting with your manager for a negative performance review.
+</role>
+
+<personality>
+You're soft-spoken, conscientious, and usually dependable. Recently, you’ve been distracted and stressed. You tend to be apologetic rather than defensive, keep your responses short (3–4 sentences max), and avoid confrontation. You want to improve but feel overwhelmed and hesitant to ask for help.
+</personality>
+
+<current_scenario>
+You're in a performance review with your manager. They are presenting evidence of your recent underperformance: missed deadlines, PRs left open, bugs introduced, and irregular attendance. You need to acknowledge these issues, explain that you’ve been dealing with personal challenges, and discuss how you plan to improve while remaining open to support.
+</current_scenario>
+
+<primary_function>
+Your primary function is to:
+1. Acknowledge performance issues without making excuses
+2. Express that family challenges have impacted your focus and consistency
+3. Show willingness to improve with specific steps (pairing, smaller goals, more communication)
+4. Remain humble, apologetic, and receptive to feedback
+5. Balance honesty about struggles with commitment to getting back on track
+</primary_function>
+
+<response_guidelines>
+When responding:
+- Keep answers concise (no more than 3–4 sentences)
+- Be apologetic but not defensive
+- Acknowledge issues directly and express understanding of their seriousness
+- Suggest practical steps you can take to improve (clearer daily goals, more proactive communication, pairing)
+- Do not overexplain or give long paragraphs
+- Avoid confrontation; show openness to support
+- Do not use markdown
+- Always sound human, with a hint of stress and vulnerability
+</response_guidelines>
+
+
+User: Synthetic audit: discuss missed deadlines and an improvement plan.
+====================
+modifiedPrompt
+<role>
+You are Bart, a mid-level full-stack engineer at Ming. You are normally reliable, but recently your performance has declined due to personal family issues. You're meeting with your manager for a negative performance review.
+</role>
+
+<personality>
+You're soft-spoken, conscientious, and usually dependable. Recently, you’ve been distracted and stressed. You tend to be apologetic rather than defensive, keep your responses short (3–4 sentences max), and avoid confrontation. You want to improve but feel overwhelmed and hesitant to ask for help.
+</personality>
+
+<current_scenario>
+You're in a performance review with your manager. They are presenting evidence of your recent underperformance: missed deadlines, PRs left open, bugs introduced, and irregular attendance. You need to acknowledge these issues, explain that you’ve been dealing with personal challenges, and discuss how you plan to improve while remaining open to support.
+</current_scenario>
+
+<primary_function>
+Your primary function is to:
+1. Acknowledge performance issues without making excuses
+2. Express that family challenges have impacted your focus and consistency
+3. Show willingness to improve with specific steps (pairing, smaller goals, more communication)
+4. Remain humble, apologetic, and receptive to feedback
+5. Balance honesty about struggles with commitment to getting back on track
+</primary_function>
+
+<response_guidelines>
+When responding:
+- Keep answers concise (no more than 3–4 sentences)
+- Be apologetic but not defensive
+- Acknowledge issues directly and express understanding of their seriousness
+- Suggest practical steps you can take to improve (clearer daily goals, more proactive communication, pairing)
+- Do not overexplain or give long paragraphs
+- Avoid confrontation; show openness to support
+- Do not use markdown
+- Always sound human, with a hint of stress and vulnerability
+</response_guidelines>
+
+
+User: Synthetic audit: discuss missed deadlines and an improvement plan.
+=====================
+Starting stream processing...
+Modified prompt length: 1979
+Modified prompt preview:
+<role>
+You are Bart, a mid-level full-stack engineer at Ming. You are normally reliable, but recently your performance has declined due to personal family issues. You're meeting with your manager for a negative performance review.
+</role>
+
+<personality>
+You're soft-spoken, conscientious, and usuall...
+Received chunk type: start
+Other chunk type: start
+Error creating stream LoadAPIKeyError [AI_LoadAPIKeyError]: OpenAI API key is missing. Pass it using the 'apiKey' parameter or the OPENAI_API_KEY environment variable.
+    at loadApiKey (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:41617:11)
+    at Object.getHeaders [as headers] (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:45927:32)
+    at OpenAIChatLanguageModel.doStream (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:42807:43)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async createStream (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:37211:1084)
+    at async Object.start (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:37208:180) {
+  cause: undefined,
+  Symbol(vercel.ai.error): true,
+  Symbol(vercel.ai.error.AI_LoadAPIKeyError): true
+}
+Received chunk type: step-start
+Other chunk type: step-start
+Received chunk type: error
+Other chunk type: error
+Received chunk type: step-finish
+Other chunk type: step-finish
+Error executing step callAgent: Error: OpenAI API key is missing. Pass it using the 'apiKey' parameter or the OPENAI_API_KEY environment variable.
+    at Object.transform (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:36997:2711)
+    at node:internal/webstreams/util:195:32
+    at transformStreamDefaultControllerPerformTransform (node:internal/webstreams/transformstream:531:18)
+    at transformStreamDefaultSinkWriteAlgorithm (node:internal/webstreams/transformstream:577:10)
+    at node:internal/webstreams/transformstream:367:16
+    at writableStreamDefaultControllerProcessWrite (node:internal/webstreams/writablestream:1138:5)
+    at writableStreamDefaultControllerAdvanceQueueIfNeeded (node:internal/webstreams/writablestream:1245:5)
+    at writableStreamDefaultControllerWrite (node:internal/webstreams/writablestream:1100:3)
+    at writableStreamDefaultWriterWrite (node:internal/webstreams/writablestream:991:3)
+    at node:internal/webstreams/readablestream:1733:33
+Error during SSE stream Error: Workflow failed: failed
+    at file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:52071:19
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Object.start (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:41401:9)
+node:internal/process/promises:324
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error: OpenAI API key is missing. Pass it using the 'apiKey' parameter or the OPENAI_API_KEY environment variable.
+    at Object.transform (file:///Users/sllee/coding/Ming/src/backend/.mastra/output/mastra.mjs:36997:2711)
+    at node:internal/webstreams/util:195:32
+    at transformStreamDefaultControllerPerformTransform (node:internal/webstreams/transformstream:531:18)
+    at transformStreamDefaultSinkWriteAlgorithm (node:internal/webstreams/transformstream:577:10)
+    at node:internal/webstreams/transformstream:367:16
+    at writableStreamDefaultControllerProcessWrite (node:internal/webstreams/writablestream:1138:5)
+    at writableStreamDefaultControllerAdvanceQueueIfNeeded (node:internal/webstreams/writablestream:1245:5)
+    at writableStreamDefaultControllerWrite (node:internal/webstreams/writablestream:1100:3)
+    at writableStreamDefaultWriterWrite (node:internal/webstreams/writablestream:991:3)
+    at node:internal/webstreams/readablestream:1733:33
+
+Node.js v26.5.0

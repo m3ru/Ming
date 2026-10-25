@@ -1,9 +1,5 @@
-import { Scenario } from "./types";
+import type { Scenario } from "./types";
 import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.NEXT_PUBLIC_GOOGLE_AI_STUDIO_KEY!,
-});
 
 export default async function generateScenarioVideo(scenario: Scenario) {
   const prompt = scenarioToPrompt(scenario);
@@ -27,6 +23,16 @@ function scenarioToPrompt(scenario: Scenario): string {
 }
 
 async function generateVideo(prompt: string) {
+  const apiKey =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error(
+      "Video generation requires GEMINI_API_KEY, GOOGLE_GENERATIVE_AI_API_KEY, or GOOGLE_API_KEY.",
+    );
+  }
+  const ai = new GoogleGenAI({ apiKey });
   let operation = await ai.models.generateVideos({
     model: "veo-3.0-fast-generate-001",
     prompt,
@@ -37,8 +43,10 @@ async function generateVideo(prompt: string) {
     operation = await ai.operations.getVideosOperation({ operation });
   }
 
-  ai.files.download({
-    file: operation.response?.generatedVideos?.[0]?.video!,
+  const video = operation.response?.generatedVideos?.[0]?.video;
+  if (!video) throw new Error("Video generation completed without a video.");
+  await ai.files.download({
+    file: video,
     downloadPath: "./video.mp4",
   });
   console.log("Video downloaded to ./video.mp4");

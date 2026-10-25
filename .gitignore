@@ -12,3 +12,4 @@ pnpm-lock.yaml
 *.db-*
 .open-next
 .wrangler
+!.env.example
