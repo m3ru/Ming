@@ -22,8 +22,9 @@ export function groupConversationMessages(
       grouped[grouped.length - 1] = {
         ...previous,
         content: [previous.content, message.content]
+          .map((content) => content?.trim())
           .filter(Boolean)
-          .join("\n\n"),
+          .join(" "),
       };
     } else {
       grouped.push(message);
