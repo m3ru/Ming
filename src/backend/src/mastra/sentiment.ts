@@ -19,8 +19,8 @@ export async function scoreSentiment(text: string, signal: AbortSignal) {
     [{ role: "user", content: text }],
     {
       structuredOutput: { schema: sentimentSchema },
-      // Gemini's output cap includes thinking; 150 tokens cut the score off mid-object.
-      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 150 },
+      // Output caps include reasoning (Gemini thinking; GPT-6 Luna reasons at its default medium effort).
+      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
       ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
         ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
         : {}),

@@ -55,9 +55,9 @@ const createScenario = createStep({
         abortSignal: AbortSignal.timeout(90000),
         modelSettings: {
           temperature: 0.3,
-          // Gemini includes thinking in this cap. Leave enough room for all
+          // Both providers count reasoning in this cap. Leave enough room for all
           // overview, NPC, and document fields without a second model pass.
-          maxOutputTokens: provider === "gemini" ? 8192 : 6144,
+          maxOutputTokens: provider === "gemini" ? 8192 : 16384,
         },
         ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
           ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }

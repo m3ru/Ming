@@ -33,8 +33,8 @@ export const deepgramVoice = createDeepgramVoiceService({
         role === "user" ? { role: "user" as const, content } : { role: "assistant" as const, content }),
     ], {
       abortSignal: signal,
-      // Gemini's output cap includes thinking; leave room for a spoken answer.
-      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 250 },
+      // Output caps include reasoning (Gemini thinking; GPT-6 Luna at medium effort); leave room for the answer.
+      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
       ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
         ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
         : {}),

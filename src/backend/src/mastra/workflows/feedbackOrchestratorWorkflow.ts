@@ -11,8 +11,8 @@ function reportGenerationOptions(maxOutputTokens: number, temperature?: number) 
   const { provider, model } = resolveTextProvider();
   return {
     modelSettings: {
-      // Gemini counts reasoning tokens against this same output budget.
-      maxOutputTokens: provider === 'gemini' ? 4096 : maxOutputTokens,
+      // Reasoning tokens count against this budget (Gemini thinking; GPT-6 Luna's medium effort).
+      maxOutputTokens: provider === 'gemini' ? 4096 : maxOutputTokens + 4096,
       ...(temperature === undefined ? {} : { temperature }),
     },
     ...(provider === 'gemini' && /^gemini-3(?:\.\d+)?-/.test(model)

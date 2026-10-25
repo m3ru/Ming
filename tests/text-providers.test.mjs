@@ -58,7 +58,7 @@ test("explicit OpenAI selection needs only its own key and honors its model", ()
       MING_TEXT_PROVIDER: "openai",
       OPENAI_API_KEY: " openai-key ",
     }),
-    { provider: "openai", model: "gpt-5.4-mini", apiKey: "openai-key" },
+    { provider: "openai", model: "gpt-6-luna", apiKey: "openai-key" },
   );
   assert.equal(
     resolveTextProvider({
@@ -215,7 +215,7 @@ for (const { provider, name, keys, selectedKey } of [
           `Bearer ${selectedKey}`,
         );
         assert.equal(requests[0].headers.get("x-goog-api-key"), null);
-        assert.equal(requests[0].body.model, "gpt-5.4-mini");
+        assert.equal(requests[0].body.model, "gpt-6-luna");
       }
     } finally {
       globalThis.fetch = originalFetch;
@@ -383,9 +383,9 @@ test("tone scoring and Live voice lookups leave Gemini room to think before answ
       await liveVoice.generate([{ role: "user", content: "Hi Bart" }], context);
       const thinking = lowThinking ? { google: { thinkingConfig: { thinkingLevel: "low" } } } : undefined;
       // Gemini counts thinking against the cap; a tight cap truncates the reply (frozen tone gauge).
-      assert.equal(calls[0].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 150);
+      assert.equal(calls[0].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 2048);
       assert.deepEqual(calls[0].providerOptions, thinking);
-      assert.equal(calls[1].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 250);
+      assert.equal(calls[1].modelSettings.maxOutputTokens, provider === "gemini" ? 1024 : 2048);
       assert.deepEqual(calls[1].providerOptions, thinking);
       assert.ok(calls[1].abortSignal instanceof AbortSignal);
     }

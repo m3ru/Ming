@@ -22,7 +22,7 @@ The browser uses the same-origin `/api/backend` proxy. The provider key and inte
 
 ## Text and voice providers
 
-`MING_TEXT_PROVIDER=gemini` is the default for all text agents, sentiment, reports and voice reasoning. Set `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, or `GOOGLE_API_KEY` (first nonblank value in that order); the Veo helpers use the same server-side key precedence. `GEMINI_MODEL` can override the default `gemini-3.8-flash`. Use `MING_TEXT_PROVIDER=openai` with `OPENAI_API_KEY` to select OpenAI text; `OPENAI_TEXT_MODEL` defaults to `gpt-5.4-mini`.
+`MING_TEXT_PROVIDER=gemini` is the default for all text agents, sentiment, reports and voice reasoning. Set `GEMINI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, or `GOOGLE_API_KEY` (first nonblank value in that order); the Veo helpers use the same server-side key precedence. `GEMINI_MODEL` can override the default `gemini-3.8-flash`. Use `MING_TEXT_PROVIDER=openai` with `OPENAI_API_KEY` to select OpenAI text; `OPENAI_TEXT_MODEL` defaults to `gpt-6-luna`.
 
 `MING_VOICE_PROVIDER=openai` keeps the existing OpenAI Live WebRTC path and requires `OPENAI_API_KEY`. The default configuration therefore uses both Gemini and OpenAI credentials. `MING_VOICE_PROVIDER=deepgram` uses browser MediaRecorder hold-to-talk, Deepgram STT, the selected text model, and Deepgram TTS. Set `DEEPGRAM_API_KEY`; optional model overrides are `DEEPGRAM_STT_MODEL=nova-3` and `DEEPGRAM_TTS_MODEL=aura-2-orion-en`. Gemini + Deepgram does not need an OpenAI key. Restart both services after changing provider configuration; there is no silent fallback.
 

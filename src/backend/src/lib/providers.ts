@@ -27,7 +27,7 @@ export function resolveTextProvider(
   if (provider === "openai") {
     return {
       provider,
-      model: env.OPENAI_TEXT_MODEL?.trim() || "gpt-5.4-mini",
+      model: env.OPENAI_TEXT_MODEL?.trim() || "gpt-6-luna",
       apiKey: env.OPENAI_API_KEY?.trim() || undefined,
     };
   }

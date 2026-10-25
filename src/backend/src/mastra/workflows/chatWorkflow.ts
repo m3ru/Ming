@@ -14,6 +14,7 @@ import {
 } from "../../utils/streamUtils";
 import { ActionSchema } from "./chatWorkflowTypes";
 import { defaultAgent } from "../agents/defaultAgent";
+import { resolveTextProvider } from "../../lib/providers";
 
 export const ChatInputSchema = z.object({
   prompt: z.string().trim().min(1).max(16000),
@@ -134,7 +135,9 @@ const callAgent = createStep({
           JSON.stringify(additionalContext),
         modelSettings: {
           temperature,
-          maxOutputTokens: maxTokens,
+          // GPT-6 Luna's medium-effort reasoning counts against this cap; keep the reply budget.
+          maxOutputTokens:
+            resolveTextProvider().provider === "openai" ? maxTokens + 4096 : maxTokens,
         },
         runtimeContext,
         ...(threadId && resourceId

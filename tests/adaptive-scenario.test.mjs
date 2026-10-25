@@ -61,7 +61,7 @@ test("one generation uses actual feedback and previous scenario with provider-sp
     ["gemini", "gemini-3.8-flash", true],
     ["gemini", "gemini-3-flash-preview", true],
     ["gemini", "gemini-2.5-flash", false],
-    ["openai", "gpt-5.4-mini", false],
+    ["openai", "gpt-6-luna", false],
   ]) {
     const fixture = workflowFixture({ provider, model });
     const input = { analysis: "Strength: specific examples. Weakness: no exploratory questions before solutions.", threadId: "analysis-owned", resourceId: "owner", additionalContext: { previousScenario: scenarioFixture } };
@@ -73,7 +73,7 @@ test("one generation uses actual feedback and previous scenario with provider-sp
     assert.ok(messages[0].includes(JSON.stringify(input.additionalContext)));
     assert.match(messages[0], /one or two specific weaknesses actually identified/);
     assert.match(messages[0], /observable success criteria/);
-    assert.equal(options.modelSettings.maxOutputTokens, provider === "gemini" ? 8192 : 6144);
+    assert.equal(options.modelSettings.maxOutputTokens, provider === "gemini" ? 8192 : 16384);
     assert.equal(options.output.safeParse(scenarioFixture).success, true);
     assert.ok(options.abortSignal instanceof AbortSignal);
     assert.deepEqual(options.providerOptions, lowThinking ? { google: { thinkingConfig: { thinkingLevel: "low" } } } : undefined);
@@ -240,12 +240,27 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "../../utils/streamUtils": { handleTextStream: async () => {} },
     "./chatWorkflowTypes": { ActionSchema: backendRequire("zod").z.object({}) },
     "../../lib/prompts": prompts,
+    "../../lib/providers": providers,
     "../agents/defaultAgent": { defaultAgent: { async streamVNext(_messages, options) {
       captures.push(options.instructions);
+      chatCaps.push(options.modelSettings.maxOutputTokens);
       return { fullStream: (async function* () { yield { type: "text-delta", payload: { text: "Agreed." } }; })(), usage: Promise.resolve({}) };
     } } },
   });
-  await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+  const chatCaps = [];
+  const originalProvider = process.env.MING_TEXT_PROVIDER;
+  try {
+    // GPT-6 Luna's medium-effort reasoning needs headroom on top of the reply budget.
+    process.env.MING_TEXT_PROVIDER = "openai";
+    await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+    process.env.MING_TEXT_PROVIDER = "gemini";
+    await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+  } finally {
+    if (originalProvider === undefined) delete process.env.MING_TEXT_PROVIDER;
+    else process.env.MING_TEXT_PROVIDER = originalProvider;
+  }
+  assert.deepEqual(chatCaps, [768 + 4096, 768]);
+  captures.pop();
   assert.equal(captures.length, 3);
   for (const prompt of captures) {
     assert.ok(prompt.includes(scenarioFixture.userRole));

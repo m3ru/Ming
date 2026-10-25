@@ -120,6 +120,7 @@ async function exerciseRuntime(withMemory) {
       "./chatWorkflowTypes": loadBackendSource(
         "src/backend/src/mastra/workflows/chatWorkflowTypes.ts",
       ),
+      "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts"),
     },
   );
   const feedback = loadBackendSource(
@@ -346,7 +347,7 @@ if (process.argv.includes("--runtime-child")) {
       assert.equal(result.segmentedAnalysis, fixture.texts[0]);
       assert.equal(result.summaryAnalysis, fixture.texts[1]);
       assert.equal(result.detailedFeedback, fixture.texts[2]);
-      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), provider === "gemini" ? [4096, 4096, 4096] : [4096, 2048, 4096]);
+      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), provider === "gemini" ? [4096, 4096, 4096] : [8192, 6144, 8192]);
       assert.equal(fixture.calls[2].options.modelSettings.temperature, 0.2);
       for (const { options } of fixture.calls) {
         assert.deepEqual(options.providerOptions, lowThinking

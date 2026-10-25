@@ -129,6 +129,7 @@ async function exerciseRouter() {
       "./chatWorkflowTypes": loadBackendSource(
         "src/backend/src/mastra/workflows/chatWorkflowTypes.ts",
       ),
+      "../../lib/providers": providers,
     },
   );
   const feedback = loadBackendSource(
