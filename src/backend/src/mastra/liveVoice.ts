@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
 import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
-import { resolveTextProvider } from "../lib/providers";
+import { geminiThinking, resolveTextProvider } from "../lib/providers";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
 
@@ -38,9 +38,7 @@ export const liveVoice = createLiveVoiceService({
         abortSignal: AbortSignal.timeout(30_000),
         // Output caps include reasoning (Gemini thinking; GPT-6 Luna at medium effort); leave room for the answer.
         modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
-        ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
-          ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
-          : {}),
+        ...geminiThinking({ provider, model }),
       },
     );
     if (!result.text.trim())

@@ -72,46 +72,17 @@ export function VoiceSessionProvider({
   const [session] = useState(() => {
     const Controller =
       provider === "deepgram" ? DeepgramVoiceController : LiveVoiceController;
-    // Each call carries the whole session transcript, so only the latest per session is kept.
-    const deferred = new Map<string, { threadId: string; transcript: ConversationMessage[] }>();
-    const applyTranscript = (
-      threadId: string,
-      sessionId: string,
-      transcript: ConversationMessage[],
-    ) => {
-      const state = useCedarStore.getState();
-      const retained = state
-        .getThreadMessages(threadId)
-        .filter((message) => message.metadata?.sessionId !== sessionId);
-      state.setMessages(
-        [
-          ...retained,
-          ...transcript.map((message) => ({
-            ...message,
-            type: "text" as const,
-          })),
-        ].sort(
-          (a, b) =>
-            new Date(a.createdAt ?? 0).getTime() -
-            new Date(b.createdAt ?? 0).getTime(),
-        ),
-        threadId,
-      );
-      try {
-        localStorage.setItem(
-          "ming-transcript-" + threadId,
-          JSON.stringify(state.getThreadMessages(threadId)),
-        );
-      } catch {
-        /* Cedar still retains the transcript if browser storage is full. */
-      }
-    };
+    const byTime = (a: { createdAt?: string }, b: { createdAt?: string }) =>
+      new Date(a.createdAt ?? 0).getTime() - new Date(b.createdAt ?? 0).getTime();
+    // The thread whose streaming message was kept last, to put in time order once it finishes.
+    let pinnedThread: string | undefined;
     return {
       provider,
-      applyDeferred: () => {
-        for (const [sessionId, { threadId, transcript }] of deferred)
-          applyTranscript(threadId, sessionId, transcript);
-        deferred.clear();
+      resortPinned: () => {
+        if (pinnedThread === undefined) return;
+        const state = useCedarStore.getState();
+        state.setMessages([...state.getThreadMessages(pinnedThread)].sort(byTime), pinnedThread);
+        pinnedThread = undefined;
       },
       controller: new Controller({
         baseURL: () => {
@@ -133,22 +104,53 @@ export function VoiceSessionProvider({
         },
         messages,
         transcript: (threadId, sessionId, transcript) => {
-          // Cedar streams a typed reply into the last message; re-sorting now would split
-          // that reply or pour it into a voice line, so wait until the reply finishes.
-          if (useCedarStore.getState().isProcessing)
-            deferred.set(sessionId, { threadId, transcript });
-          else applyTranscript(threadId, sessionId, transcript);
+          const state = useCedarStore.getState();
+          const thread = state.getThreadMessages(threadId);
+          // Cedar streams a typed reply into whatever message is last. Keep that message
+          // last until it finishes, so voice lines neither split it nor receive its text,
+          // while the store stays current for saves and the next voice turn's history.
+          const last = thread.at(-1);
+          const streaming =
+            state.isProcessing &&
+            threadId === state.mainThreadId &&
+            last?.metadata?.sessionId !== sessionId
+              ? last
+              : undefined;
+          if (streaming) pinnedThread = threadId;
+          state.setMessages(
+            [
+              ...thread.filter(
+                (message) =>
+                  message !== streaming && message.metadata?.sessionId !== sessionId,
+              ),
+              ...transcript.map((message) => ({
+                ...message,
+                type: "text" as const,
+              })),
+            ]
+              .sort(byTime)
+              .concat(streaming ? [streaming] : []),
+            threadId,
+          );
+          try {
+            localStorage.setItem(
+              "ming-transcript-" + threadId,
+              JSON.stringify(state.getThreadMessages(threadId)),
+            );
+          } catch {
+            /* Cedar still retains the transcript if browser storage is full. */
+          }
         },
       }),
     };
   });
-  const { controller, applyDeferred } = session;
+  const { controller, resortPinned } = session;
 
   useEffect(() => {
     const unsubscribe = useCedarStore.subscribe((state, previous) => {
       if (state.additionalContext !== previous.additionalContext)
         controller.syncContext();
-      if (previous.isProcessing && !state.isProcessing) applyDeferred();
+      if (previous.isProcessing && !state.isProcessing) resortPinned();
       if (state.mainThreadId !== previous.mainThreadId)
         void controller.stop().catch(() => {});
       else if (
@@ -164,7 +166,7 @@ export function VoiceSessionProvider({
       window.removeEventListener("pagehide", unload);
       controller.dispose();
     };
-  }, [controller, applyDeferred]);
+  }, [controller, resortPinned]);
 
   useEffect(
     () => () => {

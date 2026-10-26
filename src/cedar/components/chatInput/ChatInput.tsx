@@ -98,6 +98,10 @@ export const ChatInput: React.FC<{
           await state.sendMessage({ stream });
         } finally {
           streamObserver?.restore();
+          // Voice lines that landed during the reply belong to the voice turn: never count
+          // them as this reply's output, or mark them failed along with it.
+          for (const message of useCedarStore.getState().getThreadMessages(submittedThreadId))
+            if (message.metadata?.source === "live-voice") previousIds.add(message.id);
         }
         // Cedar resolves even on HTTP errors and error objects in an SSE stream.
         const newMessages = useCedarStore

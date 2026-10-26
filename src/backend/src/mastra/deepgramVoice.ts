@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { createDeepgramVoiceService } from "../lib/deepgramVoice";
 import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
-import { resolveGeminiKey, resolveTextProvider } from "../lib/providers";
+import { geminiThinking, resolveGeminiKey, resolveTextProvider } from "../lib/providers";
 import { reserveGeneration } from "../lib/security";
 import { chatType } from "../lib/voice";
 import { defaultAgent } from "./agents/defaultAgent";
@@ -39,9 +39,7 @@ export const deepgramVoice = createDeepgramVoiceService({
       abortSignal: signal,
       // Output caps include reasoning (Gemini thinking; GPT-6 Luna at medium effort); leave room for the answer.
       modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
-      ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
-        ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
-        : {}),
+      ...geminiThinking({ provider, model }),
     });
     return result.text;
   },

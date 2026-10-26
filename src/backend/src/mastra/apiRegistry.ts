@@ -154,6 +154,8 @@ export const apiRoutes = [
         // them, or an abandoned run keeps holding one of the four generation slots.
         const stop = AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(150_000)]);
         const cancel = () => void run.cancel().catch(() => {});
+        // An abort listener added after the abort never fires: a browser already gone stops here.
+        stop.throwIfAborted();
         stop.addEventListener("abort", cancel, { once: true });
         const result = await run
           .start({

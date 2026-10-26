@@ -1,7 +1,7 @@
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
 import { scenarioSchema, scenarioNpcSchema } from "../../lib/scenarioSchema";
-import { resolveTextProvider } from "../../lib/providers";
+import { geminiThinking, resolveTextProvider } from "../../lib/providers";
 import { scenarioCreateAgent } from "../agents/scenarioCreateAgent";
 
 const additionalContextSchema = z.record(z.unknown()).refine(
@@ -59,9 +59,7 @@ const createScenario = createStep({
           // overview, NPC, and document fields without a second model pass.
           maxOutputTokens: provider === "gemini" ? 8192 : 16384,
         },
-        ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
-          ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
-          : {}),
+        ...geminiThinking({ provider, model }),
       });
       // Mastra can surface a partial object with an error/finish reason rather
       // than rejecting. A complete-looking prefix is not a successful exercise.

@@ -1,5 +1,5 @@
 import { Agent } from "@mastra/core/agent";
-import { resolveTextProvider } from "../lib/providers";
+import { geminiThinking, resolveTextProvider } from "../lib/providers";
 import { sentimentSchema } from "../lib/sentiment";
 import { textModel } from "./models";
 
@@ -21,9 +21,7 @@ export async function scoreSentiment(text: string, signal: AbortSignal) {
       structuredOutput: { schema: sentimentSchema },
       // Output caps include reasoning (Gemini thinking; GPT-6 Luna reasons at its default medium effort).
       modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
-      ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
-        ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
-        : {}),
+      ...geminiThinking({ provider, model }),
       abortSignal: signal,
     },
   );

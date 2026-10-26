@@ -42,6 +42,25 @@ const highlighters: Record<string, { stroke: string; note: string }> = {
   gray: { stroke: "bg-rule/60", note: "text-pencil" },
 };
 
+// One reader for <comment …> tags, shared with the coach's @-mention list (TranscriptChatPanel).
+// Quoted values may contain ">", and a value ends at the quote before the next attribute or the
+// tag's end, so feedback that quotes a phrase ("Say "I hear you" first") stays whole.
+const COMMENT_OPEN = /<comment\b((?:[^>"]|"[^"]*")*|[^>]*)>/;
+function commentAttributes(attrText: string) {
+  const attrs: Record<string, string> = {};
+  for (const [, name, value] of attrText.matchAll(
+    /([a-zA-Z0-9_-]+)\s*=\s*"(.*?)"(?=\s*[a-zA-Z0-9_-]+\s*=|\s*$)/g,
+  ))
+    attrs[name] = value;
+  return attrs;
+}
+/** The feedback of every note in a transcript, in order. */
+export function commentFeedback(content: string) {
+  return [...content.matchAll(new RegExp(COMMENT_OPEN, "g"))].map(
+    (match) => commentAttributes(match[1]).feedback ?? "",
+  );
+}
+
 const circled =
   "inline-flex size-[1.4em] shrink-0 items-center justify-center rounded-full border border-current font-sans font-semibold leading-none";
 
@@ -105,6 +124,9 @@ const renderMarkdownBlocks = (text: string) => {
   const renderLine = (line: string): TranscriptRow => {
     let remaining = line;
     const elements: React.ReactNode[] = [];
+    // A closing tag whose opening tag sits on an earlier row (a note spanning speakers) is dropped.
+    const plain = (text: string) =>
+      parseInlineMarkdown(text.replaceAll("</comment>", ""));
     const commentTexts: { idx: number; text: string; note: string }[] = [];
 
     // Process either <highlight> or <comment ...> tags in order of appearance
@@ -123,10 +145,8 @@ const renderMarkdownBlocks = (text: string) => {
       if (useComment) {
         // extract pre, the opening tag, attributes, inner text, and rest
         const pre = remaining.slice(0, nextCommentTag);
-        const openTagMatch = remaining
-          .slice(nextCommentTag)
-          .match(/^<comment\s*([^>]*)>/);
-        if (!openTagMatch) break; // malformed
+        const openTagMatch = remaining.slice(nextCommentTag).match(COMMENT_OPEN);
+        if (openTagMatch?.index !== 0) break; // malformed
         const attrText = openTagMatch[1];
         const afterOpen = remaining.slice(
           nextCommentTag + openTagMatch[0].length,
@@ -137,18 +157,9 @@ const renderMarkdownBlocks = (text: string) => {
         const inner = afterOpen.slice(0, closeIdx);
         const after = afterOpen.slice(closeIdx + "</comment>".length);
 
-        if (pre) elements.push(parseInlineMarkdown(pre));
+        if (pre) elements.push(plain(pre));
 
-        // parse attributes: color and feedback
-        const attrs: Record<string, string> = {};
-        // A value ends at the quote before the next attribute or the tag's end, so
-        // feedback that quotes a phrase ("Say "I hear you" first") stays whole.
-        const attrRegex =
-          /([a-zA-Z0-9_-]+)\s*=\s*"(.*?)"(?=\s+[a-zA-Z0-9_-]+\s*=|\s*$)/g;
-        let am: RegExpExecArray | null;
-        while ((am = attrRegex.exec(attrText)) !== null) {
-          attrs[am[1]] = am[2];
-        }
+        const attrs = commentAttributes(attrText);
 
         const color = attrs.color || "yellow";
         const feedback = attrs.feedback || "";
@@ -192,7 +203,7 @@ const renderMarkdownBlocks = (text: string) => {
           after = after.split("</comment>")[1];
         }
 
-        if (pre) elements.push(parseInlineMarkdown(pre));
+        if (pre) elements.push(plain(pre));
 
         let marker: number | null = null;
         if (feedback) {
@@ -218,7 +229,7 @@ const renderMarkdownBlocks = (text: string) => {
       }
     }
 
-    if (remaining) elements.push(parseInlineMarkdown(remaining));
+    if (remaining) elements.push(plain(remaining));
 
     const commentNode =
       commentTexts.length > 0 ? (

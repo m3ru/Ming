@@ -42,6 +42,17 @@ export function resolveTextProvider(
   throw new Error('MING_TEXT_PROVIDER must be "gemini" or "openai".');
 }
 
+/**
+ * Gemini 3 thinks by default, and thinking counts against maxOutputTokens, so a small cap can
+ * come back empty. Keep it low. Other models do not take thinkingLevel.
+ * shortcut: aliases such as gemini-flash-latest do not match; set GEMINI_MODEL to a versioned gemini-3 name.
+ */
+export function geminiThinking({ provider, model }: Pick<TextProviderConfig, "provider" | "model">) {
+  return provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
+    ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" as const } } } }
+    : {};
+}
+
 export function isTextConfigured(
   env: ProviderEnvironment = process.env,
 ): boolean {

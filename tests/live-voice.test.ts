@@ -102,8 +102,10 @@ test("long delegated answers are trimmed to whole sentences that fit one Live ap
   // Short answers, and answers with no sentence end or no spaces, still come back whole or cut cleanly.
   assert.equal(liveDraft("Short reply."), "Short reply.");
   assert.ok(!liveDraft("word ".repeat(400)).endsWith(" "));
-  assert.equal(Buffer.byteLength(liveDraft("日本語".repeat(500))) <= 1200, true);
-  assert.ok(!liveDraft("日本語".repeat(500)).includes("�"));
+  // One leading byte shifts the 1,200-byte cut into the middle of a 3-byte character.
+  const cut = liveDraft("a" + "日本語".repeat(500));
+  assert.ok(Buffer.byteLength(cut) <= 1200);
+  assert.ok(!cut.includes("\uFFFD"));
 });
 
 test("context chunks preserve Unicode and stay within the Live append limit", () => {

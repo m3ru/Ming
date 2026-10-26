@@ -9,6 +9,7 @@ import {
 } from "cedar-os";
 import { ChatInput } from "@/cedar/components/chatInput/ChatInput";
 import ChatBubbles from "@/cedar/components/chatMessages/ChatBubbles";
+import { commentFeedback } from "@/components/AnnotatedTranscript";
 import { MessageSquare } from "lucide-react";
 import { feedbackReplyPrompt } from "@/lib/prompts";
 import type { ReportScore } from "@/app/report/parser";
@@ -109,16 +110,11 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     }> = [];
 
     segments.forEach((segment, segmentIndex) => {
-      // Extract feedback from comment tags using regex
-      // Same value rule as AnnotatedTranscript: quotes inside feedback do not end it.
-      const commentRegex =
-        /<comment[^>]*?\sfeedback="(.*?)"(?=\s+[a-zA-Z0-9_-]+\s*=|\s*>)[^>]*>/g;
-      let match;
       let commentIndex = 0;
 
-      while ((match = commentRegex.exec(segment.content)) !== null) {
-        const feedbackText = match[1];
-        if (feedbackText && feedbackText.trim()) {
+      // The same reader as the report's margin notes.
+      for (const feedbackText of commentFeedback(segment.content)) {
+        if (feedbackText.trim()) {
           feedbackItems.push({
             id: `feedback-${segmentIndex}-${commentIndex}`,
             title: feedbackText, // Show and insert only the feedback text

@@ -182,7 +182,8 @@ test("coach mentions keep feedback that quotes a phrase", () => {
           title: "Review",
           content:
             '**User:** <comment color="red" feedback="Say "I hear you" first.">Calm down.</comment> ' +
-            '<comment feedback="Good question." color="green">Why?</comment>',
+            '<comment feedback="Good question." color="green">Why?</comment> ' +
+            '<comment color="red" feedback="Try a -> b">Hm.</comment>',
         },
       ],
       feedback: null,
@@ -191,7 +192,8 @@ test("coach mentions keep feedback that quotes a phrase", () => {
     }),
   );
   const mentions = registrations.find(({ key }) => key === "transcriptFeedback").value;
-  assert.deepEqual(mentions.map(({ feedback }) => feedback), ['Say "I hear you" first.', "Good question."]);
+  // The same notes the transcript shows, read by the same rules.
+  assert.deepEqual(mentions.map(({ feedback }) => feedback), ['Say "I hear you" first.', "Good question.", "Try a -> b"]);
   // Space scrolls the report rather than opening the microphone.
   assert.equal(inputProps.spaceToTalk, false);
 });
@@ -266,6 +268,14 @@ test("segments match the backend's rule: any case, padded titles, any closing ti
   );
   assert.equal(result.status, "ready");
   assert.deepEqual(result.segments.map(({ title }) => title), ["Opening", "Close"]);
+  // The slips the backend also accepts: a bare closing tag and a missing one.
+  const slips = parse(
+    JSON.stringify({ ...complete, detail: "<segment: A>user: a</segment>\n<segment: B>user: b\n<segment: C>user: c</segment: C>" }),
+  );
+  assert.deepEqual(
+    slips.segments.map(({ title, content }) => [title, content]),
+    [["A", "**User:** a"], ["B", "**User:** b"], ["C", "**User:** c"]],
+  );
 });
 
 test("margin notes sit on the row of the line they annotate, and tags spanning lines stay intact", () => {
@@ -313,6 +323,25 @@ test("an unclosed note tag stays on its own line and keeps every note", () => {
   assert.ok(at("Too blunt") < at("I will try."));
   assert.ok(at("I will try.") < at("Thanks."));
   assert.ok(at("Thanks.") < at("Kind close"));
+});
+
+test("notes spanning speakers or paragraphs, glued attributes and \">\" in feedback render cleanly", () => {
+  const text = (content) =>
+    renderToStaticMarkup(
+      React.createElement(AnnotatedTranscript, { segments: [{ title: "Review", content }] }),
+    );
+  for (const content of [
+    '**User:** <comment color="red" feedback="Escalation">You missed it.\n**Bart:** I know.</comment>',
+    '**User:** <comment color="red" feedback="Escalation">Para one.\n\nPara two.</comment>',
+  ]) {
+    const markup = text(content);
+    assert.doesNotMatch(markup, /&lt;\/?comment/, content);
+    assert.match(markup, /Escalation/);
+  }
+  assert.match(text('**User:** <comment color="red"feedback="Glued">Hi</comment>'), /Glued/);
+  const arrow = text('**User:** <comment color="red" feedback="Try a -> b">Calm down.</comment>');
+  assert.match(arrow, /Try a -&gt; b/);
+  assert.doesNotMatch(arrow, /&lt;comment|b&quot;&gt;/);
 });
 
 test("a margin note that quotes a phrase keeps its full text", () => {

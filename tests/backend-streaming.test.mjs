@@ -128,6 +128,7 @@ async function exerciseRuntime(withMemory) {
     {
       ...agentMocks,
       "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts"),
+      "../../lib/reportSegments": loadBackendSource("src/backend/src/lib/reportSegments.ts"),
     },
   );
   const scenario = loadBackendSource(
@@ -323,7 +324,8 @@ if (process.argv.includes("--runtime-child")) {
       ...agentMocks,
       "@mastra/core/workflows": { createStep: (step) => step, createWorkflow: () => workflow },
       "@mastra/core/di": { RuntimeContext: Map },
-      "../../lib/providers": { resolveTextProvider: () => ({ provider, model }) },
+      "../../lib/providers": { ...loadBackendSource("src/backend/src/lib/providers.ts"), resolveTextProvider: () => ({ provider, model }) },
+      "../../lib/reportSegments": loadBackendSource("src/backend/src/lib/reportSegments.ts"),
     });
     return { calls, texts, async run() {
       let inputData = { transcript: "user: Hello", additionalContext: {} };
@@ -347,7 +349,8 @@ if (process.argv.includes("--runtime-child")) {
       assert.equal(result.segmentedAnalysis, fixture.texts[0]);
       assert.equal(result.summaryAnalysis, fixture.texts[1]);
       assert.equal(result.detailedFeedback, fixture.texts[2]);
-      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), provider === "gemini" ? [4096, 4096, 4096] : [8192, 6144, 8192]);
+      // The analyzer and detail stages copy the transcript, so both providers get room for long talks.
+      assert.deepEqual(fixture.calls.map(({ options }) => options.modelSettings.maxOutputTokens), [16384, 6144, 16384]);
       assert.equal(fixture.calls[2].options.modelSettings.temperature, 0.2);
       for (const { options } of fixture.calls) {
         assert.deepEqual(options.providerOptions, lowThinking
@@ -368,6 +371,12 @@ if (process.argv.includes("--runtime-child")) {
     });
     await fixture.run();
     assert.match(fixture.calls[2].messages[0], /Segment: Opening\nuser: Hello\n\nSegment: Close\nuser: Bye$/);
+    // A bare closing tag, a missing closing tag, and an empty segment.
+    const slips = reportFixture({
+      analysis: "<segment: A>user: a</segment>\n<segment: B>user: b\n<segment: C>user: c</segment: C>\n<segment: D> </segment: D>",
+    });
+    await slips.run();
+    assert.match(slips.calls[2].messages[0], /Segment: A\nuser: a\n\nSegment: B\nuser: b\n\nSegment: C\nuser: c$/);
     const empty = reportFixture({ analysis: "The model forgot the segment tags." });
     await assert.rejects(empty.run(), /returned no segments/);
     // The detail agent is never asked to annotate segments that do not exist.

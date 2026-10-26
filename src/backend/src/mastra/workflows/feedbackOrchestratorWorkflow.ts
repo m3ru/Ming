@@ -5,21 +5,22 @@ import { z } from 'zod';
 import { transcriptAnalyzerAgent } from '../agents/transcriptAnalyzerAgent';
 import { transcriptSummaryAnalyzerAgent } from '../agents/transcriptSummaryAnalyzerAgent';
 import { transcriptDetailAgent } from '../agents/transcriptDetailAgent';
-import { resolveTextProvider } from '../../lib/providers';
+import { geminiThinking, resolveTextProvider } from '../../lib/providers';
+import { reportSegments } from '../../lib/reportSegments';
 
 function reportGenerationOptions(maxOutputTokens: number, temperature?: number) {
   const { provider, model } = resolveTextProvider();
   return {
     modelSettings: {
       // Reasoning tokens count against this budget (Gemini thinking; GPT-6 Luna's medium effort).
-      maxOutputTokens: provider === 'gemini' ? 4096 : maxOutputTokens + 4096,
+      maxOutputTokens: maxOutputTokens + 4096,
       ...(temperature === undefined ? {} : { temperature }),
     },
-    ...(provider === 'gemini' && /^gemini-3(?:\.\d+)?-/.test(model)
-      ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: 'low' } } } }
-      : {}),
+    ...geminiThinking({ provider, model }),
   };
 }
+
+const COPYING_STAGE_TOKENS = 12288;
 
 function completeReportText(result: { text: string; finishReason?: string }) {
   if (result.finishReason === 'length') {
@@ -74,7 +75,9 @@ const analyzeTranscript = createStep({
     const result = await transcriptAnalyzerAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
       abortSignal,
-      ...reportGenerationOptions(4096),
+      // This stage and the detail stage copy the whole transcript into their output.
+      // shortcut: transcripts past ~10,000 words still overflow; raise with the 96,000-character input cap.
+      ...reportGenerationOptions(COPYING_STAGE_TOKENS),
       ...(threadId && resourceId
         ? {
             memory: {
@@ -163,18 +166,8 @@ const analyzeDetails = createStep({
     const agentRuntimeContext = new RuntimeContext();
     agentRuntimeContext.set('additionalContext', additionalContext);
 
-    // Extract segments from segmented analysis. Keep this pattern identical to the browser's
-    // (src/app/report/parser.tsx), so both sides find the same segments.
-    const segments = [];
-    const segmentRegex = /<segment:\s*([^>]+?)\s*>([\s\S]*?)<\/segment:[^>]*>/gi;
-    let match;
-
-    while ((match = segmentRegex.exec(segmentedAnalysis)) !== null) {
-      segments.push({
-        title: match[1],
-        content: match[2].trim(),
-      });
-    }
+    // The browser reads the detail agent's segments with this same rule.
+    const segments = reportSegments(segmentedAnalysis);
     // With nothing to anchor them, the detail agent's phrase notes would be invented.
     if (!segments.length) {
       throw new Error('The transcript analysis returned no segments. Try generating the report again.');
@@ -193,7 +186,7 @@ const analyzeDetails = createStep({
     const result = await transcriptDetailAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
       abortSignal,
-      ...reportGenerationOptions(4096, 0.2),
+      ...reportGenerationOptions(COPYING_STAGE_TOKENS, 0.2),
       ...(threadId && resourceId
         ? {
             memory: {

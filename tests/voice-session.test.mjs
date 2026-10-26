@@ -97,12 +97,12 @@ const voice = (role, content, seconds) => ({
   metadata: { source: "live-voice", sessionId: "deepgram-turn" },
 });
 
-test("a voice transcript waits for a streaming typed reply instead of splitting it", () => {
+test("a voice transcript during a streaming typed reply keeps the reply whole and the store current", () => {
   const cedar = cedarStore([
     { id: "typed", role: "user", type: "text", content: "Can we talk?", createdAt: at(0) },
     { id: "reply", role: "assistant", type: "text", content: "Sure,", createdAt: at(1) },
   ]);
-  const { transcript } = loadProvider(cedar.store);
+  const { transcript, messages } = loadProvider(cedar.store);
   cedar.set({ isProcessing: true });
 
   transcript("thread", "deepgram-turn", [voice("user", "About the deadline", 2)]);
@@ -110,9 +110,14 @@ test("a voice transcript waits for a streaming typed reply instead of splitting 
     voice("user", "About the deadline", 2),
     voice("assistant", "I know.", 3),
   ]);
+  // Saves and the next voice turn read the store, so the voice lines must be there now.
+  assert.deepEqual(
+    messages("thread").map((m) => m.content),
+    ["Can we talk?", "About the deadline", "I know.", "Sure,"],
+  );
   // The rest of the typed reply still streams into Bart's typed message.
   cedar.appendChunk(" let's talk.");
-  assert.deepEqual(cedar.messages().map((m) => m.content), ["Can we talk?", "Sure, let's talk."]);
+  assert.equal(cedar.messages().at(-1).content, "Sure, let's talk.");
 
   cedar.set({ isProcessing: false });
   assert.deepEqual(

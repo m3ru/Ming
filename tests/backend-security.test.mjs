@@ -28,7 +28,7 @@ async function exerciseRouter() {
   const storage = new LibSQLStore({ url: ":memory:" });
   const memory = new Memory({ storage, options: { lastMessages: 20 } });
   let modelCalls = 0;
-  // Set to hold the report's first model call until the run is cancelled.
+  // Set to { marker, wait } to hold the report stage whose prompt contains marker.
   let holdReports;
   const model = {
     specificationVersion: "v2",
@@ -47,8 +47,8 @@ async function exerciseRouter() {
     doStream: async (options) => {
       modelCalls++;
       const isScenario = options.prompt.some((message) => JSON.stringify(message).includes("Design the next workplace communication practice with Bart"));
-      if (holdReports && JSON.stringify(options.prompt).includes("Analyze this workplace conversation transcript:"))
-        await holdReports(options.abortSignal);
+      if (holdReports && JSON.stringify(options.prompt).includes(holdReports.marker))
+        await holdReports.wait(options.abortSignal);
       return {
         stream: new ReadableStream({
           start(controller) {
@@ -142,7 +142,7 @@ async function exerciseRouter() {
   );
   const feedback = loadBackendSource(
     "src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts",
-    { ...agentMocks, "../../lib/providers": providers },
+    { ...agentMocks, "../../lib/providers": providers, "../../lib/reportSegments": loadBackendSource("src/backend/src/lib/reportSegments.ts") },
   );
   const scenario = loadBackendSource(
     "src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts",
@@ -437,29 +437,54 @@ async function exerciseRouter() {
     "segmentedAnalysis",
     "summaryAnalysis",
   ]);
-  // A browser that gives up on its report must stop the model calls, not leave them running.
-  let reportAborted = false;
-  let reportStarted = false;
-  holdReports = (signal) =>
-    new Promise((resolve) => {
-      reportStarted = true;
-      signal?.addEventListener("abort", () => resolve((reportAborted = true)), { once: true });
-    });
-  const leaving = new AbortController();
-  const abandoned = app
-    .request("/feedback", {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({ threadId: "owned-thread", transcript: "user: Hello\nbart: Hello" }),
-      signal: leaving.signal,
-    })
-    .catch(() => {});
-  for (let i = 0; i < 200 && !reportStarted; i++) await new Promise((resolve) => setTimeout(resolve, 5));
-  assert.ok(reportStarted, "the report never reached the model");
-  leaving.abort();
-  for (let i = 0; i < 200 && !reportAborted; i++) await new Promise((resolve) => setTimeout(resolve, 5));
-  assert.ok(reportAborted, "the abandoned report kept its model call running");
-  await abandoned;
+  // A browser that gives up on its report must stop every stage's model call, not leave it running.
+  const waitFor = async (done) => {
+    for (let i = 0; i < 200 && !done(); i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  };
+  const reportRequest = (signal) =>
+    app
+      .request("/feedback", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ threadId: "owned-thread", transcript: "user: Hello\nbart: Hello" }),
+        signal,
+      })
+      .catch(() => {});
+  for (const marker of [
+    "Analyze this workplace conversation transcript:",
+    "Analyze this workplace conversation transcript for overall summary:",
+    "Provide detailed phrase-level feedback",
+  ]) {
+    let started = false;
+    let aborted = false;
+    holdReports = {
+      marker,
+      wait: (signal) =>
+        new Promise((resolve) => {
+          started = true;
+          signal?.addEventListener("abort", () => resolve((aborted = true)), { once: true });
+        }),
+    };
+    const leaving = new AbortController();
+    const abandoned = reportRequest(leaving.signal);
+    await waitFor(() => started);
+    assert.ok(started, marker + ": the report never reached this stage");
+    leaving.abort();
+    await waitFor(() => aborted);
+    assert.ok(aborted, marker + ": the abandoned report kept this stage's model call running");
+    await abandoned;
+  }
+  // A browser that left before the run started must not start any model call.
+  let reached = false;
+  holdReports = {
+    marker: "Analyze this workplace conversation transcript:",
+    wait: () => ((reached = true), new Promise((resolve) => setTimeout(resolve, 20))),
+  };
+  const early = new AbortController();
+  const pending = reportRequest(early.signal);
+  early.abort();
+  await pending;
+  assert.equal(reached, false, "a report the browser had already left still called the model");
   holdReports = undefined;
 
   const next = await request("/scenario-next", {

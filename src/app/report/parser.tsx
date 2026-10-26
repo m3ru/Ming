@@ -5,6 +5,7 @@ import {
   type EvaluationCategory,
   type EvaluationCriterion,
 } from "@/lib/evaluation";
+import { reportSegments } from "@/backend/src/lib/reportSegments";
 
 export type ReportScore = {
   category: EvaluationCategory;
@@ -114,19 +115,13 @@ export default function Parser(rawText: string): ParsedResult {
     ),
   );
 
-  // Same pattern as the backend's (feedbackOrchestratorWorkflow.ts): any case, any closing title.
-  const segRegex = /<segment:\s*([^>]+?)\s*>([\s\S]*?)<\/segment:[^>]*>/gi;
-  let segMatch: RegExpExecArray | null;
-  while ((segMatch = segRegex.exec(detailText)) !== null) {
-    const title = segMatch[1].trim();
-    const content = segMatch[2]
-      .trim()
-      .replace(
-        /^(\s*)(\w+):/gim,
-        (_, whitespace: string, speaker: string) =>
-          `${whitespace}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`,
-      );
-    if (title && content) result.segments.push({ title, content });
+  for (const segment of reportSegments(detailText)) {
+    const content = segment.content.replace(
+      /^(\s*)(\w+):/gim,
+      (_, whitespace: string, speaker: string) =>
+        `${whitespace}**${speaker.charAt(0).toUpperCase()}${speaker.slice(1)}:**`,
+    );
+    result.segments.push({ title: segment.title, content });
   }
 
   const hasContent =

@@ -47,7 +47,7 @@ const { buildReportTranscript } = loadBackendSource(
 );
 // Run the actual input's submit/recovery handlers with the real voice controller.
 // Only React rendering, editor APIs, and the typed transport are stand-ins.
-function chatInput(env, { props = {}, effects } = {}) {
+function chatInput(env, { props = {}, effects, send } = {}) {
   let submit;
   let cleared = 0;
   let sent = 0;
@@ -76,8 +76,12 @@ function chatInput(env, { props = {}, effects } = {}) {
     setChatInputContent() {
       draftUpdates++;
     },
+    updateMessage(id, patch) {
+      env.history(env.getHistory().map((message) => (message.id === id ? { ...message, ...patch } : message)));
+    },
     async sendMessage() {
       sent++;
+      if (send) return send();
       env.history([
         ...env.getHistory(),
         {
@@ -1309,4 +1313,37 @@ test("hold-Space-to-talk listens on the call screen but leaves Space to scroll t
   };
   assert.ok(listened({}).includes("keydown"));
   assert.deepEqual(listened({ spaceToTalk: false }), []);
+});
+
+test("a voice turn that lands during a typed reply is never counted as that reply", async (t) => {
+  const spoken = (role, content) => ({
+    id: "voice-deepgram-turn-" + role,
+    type: "text",
+    role,
+    content,
+    metadata: { source: "live-voice", sessionId: "deepgram-turn" },
+  });
+  const typed = { id: "typed-user", type: "text", role: "user", content: "Typed fallback" };
+  // The typed reply fails: Bart's spoken line must not be marked failed with it.
+  const failed = setup(t);
+  const failing = chatInput(failed, {
+    send: () =>
+      failed.history([
+        spoken("user", "Can you commit to Friday?"),
+        spoken("assistant", "Friday works."),
+        typed,
+        { id: "error", type: "text", role: "assistant", content: "An error occurred while sending your message." },
+      ]),
+  });
+  await failing.submit();
+  assert.ok(failing.errors().includes("No reply came back. Your draft is still here."));
+  assert.match(buildReportTranscript(failed.getHistory()), /bart: Friday works\./);
+  // The typed reply is empty: a voice line must not pass as the reply.
+  const empty = setup(t);
+  const silent = chatInput(empty, {
+    send: () => empty.history([spoken("user", "Hello"), spoken("assistant", "Hi."), typed]),
+  });
+  await silent.submit();
+  assert.ok(silent.errors().includes("No reply came back. Your draft is still here."));
+  assert.equal(silent.cleared(), 0);
 });

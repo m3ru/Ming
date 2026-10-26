@@ -14,7 +14,7 @@ function workflowFixture({ provider = "gemini", model = "gemini-3.8-flash", resu
   const source = loadBackendSource("src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts", {
     "@mastra/core/workflows": { createStep: (step) => step, createWorkflow: () => workflow },
     "../../lib/scenarioSchema": schema,
-    "../../lib/providers": { resolveTextProvider: () => ({ provider, model }) },
+    "../../lib/providers": { ...loadBackendSource("src/backend/src/lib/providers.ts"), resolveTextProvider: () => ({ provider, model }) },
     "../agents/scenarioCreateAgent": { scenarioCreateAgent: { async generateVNext(messages, options) {
       calls.push({ messages, options });
       if (generate) return generate(messages, options);

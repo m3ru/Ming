@@ -410,3 +410,21 @@ test("tone scoring and Live voice lookups leave Gemini room to think before answ
     }
   }
 });
+
+test("only versioned Gemini 3 models get low thinking, from one shared rule", async () => {
+  const low = { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } };
+  for (const model of ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3-flash-preview"])
+    assert.deepEqual(providers.geminiThinking({ provider: "gemini", model }), low, model);
+  for (const [provider, model] of [["gemini", "gemini-2.5-flash"], ["gemini", "custom-model"], ["openai", "gemini-3.8-flash"]])
+    assert.deepEqual(providers.geminiThinking({ provider, model }), {}, model);
+  // Copies of this rule drifted before; every model call must use the helper.
+  const { readFileSync, readdirSync } = await import("node:fs");
+  const files = readdirSync(new URL("../src/backend/src/", import.meta.url), { recursive: true })
+    .filter((file) => file.endsWith(".ts") && !file.endsWith("lib/providers.ts"));
+  for (const file of files)
+    assert.doesNotMatch(
+      readFileSync(new URL("../src/backend/src/" + file, import.meta.url), "utf8"),
+      /thinkingLevel/,
+      file + " repeats the Gemini thinking rule",
+    );
+});

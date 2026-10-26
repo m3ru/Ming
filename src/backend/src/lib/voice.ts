@@ -36,7 +36,7 @@ export function liveDraft(text: string) {
   // A multi-byte character cut in half decodes to U+FFFD; drop it.
   const head = new TextDecoder()
     .decode(bytes.slice(0, LIVE_DRAFT_BYTES))
-    .replace(/�$/, "");
+    .replace(/\uFFFD$/, "");
   // End on the last full sentence, else the last full word.
   const sentence = head.match(/^[\s\S]*[.!?…](?=\s|$)/)?.[0];
   const space = head.lastIndexOf(" ");
