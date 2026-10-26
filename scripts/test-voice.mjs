@@ -18,6 +18,7 @@ try {
     "tests/live-voice.test.ts",
     "src/lib/liveVoice.ts",
     "src/lib/voiceTranscript.ts",
+    "src/lib/server/security.ts",
     "src/backend/src/lib/voice.ts",
     "src/backend/src/lib/prompts.ts",
   ]) {

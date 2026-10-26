@@ -28,6 +28,8 @@ async function exerciseRouter() {
   const storage = new LibSQLStore({ url: ":memory:" });
   const memory = new Memory({ storage, options: { lastMessages: 20 } });
   let modelCalls = 0;
+  // Set to hold the report's first model call until the run is cancelled.
+  let holdReports;
   const model = {
     specificationVersion: "v2",
     provider: "synthetic",
@@ -45,6 +47,8 @@ async function exerciseRouter() {
     doStream: async (options) => {
       modelCalls++;
       const isScenario = options.prompt.some((message) => JSON.stringify(message).includes("Design the next workplace communication practice with Bart"));
+      if (holdReports && JSON.stringify(options.prompt).includes("Analyze this workplace conversation transcript:"))
+        await holdReports(options.abortSignal);
       return {
         stream: new ReadableStream({
           start(controller) {
@@ -53,7 +57,11 @@ async function exerciseRouter() {
             controller.enqueue({
               type: "text-delta",
               id: "text-1",
-              delta: isScenario ? JSON.stringify(scenarioFixture) : "Synthetic reply",
+              delta: isScenario
+                ? JSON.stringify(scenarioFixture)
+                : JSON.stringify(options.prompt).includes("Analyze this workplace conversation transcript:")
+                  ? "<segment: Opening>user: Hello</segment: Opening>"
+                  : "Synthetic reply",
             });
             controller.enqueue({ type: "text-end", id: "text-1" });
             controller.enqueue({
@@ -429,6 +437,31 @@ async function exerciseRouter() {
     "segmentedAnalysis",
     "summaryAnalysis",
   ]);
+  // A browser that gives up on its report must stop the model calls, not leave them running.
+  let reportAborted = false;
+  let reportStarted = false;
+  holdReports = (signal) =>
+    new Promise((resolve) => {
+      reportStarted = true;
+      signal?.addEventListener("abort", () => resolve((reportAborted = true)), { once: true });
+    });
+  const leaving = new AbortController();
+  const abandoned = app
+    .request("/feedback", {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ threadId: "owned-thread", transcript: "user: Hello\nbart: Hello" }),
+      signal: leaving.signal,
+    })
+    .catch(() => {});
+  for (let i = 0; i < 200 && !reportStarted; i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(reportStarted, "the report never reached the model");
+  leaving.abort();
+  for (let i = 0; i < 200 && !reportAborted; i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(reportAborted, "the abandoned report kept its model call running");
+  await abandoned;
+  holdReports = undefined;
+
   const next = await request("/scenario-next", {
     threadId: "owned-thread",
     analysis: "Synthetic analysis",

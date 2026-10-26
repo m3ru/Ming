@@ -256,3 +256,34 @@ test("real installed Cedar retains a partial reply but excludes failed generatio
     useCedarStore.setState(previousState, true);
   }
 });
+
+test("a send error after Bart's partial reply renders as an error, not as his words", () => {
+  const { outputText } = ts.transpileModule(
+    readFileSync(new URL("../src/lib/groupConversationMessages.ts", import.meta.url), "utf8"),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS } },
+  );
+  const loaded = { exports: {} };
+  new Function("require", "module", "exports", outputText)(
+    (id) => {
+      assert.equal(id, "./chatErrors");
+      return { isChatErrorMessage };
+    },
+    loaded,
+    loaded.exports,
+  );
+  const { groupConversationMessages } = loaded.exports;
+  const text = (id, role, content) => ({ id, role, type: "text", content });
+  const grouped = groupConversationMessages([
+    text("u", "user", "Hello"),
+    text("b1", "assistant", "I was about to"),
+    text("e", "assistant", "An error occurred while sending your message."),
+    text("b2", "assistant", "Sorry, as I said"),
+    text("b3", "assistant", "the deadline slipped."),
+  ]);
+  assert.deepEqual(
+    grouped.map((message) => [message.id, isChatErrorMessage(message)]),
+    [["u", false], ["b1", false], ["e", true], ["b2", false]],
+  );
+  // Ordinary consecutive lines from Bart still share one bubble.
+  assert.equal(grouped.at(-1).content, "Sorry, as I said\n\nthe deadline slipped.");
+});

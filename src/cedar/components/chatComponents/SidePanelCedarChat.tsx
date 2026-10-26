@@ -194,6 +194,8 @@ export const SidePanelCedarChat: React.FC<
     const timeout = setTimeout(() => controller.abort(), 120_000);
     setShowSpinner(true);
     setStopError(null);
+    // router.push returns before the page changes; End stays disabled until it does.
+    let leaving = false;
     try {
       try {
         await voiceSession.stop();
@@ -201,6 +203,11 @@ export const SidePanelCedarChat: React.FC<
         setStopError(voiceSession.provider === "deepgram"
           ? "Your last recording didn't send. Try again, or continue by text."
           : "Couldn't save the voice transcript. Your conversation is safe.");
+        return;
+      }
+      // Typing stays open while voice saves, so a reply may have started meanwhile.
+      if (useCedarStore.getState().isProcessing) {
+        setStopError("Wait for Bart's reply, then end the conversation.");
         return;
       }
       const finalTranscript = buildReportTranscript(
@@ -254,6 +261,7 @@ export const SidePanelCedarChat: React.FC<
         setStopError("Couldn't save the debrief here. Allow site storage, then try again.");
         return;
       }
+      leaving = true;
       router.push("/report");
     } catch {
       setStopError(controller.signal.aborted
@@ -261,8 +269,10 @@ export const SidePanelCedarChat: React.FC<
         : "Couldn't reach the debrief service. Your conversation is safe.");
     } finally {
       clearTimeout(timeout);
-      if (finishing.current === controller) finishing.current = null;
-      setShowSpinner(false);
+      if (!leaving) {
+        if (finishing.current === controller) finishing.current = null;
+        setShowSpinner(false);
+      }
     }
   };
 

@@ -102,11 +102,9 @@ export async function handleTextStream(
   chunk: string,
   streamController: ReadableStreamDefaultController<Uint8Array>,
 ): Promise<string> {
-  const encoder = new TextEncoder();
-
-  // Escape literal newlines for SSE compliance
-  const escaped = chunk.replace(/\n/g, "\\n");
-  streamController.enqueue(encoder.encode(`data:${escaped}\n\n`));
+  // Cedar JSON-parses every data line: raw " 2" would lose its space and " done" would vanish.
+  // An empty content object would render as a structured message, so skip empty chunks.
+  if (chunk) streamJSONEvent(streamController, "text", { content: chunk });
 
   return chunk;
 }

@@ -301,7 +301,7 @@ async function handle(request, response) {
       counts.chat++;
       response.writeHead(200, { "Content-Type": "text/event-stream" });
       response.write(
-        "data:I understand the concern. I missed the deadline and would like to agree on a plan.\n\n",
+        `data: ${JSON.stringify({ content: "I understand the concern. I missed the deadline and would like to agree on a plan." })}\n\n`,
       );
       return response.end("event: done\ndata:\n\n");
     }

@@ -127,8 +127,11 @@ export class LiveVoiceController {
     );
     const result = await response.json().catch(() => ({}));
     if (!response.ok)
-      throw new Error(
-        result.error || "Voice request failed (HTTP " + response.status + ").",
+      throw Object.assign(
+        new Error(
+          result.error || "Voice request failed (HTTP " + response.status + ").",
+        ),
+        { status: response.status },
       );
     return result;
   }
@@ -570,8 +573,8 @@ export class LiveVoiceController {
         });
         return;
       }
-      // The backend caps drafts at 250 output tokens, below Live's 500-token
-      // append limit. Deliver each draft atomically so it can be spoken coherently.
+      // The backend trims drafts to fit Live's 500-token append limit (liveDraft).
+      // Deliver each draft atomically so it can be spoken coherently.
       this.send(active, {
         type: "session.commentary.append",
         delegation_id: id,
@@ -721,8 +724,15 @@ export class LiveVoiceController {
   private async flushInterrupted() {
     for (const [id, active] of this.interruptedSaves) {
       await active.recoveryPromise;
-      await this.sync(active);
-      await this.release(active);
+      try {
+        await this.sync(active);
+        await this.release(active);
+      } catch (error) {
+        // 401/403: the server no longer holds this session (expired or restarted), so this
+        // save can never succeed. Keeping it would fail every later send, End and New session.
+        const status = (error as { status?: number }).status;
+        if (status !== 401 && status !== 403) throw error;
+      }
       this.interruptedSaves.delete(id);
     }
   }

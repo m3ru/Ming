@@ -159,6 +159,43 @@ test("the actual coaching state preserves null scores and explains their meaning
   assert.match(context.scoreAvailability, /Never infer a numeric score/);
 });
 
+test("coach mentions keep feedback that quotes a phrase", () => {
+  const registrations = [];
+  let inputProps;
+  const coachingLoad = loader({
+    "cedar-os": {
+      useCedarStore: (selector) =>
+        selector({ createThread: () => "thread", switchThread: () => {}, clearMessages: () => {} }),
+      useRegisterState: (config) => registrations.push(config),
+      useStateBasedMentionProvider: () => {},
+      useSubscribeStateToAgentContext: () => {},
+    },
+    "@/cedar/components/chatInput/ChatInput": { ChatInput: (props) => ((inputProps = props), null) },
+    "@/cedar/components/chatMessages/ChatBubbles": () => null,
+    "./TranscriptChatPanel.css": {},
+  });
+  const Panel = coachingLoad("src/components/TranscriptChatPanel.tsx").default;
+  renderToStaticMarkup(
+    React.createElement(Panel, {
+      segments: [
+        {
+          title: "Review",
+          content:
+            '**User:** <comment color="red" feedback="Say "I hear you" first.">Calm down.</comment> ' +
+            '<comment feedback="Good question." color="green">Why?</comment>',
+        },
+      ],
+      feedback: null,
+      suggestions: null,
+      scores: emptyReportScores(),
+    }),
+  );
+  const mentions = registrations.find(({ key }) => key === "transcriptFeedback").value;
+  assert.deepEqual(mentions.map(({ feedback }) => feedback), ['Say "I hear you" first.', "Good question."]);
+  // Space scrolls the report rather than opening the microphone.
+  assert.equal(inputProps.spaceToTalk, false);
+});
+
 test("partial and malformed ratings never invent or clamp numbers", () => {
   const result = parse(
     JSON.stringify({
@@ -203,8 +240,7 @@ test("malformed and empty segments remain unavailable; valid content is retained
   const result = parse(
     JSON.stringify({
       summary: "## CONVERSATION OVERVIEW\nAvailable summary.",
-      detail:
-        "<segment: Empty> </segment: Empty><segment: Broken>Text</segment: Other>",
+      detail: "<segment: Empty> </segment: Empty><segment: Broken>Text with no closing tag",
     }),
   );
   assert.equal(result.status, "partial");
@@ -218,6 +254,18 @@ test("malformed and empty segments remain unavailable; valid content is retained
     readFileSync(join(root, "src/components/AnnotatedTranscript.tsx"), "utf8"),
     /fetch\(|sample\.md/,
   );
+});
+
+test("segments match the backend's rule: any case, padded titles, any closing title", () => {
+  // The backend feeds these same segments to the detail agent (backend-streaming tests).
+  const result = parse(
+    JSON.stringify({
+      ...complete,
+      detail: "<Segment: Opening >user: Hello</segment: Opening>\n<segment:Close>user: Bye</SEGMENT:close>",
+    }),
+  );
+  assert.equal(result.status, "ready");
+  assert.deepEqual(result.segments.map(({ title }) => title), ["Opening", "Close"]);
 });
 
 test("margin notes sit on the row of the line they annotate, and tags spanning lines stay intact", () => {
@@ -244,6 +292,43 @@ test("margin notes sit on the row of the line they annotate, and tags spanning l
   // A highlight wrapped across a line break is parsed, not shown as raw tags.
   assert.doesNotMatch(markup, /&lt;comment|&lt;\/comment/);
   assert.ok(at("being honest.") < at("Kind close"));
+});
+
+test("an unclosed note tag stays on its own line and keeps every note", () => {
+  const content = [
+    '**User:** <comment color="red" feedback="Too blunt">Explain yourself.',
+    "**Bart:** I will try.",
+    '**User:** <comment color="green" feedback="Kind close">Thanks.</comment>',
+  ].join("\n");
+  const markup = renderToStaticMarkup(
+    React.createElement(AnnotatedTranscript, { segments: [{ title: "Review", content }] }),
+  );
+  const at = (text) => {
+    const index = markup.indexOf(text);
+    assert.ok(index >= 0, "missing " + text);
+    return index;
+  };
+  assert.doesNotMatch(markup, /&lt;comment|&lt;\/comment/);
+  assert.ok(at("Explain yourself.") < at("Too blunt"));
+  assert.ok(at("Too blunt") < at("I will try."));
+  assert.ok(at("I will try.") < at("Thanks."));
+  assert.ok(at("Thanks.") < at("Kind close"));
+});
+
+test("a margin note that quotes a phrase keeps its full text", () => {
+  const markup = renderToStaticMarkup(
+    React.createElement(AnnotatedTranscript, {
+      segments: [
+        {
+          title: "Review",
+          content: '**User:** <comment color="red" feedback="Say "I hear you" first, then explain.">Calm down.</comment>',
+        },
+      ],
+    }),
+  );
+  assert.match(markup, /Say &quot;I hear you&quot; first, then explain\./);
+  assert.match(markup, /Calm down\./);
+  assert.doesNotMatch(markup, /&lt;comment/);
 });
 
 test("restricted Markdown preserves formatting and excludes HTML, images, and unsafe URLs", () => {

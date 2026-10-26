@@ -30,12 +30,14 @@ export const ChatInput: React.FC<{
   isInputFocused?: boolean;
   className?: string; // Additional classes for the container
   stream?: boolean; // Whether to use streaming for responses
+  spaceToTalk?: boolean; // Hold Space anywhere on the page to talk (off where Space should scroll)
 }> = ({
   handleFocus,
   handleBlur,
   isInputFocused,
   className = "",
   stream = true,
+  spaceToTalk = true,
 }) => {
   const [sendError, setSendError] = React.useState<string | null>(null);
   const [isSending, setIsSending] = React.useState(false);
@@ -195,6 +197,7 @@ export const ChatInput: React.FC<{
         : "Checking the scenario…"
       : null;
   useEffect(() => {
+    if (!spaceToTalk) return;
     let spaceHeld = false;
     const release = () => {
       spaceHeld = false;
@@ -247,7 +250,7 @@ export const ChatInput: React.FC<{
       document.removeEventListener("visibilitychange", visibility);
       release();
     };
-  }, [editor, beginTalking, endTalking]);
+  }, [editor, beginTalking, endTalking, spaceToTalk]);
 
   return (
     <div
@@ -316,7 +319,7 @@ export const ChatInput: React.FC<{
           <p>Saving voice conversation… You can still type.</p>
         ) : voice.status === "connected" ? (
           <p>
-            Hold Space or the microphone to talk
+            {spaceToTalk ? "Hold Space or the microphone to talk" : "Hold the microphone to talk"}
             {voice.speaking ? " · Speaking" : ""}
           </p>
         ) : (
@@ -447,7 +450,7 @@ export const ChatInput: React.FC<{
                 : "Hold to connect voice and talk"
             }
             aria-pressed={!voice.muted}
-            title="Hold Space or hold this button to talk"
+            title={spaceToTalk ? "Hold Space or hold this button to talk" : "Hold this button to talk"}
           >
             <Mic className="size-4" />
             <span>

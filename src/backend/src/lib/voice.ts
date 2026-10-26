@@ -26,6 +26,22 @@ export const voiceMessageSchema = z.object({
     .optional(),
 });
 export type VoiceMessage = z.infer<typeof voiceMessageSchema>;
+// OpenAI Live takes at most 500 tokens per commentary append, and the browser sends each
+// draft as one append. The model's output cap now includes reasoning, so it no longer bounds this.
+// shortcut: bytes stand in for tokens (English runs ~4 bytes a token); add a tokenizer for other scripts.
+const LIVE_DRAFT_BYTES = 1200;
+export function liveDraft(text: string) {
+  const bytes = new TextEncoder().encode(text);
+  if (bytes.length <= LIVE_DRAFT_BYTES) return text;
+  // A multi-byte character cut in half decodes to U+FFFD; drop it.
+  const head = new TextDecoder()
+    .decode(bytes.slice(0, LIVE_DRAFT_BYTES))
+    .replace(/�$/, "");
+  // End on the last full sentence, else the last full word.
+  const sentence = head.match(/^[\s\S]*[.!?…](?=\s|$)/)?.[0];
+  const space = head.lastIndexOf(" ");
+  return sentence || (space > 0 ? head.slice(0, space).trimEnd() : head);
+}
 // A browser must renew its media slot. Lost unload requests and crashed tabs
 // therefore cannot consume the two-session allowance for the recovery window.
 export const VOICE_LEASE_MS = 60_000;
@@ -278,7 +294,7 @@ export function createLiveVoiceService(dependencies: Dependencies) {
         session.replies.set(input.delegationId, reply);
         void reply.catch(() => session.replies.delete(input.delegationId));
       }
-      return { delegationId: input.delegationId, text: await reply };
+      return { delegationId: input.delegationId, text: liveDraft(await reply) };
     },
     async sync(
       input: z.infer<typeof voiceUpdateSchema>,

@@ -130,7 +130,7 @@ async function handle(request, response) {
     if (current === "stream-error" || current === "partial-error") {
       if (current === "partial-error") {
         response.write(
-          "data:This synthetic partial reply must not count as a completed turn.\n\n",
+          `data: ${JSON.stringify({ content: "This synthetic partial reply must not count as a completed turn." })}\n\n`,
         );
       }
       response.end(
@@ -140,7 +140,7 @@ async function handle(request, response) {
     }
     // Same data-only SSE protocol as the real streamUtils.handleTextStream.
     response.write(
-      "data:I understand the concern. I missed the deadline and would like to agree on a plan.\n\n",
+      `data: ${JSON.stringify({ content: "I understand the concern. I missed the deadline and would like to agree on a plan." })}\n\n`,
     );
     response.end("event: done\ndata:\n\n");
     return;

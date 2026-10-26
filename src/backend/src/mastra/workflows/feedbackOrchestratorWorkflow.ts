@@ -55,7 +55,7 @@ const analyzeTranscript = createStep({
     resourceId: z.string().optional(),
     threadId: z.string().optional(),
   }),
-  execute: async ({ inputData, runtimeContext }) => {
+  execute: async ({ inputData, runtimeContext, abortSignal }) => {
     const { transcript, additionalContext, resourceId, threadId } = inputData;
 
     // Store context in runtime for downstream steps
@@ -73,6 +73,7 @@ const analyzeTranscript = createStep({
 
     const result = await transcriptAnalyzerAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
+      abortSignal,
       ...reportGenerationOptions(4096),
       ...(threadId && resourceId
         ? {
@@ -108,7 +109,7 @@ const generateSummary = createStep({
     segmentedAnalysis: z.string(),
     summaryAnalysis: z.string(),
   }),
-  execute: async ({ inputData }) => {
+  execute: async ({ inputData, abortSignal }) => {
     const { transcript, additionalContext, resourceId, threadId, segmentedAnalysis } = inputData;
 
     const agentRuntimeContext = new RuntimeContext();
@@ -121,6 +122,7 @@ const generateSummary = createStep({
 
     const result = await transcriptSummaryAnalyzerAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
+      abortSignal,
       ...reportGenerationOptions(2048),
       ...(threadId && resourceId
         ? {
@@ -151,7 +153,7 @@ const analyzeDetails = createStep({
     summaryAnalysis: z.string(),
     detailedFeedback: z.string(),
   }),
-  execute: async ({ inputData, runtimeContext }) => {
+  execute: async ({ inputData, runtimeContext, abortSignal }) => {
     const { segmentedAnalysis, summaryAnalysis } = inputData;
 
     const additionalContext = runtimeContext?.get('additionalContext');
@@ -161,9 +163,10 @@ const analyzeDetails = createStep({
     const agentRuntimeContext = new RuntimeContext();
     agentRuntimeContext.set('additionalContext', additionalContext);
 
-    // Extract segments from segmented analysis
+    // Extract segments from segmented analysis. Keep this pattern identical to the browser's
+    // (src/app/report/parser.tsx), so both sides find the same segments.
     const segments = [];
-    const segmentRegex = /<segment:([^>]+)>\s*([\s\S]*?)\s*<\/segment:[^>]+>/g;
+    const segmentRegex = /<segment:\s*([^>]+?)\s*>([\s\S]*?)<\/segment:[^>]*>/gi;
     let match;
 
     while ((match = segmentRegex.exec(segmentedAnalysis)) !== null) {
@@ -171,6 +174,10 @@ const analyzeDetails = createStep({
         title: match[1],
         content: match[2].trim(),
       });
+    }
+    // With nothing to anchor them, the detail agent's phrase notes would be invented.
+    if (!segments.length) {
+      throw new Error('The transcript analysis returned no segments. Try generating the report again.');
     }
 
     // Prepare segments for detailed analysis
@@ -185,6 +192,7 @@ const analyzeDetails = createStep({
 
     const result = await transcriptDetailAgent.generateVNext(messages, {
       runtimeContext: agentRuntimeContext,
+      abortSignal,
       ...reportGenerationOptions(4096, 0.2),
       ...(threadId && resourceId
         ? {

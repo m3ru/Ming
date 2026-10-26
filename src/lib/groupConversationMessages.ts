@@ -1,4 +1,5 @@
 import type { Message } from "cedar-os";
+import { isChatErrorMessage } from "./chatErrors";
 
 // Build display messages without changing the transcript used by voice,
 // persistence, sentiment scoring, or reports. Keep the first ID stable as a
@@ -17,7 +18,10 @@ export function groupConversationMessages(
     if (
       previous?.type === "text" &&
       message.type === "text" &&
-      side === previousSide
+      side === previousSide &&
+      // A send error is the interface talking, not Bart: keep it out of his bubble.
+      !isChatErrorMessage(previous) &&
+      !isChatErrorMessage(message)
     ) {
       grouped[grouped.length - 1] = {
         ...previous,

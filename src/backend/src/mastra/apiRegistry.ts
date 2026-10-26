@@ -150,13 +150,20 @@ export const apiRoutes = [
         release = reserveGeneration(resourceId, 8);
         await claimThread(input.threadId, resourceId);
         const run = await feedbackOrchestratorWorkflow.createRunAsync();
-        const result = await run.start({
-          inputData: {
-            ...input,
-            resourceId,
-            threadId: analysisThread(input.threadId, resourceId),
-          },
-        });
+        // The browser gives up at 120 s and the gateway at 150 s. Stop the model calls with
+        // them, or an abandoned run keeps holding one of the four generation slots.
+        const stop = AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(150_000)]);
+        const cancel = () => void run.cancel().catch(() => {});
+        stop.addEventListener("abort", cancel, { once: true });
+        const result = await run
+          .start({
+            inputData: {
+              ...input,
+              resourceId,
+              threadId: analysisThread(input.threadId, resourceId),
+            },
+          })
+          .finally(() => stop.removeEventListener("abort", cancel));
         if (result.status !== "success")
           return c.json(
             {

@@ -114,7 +114,8 @@ export default function Parser(rawText: string): ParsedResult {
     ),
   );
 
-  const segRegex = /<segment:\s*([^>]+)>([\s\S]*?)<\/segment:\s*\1>/gi;
+  // Same pattern as the backend's (feedbackOrchestratorWorkflow.ts): any case, any closing title.
+  const segRegex = /<segment:\s*([^>]+?)\s*>([\s\S]*?)<\/segment:[^>]*>/gi;
   let segMatch: RegExpExecArray | null;
   while ((segMatch = segRegex.exec(detailText)) !== null) {
     const title = segMatch[1].trim();

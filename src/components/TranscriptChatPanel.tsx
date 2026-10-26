@@ -110,7 +110,9 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
 
     segments.forEach((segment, segmentIndex) => {
       // Extract feedback from comment tags using regex
-      const commentRegex = /<comment[^>]*feedback="([^"]*)"[^>]*>/g;
+      // Same value rule as AnnotatedTranscript: quotes inside feedback do not end it.
+      const commentRegex =
+        /<comment[^>]*?\sfeedback="(.*?)"(?=\s+[a-zA-Z0-9_-]+\s*=|\s*>)[^>]*>/g;
       let match;
       let commentIndex = 0;
 
@@ -193,6 +195,8 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
             isInputFocused={false}
             stream={true}
             className="mention-input-wrapper"
+            // Space scrolls the report; the microphone button still talks to the coach.
+            spaceToTalk={false}
           />
         </div>
       </div>

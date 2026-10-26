@@ -87,6 +87,7 @@ user: <comment color="[red|yellow|green]" feedback="[Why this phrase needs impro
 [EXACT COPY OF Transcript continues...]
 </segment:segment_title>
 [Repeat this format for each segment provided]
+Inside feedback, quote a phrase with single quotes ('like this'), never double quotes.
 
 </output_format>
 

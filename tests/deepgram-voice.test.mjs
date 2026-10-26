@@ -47,7 +47,7 @@ const { buildReportTranscript } = loadBackendSource(
 );
 // Run the actual input's submit/recovery handlers with the real voice controller.
 // Only React rendering, editor APIs, and the typed transport are stand-ins.
-function chatInput(env) {
+function chatInput(env, { props = {}, effects } = {}) {
   let submit;
   let cleared = 0;
   let sent = 0;
@@ -103,7 +103,7 @@ function chatInput(env) {
       type,
       props: { ...props, children },
     }),
-    useEffect() {},
+    useEffect: (effect, deps) => effects?.push({ effect, deps }),
     useState: (value) => [value, (next) => errorsShown.push(next)],
     useRef: (value) => ({ current: value }),
   };
@@ -164,7 +164,7 @@ function chatInput(env) {
     loaded,
     loaded.exports,
   );
-  const tree = loaded.exports.ChatInput({ stream: false });
+  const tree = loaded.exports.ChatInput({ stream: false, ...props });
   const findRecovery = (node) => {
     if (!node || typeof node !== "object") return;
     if (
@@ -1286,4 +1286,27 @@ test("audio/mpeg replies never create an AudioContext", async (t) => {
   await until(() => env.controller.getSnapshot().speaking);
   assert.equal(env.audioElements.length, 1);
   assert.equal(contexts.length, 0);
+});
+
+test("hold-Space-to-talk listens on the call screen but leaves Space to scroll the report", async (t) => {
+  const env = setup(t);
+  const listened = (props) => {
+    const effects = [];
+    chatInput(env, { props, effects });
+    const listeners = [];
+    const target = { addEventListener: (type) => listeners.push(type), removeEventListener() {} };
+    globalThis.window = target;
+    globalThis.document = target;
+    try {
+      // The Space-to-talk effect is the one that depends on beginTalking.
+      for (const { effect, deps } of effects)
+        if (deps?.includes(env.controller.beginTalking)) effect();
+    } finally {
+      delete globalThis.window;
+      delete globalThis.document;
+    }
+    return listeners;
+  };
+  assert.ok(listened({}).includes("keydown"));
+  assert.deepEqual(listened({ spaceToTalk: false }), []);
 });

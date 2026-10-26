@@ -54,6 +54,8 @@ export class VoiceTranscript {
             createdAt: new Date(
               this.startedAt + fragment.start_ms,
             ).toISOString(),
+            // Fragments stay in this.fragments: copying them into every saved message
+            // overran the gateway's 4,096-value JSON budget after a few minutes of talk.
             metadata: {
               source: "live-voice",
               sessionId: this.sessionId,
@@ -63,7 +65,6 @@ export class VoiceTranscript {
           groups.push(group);
         }
         group.content += fragment.delta;
-        (group.metadata.fragments as TranscriptFragment[]).push(fragment);
       }
     }
     return groups.sort((a, b) => a.createdAt.localeCompare(b.createdAt));

@@ -2,6 +2,7 @@ import { test, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import {
   createLiveVoiceService,
+  liveDraft,
   VoiceError,
   voiceMessageSchema,
   VOICE_LEASE_MS,
@@ -12,6 +13,7 @@ import {
   type ConversationMessage,
 } from "../src/lib/voiceTranscript";
 import { LiveVoiceController } from "../src/lib/liveVoice";
+import { validateJsonBudget } from "../src/lib/server/security";
 
 const message = {
   id: "voice-live-1-user-0",
@@ -59,10 +61,49 @@ test("overlapping, duplicated and late fragments preserve text and stable persis
     ["Hello again", "Yes"],
   );
   assert.equal(transcript.messages()[0].id, id);
+});
+
+test("a long Live session still fits the gateway's JSON budget", () => {
+  // Ten minutes of word-sized captions from both speakers, as /voice/sync sends them.
+  const transcript = new VoiceTranscript("live-long", 0);
+  for (let i = 0; i < 2400; i++)
+    transcript.append({
+      event_id: "e" + i,
+      role: i % 2 ? "assistant" : "user",
+      delta: " word",
+      start_ms: i * 250,
+      end_ms: i * 250 + 200,
+    });
+  const messages = transcript.messages();
+  for (let offset = 0; offset < messages.length; offset += 128)
+    validateJsonBudget(
+      JSON.stringify({ sessionId: "live-long", messages: messages.slice(offset, offset + 128) }),
+    );
   assert.equal(
-    (transcript.messages()[0].metadata.fragments as unknown[]).length,
-    2,
+    messages.map((m) => m.content).join("").length,
+    2400 * " word".length,
   );
+});
+
+test("long delegated answers are trimmed to whole sentences that fit one Live append", async () => {
+  const sentence = "I hear you and I want to fix the deadline problem together. ";
+  const long = sentence.repeat(40).trim();
+  const backend = service({ generate: async () => long });
+  const session = await backend.create(offer, offer.resourceId);
+  const delegate = (delegationId: string) =>
+    backend.delegate(
+      { sessionId: session.sessionId, delegationId, messages: [message], context: {} },
+      session.token,
+      offer.resourceId,
+    );
+  const { text } = await delegate("long");
+  assert.ok(Buffer.byteLength(text) <= 1200, "draft exceeds the append budget");
+  assert.ok(long.startsWith(text) && text.endsWith("together."));
+  // Short answers, and answers with no sentence end or no spaces, still come back whole or cut cleanly.
+  assert.equal(liveDraft("Short reply."), "Short reply.");
+  assert.ok(!liveDraft("word ".repeat(400)).endsWith(" "));
+  assert.equal(Buffer.byteLength(liveDraft("日本語".repeat(500))) <= 1200, true);
+  assert.ok(!liveDraft("日本語".repeat(500)).includes("�"));
 });
 
 test("context chunks preserve Unicode and stay within the Live append limit", () => {
@@ -72,7 +113,7 @@ test("context chunks preserve Unicode and stay within the Live append limit", ()
   assert.ok(chunks.every((chunk) => Buffer.byteLength(chunk) <= 450));
 });
 
-test("caption timing metadata survives the server request schema", () => {
+test("caption messages pass the server request schema", () => {
   const transcript = new VoiceTranscript("live-1", 0);
   transcript.append({
     event_id: "timing",
@@ -83,7 +124,7 @@ test("caption timing metadata survives the server request schema", () => {
   });
   const parsed = voiceMessageSchema.parse(transcript.messages()[0]);
   assert.equal(parsed.metadata?.sessionId, "live-1");
-  assert.equal(parsed.metadata?.fragments[0].end_ms, 1400);
+  assert.equal(parsed.createdAt, new Date(1000).toISOString());
 });
 
 function service(
@@ -887,6 +928,37 @@ test("failed disconnect saves survive repeated sessions and stop retries every r
   failSaves = false;
   await fixture.voice.stop();
   assert.deepEqual(recovered, ["Caption 0", "Caption 1", "Caption 2"]);
+});
+
+test("an interrupted save the server no longer recognizes stops blocking later sends", async (t) => {
+  let saveStatus = 503;
+  const fixture = controller(t, undefined, undefined, (url) =>
+    url.endsWith("/voice/sync")
+      ? Promise.resolve(
+          Response.json(
+            { error: "Voice session expired. Start a new conversation." },
+            { status: saveStatus },
+          ),
+        )
+      : undefined,
+  );
+  await fixture.voice.start();
+  FakePeer.latest.channel.emit({
+    type: "session.input_transcript.delta",
+    event_id: "caption",
+    delta: "Lost in a restart",
+    start_ms: 0,
+    end_ms: 100,
+  });
+  FakePeer.latest.connectionState = "failed";
+  FakePeer.latest.onconnectionstatechange?.();
+  await tick();
+  await assert.rejects(fixture.voice.flush(), /expired/);
+  // The backend restarted: the capability for that session is gone for good.
+  saveStatus = 401;
+  await fixture.voice.flush();
+  await fixture.voice.flush();
+  await fixture.voice.stop();
 });
 
 test("failed final transcript saves release capacity and remain retryable after stop", async (t) => {

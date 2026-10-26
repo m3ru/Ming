@@ -303,10 +303,10 @@ async function exerciseRuntime(withMemory) {
 if (process.argv.includes("--runtime-child")) {
   await exerciseRuntime(process.argv.includes("--memory"));
 } else {
-  function reportFixture({ provider = "gemini", model = "gemini-3.5-flash", truncatedStage, finishReason } = {}) {
+  function reportFixture({ provider = "gemini", model = "gemini-3.5-flash", truncatedStage, finishReason, analysis } = {}) {
     const stages = [], calls = [];
     const texts = [
-      "<segment:opening>user: Hello</segment:opening>",
+      analysis ?? "<segment:opening>user: Hello</segment:opening>",
       '## CRITERION FEEDBACK\n[{"category":"Empathy","summary":"You greeted Bart."}]\n## IMPROVEMENT RECOMMENDATIONS\nAsk a follow-up.',
       "<segment:opening>user: Hello</segment:opening>",
     ];
@@ -359,6 +359,19 @@ if (process.argv.includes("--runtime-child")) {
     // Missing metadata from older adapters is not proof of truncation.
     const result = await legacy.run();
     assert.equal(result.summaryAnalysis, legacy.texts[1]);
+  });
+
+  test("report segments are found in any case and with any closing title, and none stops the run", async () => {
+    // The browser's parser (report-regression tests) accepts these same tags.
+    const fixture = reportFixture({
+      analysis: "<Segment: Opening >user: Hello</segment: Opening>\n<segment:Close>user: Bye</SEGMENT:close>",
+    });
+    await fixture.run();
+    assert.match(fixture.calls[2].messages[0], /Segment: Opening\nuser: Hello\n\nSegment: Close\nuser: Bye$/);
+    const empty = reportFixture({ analysis: "The model forgot the segment tags." });
+    await assert.rejects(empty.run(), /returned no segments/);
+    // The detail agent is never asked to annotate segments that do not exist.
+    assert.equal(empty.calls.length, 2);
   });
 
   test("length-truncated report output fails before any downstream stage can report success", async () => {
@@ -417,5 +430,22 @@ if (process.argv.includes("--runtime-child")) {
     await response.body.cancel();
     finish();
     await new Promise((resolve) => setImmediate(resolve));
+  });
+
+  test("text chunks survive Cedar's JSON parsing of every data line", async () => {
+    const { handleTextStream } = loadBackendSource(
+      "src/backend/src/utils/streamUtils.ts",
+    );
+    // Each of these broke as raw `data:` text: dropped, turned into a number, or unquoted.
+    const chunks = ["I'm", " done", " 2", " true", ' "fine"', " null", "\nNext", ""];
+    let sse = "";
+    const decoder = new TextDecoder();
+    const controller = { enqueue: (bytes) => (sse += decoder.decode(bytes)) };
+    for (const chunk of chunks) await handleTextStream(chunk, controller);
+    const events = sse.split("\n\n").filter(Boolean);
+    // Cedar's content branch: a JSON object with a non-empty string `content` and no `type`.
+    const parsed = events.map((event) => JSON.parse(event.replace(/^data:/, "")));
+    assert.ok(parsed.every((data) => typeof data.content === "string" && data.content && !data.type));
+    assert.equal(parsed.map((data) => data.content).join(""), chunks.join(""));
   });
 }

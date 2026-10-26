@@ -76,6 +76,8 @@ const parseInlineMarkdown = (text: string) => {
 // Opening minus closing tags; a tag that spans a line break keeps those lines together.
 const unclosed = (line: string, tag: string) =>
   line.split(`<${tag}`).length - line.split(`</${tag}>`).length > 0;
+// A new speaker always starts a new row, so one unclosed tag cannot swallow the rest of a block.
+const newSpeaker = /^\s*\*\*[^*\n]+:\*\*/;
 
 const transcriptLines = (block: string) =>
   block
@@ -85,6 +87,7 @@ const transcriptLines = (block: string) =>
       const previous = lines.at(-1);
       if (
         previous !== undefined &&
+        !newSpeaker.test(line) &&
         (unclosed(previous, "comment") || unclosed(previous, "highlight"))
       )
         lines[lines.length - 1] = previous + "\n" + line;
@@ -128,8 +131,9 @@ const renderMarkdownBlocks = (text: string) => {
         const afterOpen = remaining.slice(
           nextCommentTag + openTagMatch[0].length,
         );
-        const closeIdx = afterOpen.indexOf("</comment>");
-        if (closeIdx === -1) break; // malformed
+        // An unclosed tag (a model slip) highlights to the end of its row instead of showing raw markup.
+        const found = afterOpen.indexOf("</comment>");
+        const closeIdx = found === -1 ? afterOpen.length : found;
         const inner = afterOpen.slice(0, closeIdx);
         const after = afterOpen.slice(closeIdx + "</comment>".length);
 
@@ -137,7 +141,10 @@ const renderMarkdownBlocks = (text: string) => {
 
         // parse attributes: color and feedback
         const attrs: Record<string, string> = {};
-        const attrRegex = /([a-zA-Z0-9_-]+)\s*=\s*"([^"]*)"/g;
+        // A value ends at the quote before the next attribute or the tag's end, so
+        // feedback that quotes a phrase ("Say "I hear you" first") stays whole.
+        const attrRegex =
+          /([a-zA-Z0-9_-]+)\s*=\s*"(.*?)"(?=\s+[a-zA-Z0-9_-]+\s*=|\s*$)/g;
         let am: RegExpExecArray | null;
         while ((am = attrRegex.exec(attrText)) !== null) {
           attrs[am[1]] = am[2];
