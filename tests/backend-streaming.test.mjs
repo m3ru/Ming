@@ -265,7 +265,10 @@ async function exerciseRuntime(withMemory) {
     const healthy = await request();
     assert.equal(healthy.status, 200);
     const healthySse = await healthy.text();
-    assert.match(healthySse, new RegExp(reply));
+    const streamedReply = healthySse.split("\n")
+      .filter((line) => line.startsWith("data:") && !line.startsWith("data: {"))
+      .map((line) => line.slice(5)).join("");
+    assert.equal(streamedReply, reply);
     assert.match(healthySse, /event: done/);
     assert.doesNotMatch(healthySse, /"type":"error"/);
     if (memory) {

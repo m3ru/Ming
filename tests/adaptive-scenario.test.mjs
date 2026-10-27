@@ -209,7 +209,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
   const context = { chatType: { data: "scenario" }, scenarioDetails: { data: scenarioFixture } };
   const captures = [];
   const agentMock = { Agent: class {
-    async generateVNext(messages) { captures.push(messages[0].content); return { text: "Let's clarify the acceptance rule." }; }
+    async generateVNext(messages) { captures.push(messages[0].content); return { text: "That is fucking bullshit!" }; }
   } };
   const voice = loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": prompts });
   const deepgram = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
@@ -230,22 +230,26 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "./agents/defaultAgent": {},
     "./models": { textModel: {} },
   });
-  await deepgram.deepgramVoice.generate([], context, new AbortController().signal);
-  await live.liveVoice.generate([], context);
+  assert.equal(await deepgram.deepgramVoice.generate([], context, new AbortController().signal), "That is BEEP BEEP!");
+  assert.equal(await live.liveVoice.generate([], context), "That is BEEP BEEP!");
   const stages = [];
+  const emitted = [];
   const workflow = { then(step) { stages.push(step); return this; }, commit() { return this; } };
   loadBackendSource("src/backend/src/mastra/workflows/chatWorkflow.ts", {
     "@mastra/core/workflows": { createStep: (step) => step, createWorkflow: () => workflow },
     "@mastra/core/di": { RuntimeContext: Map },
-    "../../utils/streamUtils": { handleTextStream: async () => {} },
+    "../../utils/streamUtils": { handleTextStream: async (text) => emitted.push(text) },
     "./chatWorkflowTypes": { ActionSchema: backendRequire("zod").z.object({}) },
     "../../lib/prompts": prompts,
     "../agents/defaultAgent": { defaultAgent: { async streamVNext(_messages, options) {
       captures.push(options.instructions);
-      return { fullStream: (async function* () { yield { type: "text-delta", payload: { text: "Agreed." } }; })(), usage: Promise.resolve({}) };
+      return { fullStream: (async function* () { for (const text of ["That is fu", "ck", "ing bull", "shit!"]) yield { type: "text-delta", payload: { text } }; })(), usage: Promise.resolve({}) };
     } } },
   });
-  await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+  const result = await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+  assert.equal(result.content, "That is BEEP BEEP!");
+  assert.equal(emitted.join(""), "That is BEEP BEEP!");
+  assert.ok(emitted.every((part) => !/fuck|shit/i.test(part)));
   assert.equal(captures.length, 3);
   for (const prompt of captures) {
     assert.ok(prompt.includes(scenarioFixture.userRole));

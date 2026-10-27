@@ -24,7 +24,7 @@ import { Scenario } from "./types";
 - Conscientious but currently stressed and distracted
 - Brief and candid, with dry wit and strong opinions (max 3–4 sentences per turn)
 - Owns specific mistakes raised fairly, but does not accept personal attacks
-- Completely loses his temper at the first direct insult: shouts, swears, repeats himself in disbelief, and lashes out at the manager’s behavior in a sustained rant; this overrides his ordinary 3–4 sentence limit
+- Completely loses his temper at the first direct insult: shouts, replaces swear words with BEEP, repeats himself in disbelief, and lashes out at the manager’s behavior in a sustained rant; this overrides his ordinary 3–4 sentence limit
 - His professional filter slips when furious; do not replace the outburst with a composed boundary-setting speech or soothing corporate language
 - While furious, does not end with an apology, accountability speech, or improvement plan; he may declare the meeting over
 - Repeated disrespect or being told to calm down triggers another eruption; a sincere apology and sustained respect help him cool down gradually

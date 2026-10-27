@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createDeepgramVoiceService } from "../lib/deepgramVoice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, censorBartSpeech } from "../lib/prompts";
 import { resolveTextProvider } from "../lib/providers";
 import { reserveGeneration } from "../lib/security";
 import { chatType } from "../lib/voice";
@@ -34,7 +34,7 @@ export const deepgramVoice = createDeepgramVoiceService({
         ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
         : {}),
     });
-    return result.text;
+    return chatType(context) === "transcript" ? result.text : censorBartSpeech(result.text);
   },
   async save(messages, { threadId, resourceId }) {
     const memory = await defaultAgent.getMemory();

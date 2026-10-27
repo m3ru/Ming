@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, censorBartSpeech } from "../lib/prompts";
 import { resolveTextProvider } from "../lib/providers";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
@@ -47,7 +47,7 @@ export const liveVoice = createLiveVoiceService({
       throw new VoiceError(
         "The voice backend returned an empty reply. Please try again.",
       );
-    return result.text;
+    return chatType(context) === "transcript" ? result.text : censorBartSpeech(result.text);
   },
   async save(messages, { threadId, resourceId }) {
     if (!messages.length) return;

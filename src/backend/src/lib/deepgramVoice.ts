@@ -32,7 +32,7 @@ export type DeepgramTurnResult = {
   persisted: boolean;
   messages: DeepgramMessage[];
   audioBase64?: string;
-  audioMimeType?: "audio/mpeg";
+  audioMimeType?: "audio/mpeg" | "audio/wav";
   error?: string;
 };
 export class DeepgramVoiceError extends Error {
@@ -191,6 +191,56 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       }
     }
     try {
+      if (/\bBEEP\b/.test(turn.assistant.content)) {
+        const parts = turn.assistant.content.split(/\bBEEP\b/);
+        if (parts.length > 25) throw new Error("Too many censor markers.");
+        const sampleRate = 24000;
+        const beep = Buffer.alloc(sampleRate * 0.3 * 2);
+        for (let i = 0; i < beep.length / 2; i++) {
+          // A short envelope prevents clicks at the boundaries of the tone.
+          const edge = Math.min(1, i / 120, (beep.length / 2 - 1 - i) / 120);
+          beep.writeInt16LE(Math.round(6000 * edge * Math.sin(2 * Math.PI * 1000 * i / sampleRate)), i * 2);
+        }
+        const chunks: Buffer[] = [];
+        const signal = AbortSignal.timeout(PROVIDER_TIMEOUT_MS);
+        let total = 0;
+        for (let i = 0; i < parts.length; i++) {
+          if (i) { chunks.push(beep); total += beep.length; }
+          if (parts[i].trim()) {
+            const url = new URL("https://api.deepgram.com/v1/speak");
+            url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-thalia-en");
+            url.searchParams.set("encoding", "linear16");
+            url.searchParams.set("container", "none");
+            url.searchParams.set("sample_rate", String(sampleRate));
+            const response = await request(url, {
+              method: "POST",
+              headers: { Authorization: "Token " + apiKey, "Content-Type": "application/json" },
+              body: JSON.stringify({ text: parts[i] }), signal, redirect: "error",
+            });
+            if (!response.ok || !/^audio\/(?:l16|linear16|pcm)(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")) {
+              void response.body?.cancel().catch(() => {});
+              throw new Error("Speech request failed.");
+            }
+            const pcm = await boundedBody(response, 4 * DEEPGRAM_AUDIO_BYTE_LIMIT - total);
+            if (!pcm.length || pcm.length % 2) throw new Error("Invalid PCM output.");
+            chunks.push(pcm); total += pcm.length;
+          }
+          if (total > 4 * DEEPGRAM_AUDIO_BYTE_LIMIT) throw new Error("Speech output exceeded limit.");
+        }
+        const header = Buffer.alloc(44);
+        header.write("RIFF"); header.writeUInt32LE(36 + total, 4);
+        header.write("WAVEfmt ", 8); header.writeUInt32LE(16, 16);
+        header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22);
+        header.writeUInt32LE(sampleRate, 24); header.writeUInt32LE(sampleRate * 2, 28);
+        header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+        header.write("data", 36); header.writeUInt32LE(total, 40);
+        return {
+          status: "success" as const, sessionId: turn.sessionId, persisted: true,
+          messages: [turn.user, turn.assistant],
+          audioBase64: Buffer.concat([header, ...chunks]).toString("base64"),
+          audioMimeType: "audio/wav" as const,
+        };
+      }
       const url = new URL("https://api.deepgram.com/v1/speak");
       url.searchParams.set("model", dependencies.ttsModel?.()?.trim() || "aura-2-thalia-en");
       url.searchParams.set("encoding", "mp3");

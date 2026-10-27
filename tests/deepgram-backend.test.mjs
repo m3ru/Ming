@@ -17,6 +17,38 @@ const transcript = (text = "I would like to help you improve.") => Response.json
   results: { channels: [{ alternatives: [{ transcript: text }] }] },
 });
 const speech = (body = Buffer.from("MP3 output")) => new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
+
+test("censored replies insert a real tone between speech chunks without sending BEEP to TTS", async () => {
+  const spoken = [];
+  const pcm = Buffer.alloc(480, 0);
+  const f = fixture({
+    generate: async () => "BEEP! That is BEEP!",
+    request: async (url, options) => {
+      const target = new URL(url);
+      if (target.pathname.endsWith("listen")) return transcript();
+      assert.equal(target.searchParams.get("encoding"), "linear16");
+      assert.equal(target.searchParams.get("container"), "none");
+      assert.equal(target.searchParams.get("sample_rate"), "24000");
+      spoken.push(JSON.parse(options.body).text);
+      return new Response(pcm, { headers: { "Content-Type": "audio/l16;rate=24000" } });
+    },
+  });
+  const input = recording();
+  const result = await f.service.turn(input, "owner");
+  assert.equal(result.status, "success");
+  assert.equal(result.audioMimeType, "audio/wav");
+  assert.deepEqual(spoken, ["! That is ", "!"]);
+  const wav = Buffer.from(result.audioBase64, "base64");
+  assert.equal(wav.toString("ascii", 0, 4), "RIFF");
+  assert.equal(wav.readUInt32LE(24), 24000);
+  assert.equal(wav.readUInt32LE(40), wav.length - 44);
+  const beepBytes = 24000 * 0.3 * 2;
+  assert.equal(wav.length, 44 + 2 * beepBytes + 2 * pcm.length);
+  assert.ok(wav.subarray(44, 44 + beepBytes).some((sample) => sample !== 0));
+  assert.deepEqual(wav.subarray(44 + beepBytes, 44 + beepBytes + pcm.length), pcm);
+  await f.service.turn(input, "owner");
+  assert.equal(spoken.length, 2, "retry reuses the composed audio");
+});
 function fixture(overrides = {}) {
   const requests = [], saves = [], generations = [];
   const dependencies = {

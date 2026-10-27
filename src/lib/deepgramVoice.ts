@@ -529,9 +529,9 @@ export class DeepgramVoiceController {
           this.sameScope(active) &&
           !active.stopPromise &&
           typeof result.audioBase64 === "string" &&
-          result.audioMimeType === "audio/mpeg"
+          (result.audioMimeType === "audio/mpeg" || result.audioMimeType === "audio/wav")
         )
-          await this.playAudio(active, result.audioBase64);
+          await this.playAudio(active, result.audioBase64, result.audioMimeType);
       }
     } catch (error) {
       if (
@@ -557,7 +557,7 @@ export class DeepgramVoiceController {
       this.requests.delete(abort);
     }
   }
-  private async playAudio(active: Session, encoded: string) {
+  private async playAudio(active: Session, encoded: string, mimeType: "audio/mpeg" | "audio/wav") {
     this.clearPlayback(active);
     try {
       if (encoded.length > 6 * 1024 * 1024)
@@ -570,7 +570,7 @@ export class DeepgramVoiceController {
       const audio = new Audio();
       active.audio = audio;
       active.audioURL = URL.createObjectURL(
-        new Blob([bytes], { type: "audio/mpeg" }),
+        new Blob([bytes], { type: mimeType }),
       );
       audio.src = active.audioURL;
       audio.onplaying = () => {

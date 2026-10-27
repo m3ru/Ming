@@ -828,6 +828,17 @@ test("a thread switch preserves the old thread scope and does not play its late 
   assert.equal(env.requests[0].body.threadId, "thread-1");
 });
 
+test("composed WAV replies with censor tones reach normal browser playback", async (t) => {
+  const env = setup(t, {
+    request: ({ body }) => success(body, { audioBase64: "UklGRg==", audioMimeType: "audio/wav" }),
+  });
+  await env.controller.beginTalking();
+  await env.controller.flush();
+  assert.equal(env.audioElements.length, 1);
+  assert.equal(env.controller.getSnapshot().speaking, true);
+  await env.controller.stop();
+});
+
 test("blocked audio can resume; speaking reflects playback and object URLs are revoked", async (t) => {
   const env = setup(t, {
     blockPlayback: true,
