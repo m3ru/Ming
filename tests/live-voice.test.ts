@@ -242,7 +242,9 @@ test("Live startup asks Bart and the coach to talk naturally without dropping th
     assert.match(text, /stress the words that carry the meaning/);
     assert.match(text, /never say stage directions or describe your tone aloud/);
   }
-  assert.match(bart, /do not invent facts/);
+  // Renato's wording keeps the no-invention rule and makes lookups silent.
+  assert.match(bart, /without narrating the retrieval or inventing facts/);
+  assert.match(bart, /Delegation is silent/);
   assert.match(bart, /natural General American English accent/);
   assert.match(bart, /emotion follow how the other person treats you/);
   assert.match(coach, /without inventing feedback/);
@@ -431,6 +433,49 @@ test("microphone denial shows an error and releases the connection", async (t) =
   assert.equal(voice.getSnapshot().status, "idle");
   assert.match(voice.getSnapshot().error!, /Microphone access denied/);
   assert.ok(FakePeer.latest.closed);
+});
+
+test("split censor markers play one tone, mute the live placeholder, and stop on disconnect", async (t) => {
+  const fixture = controller(t);
+  let starts = 0, stops = 0;
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "AudioContext");
+  Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: class {
+    destination = {};
+    async resume() {}
+    async close() {}
+    createGain() { return { gain: { value: 0 }, connect() {}, disconnect() {} }; }
+    createOscillator() {
+      return { frequency: { value: 0 }, connect() {}, disconnect() {},
+        start() { starts++; }, stop() { stops++; } };
+    }
+  } });
+  t.after(() => {
+    if (prior) Object.defineProperty(globalThis, "AudioContext", prior);
+    else Reflect.deleteProperty(globalThis, "AudioContext");
+  });
+  await fixture.voice.start();
+  const playback = FakeAudio.latest;
+  const channel = FakePeer.latest.channel;
+  const emit = (event_id: string, delta: string, role = "output") => channel.emit({
+    type: `session.${role}_transcript.delta`, event_id, delta, start_ms: 100, end_ms: 200,
+  });
+  emit("user-beep", "BEEP", "input");
+  assert.equal(starts, 0);
+  emit("first", "Oh, BE");
+  assert.equal(starts, 0);
+  emit("second", "EP!");
+  assert.equal(starts, 1);
+  assert.equal(playback.muted, true);
+  emit("second", "EP!");
+  emit("third", " That is unacceptable.");
+  assert.equal(starts, 1, "duplicate and subsequent captions cannot replay the marker");
+  await new Promise((resolve) => setTimeout(resolve, 320));
+  assert.equal(stops, 1);
+  assert.equal(playback.muted, false);
+  emit("fourth", " BEEP!");
+  assert.equal(starts, 2);
+  await fixture.voice.stop();
+  assert.equal(stops, 2, "disconnect stops an active censor tone");
 });
 
 test("speaking stays visible through short pauses and clears after silence or stopped playback", async (t) => {

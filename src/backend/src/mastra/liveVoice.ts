@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery, censorBartSpeech } from "../lib/prompts";
 import { geminiThinking, resolveTextProvider } from "../lib/providers";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
@@ -10,7 +10,7 @@ const voiceBackend = new Agent({
   name: "voice-backend",
   model: textModel,
   instructions:
-    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return a short answer for the speaking assistant, at most 100 words.",
+    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return only the character's direct reply, without announcing a lookup, checking notes, or pulling up details. Return a short answer for the speaking assistant, normally concise; an angry character reply may run to 80 words.",
 });
 export const liveVoice = createLiveVoiceService({
   apiKey: () => process.env.OPENAI_API_KEY,
@@ -45,7 +45,7 @@ export const liveVoice = createLiveVoiceService({
       throw new VoiceError(
         "The voice backend returned an empty reply. Please try again.",
       );
-    return result.text;
+    return chatType(context) === "transcript" ? result.text : censorBartSpeech(result.text);
   },
   async save(messages, { threadId, resourceId }) {
     if (!messages.length) return;

@@ -56,3 +56,13 @@ export function loadReportService(workflow, providers, security) {
     "../lib/reportCache": loadBackendSource("src/backend/src/lib/reportCache.ts"),
   });
 }
+
+// The reply text a chat SSE response carried: text pieces are JSON {content} events.
+export function streamedText(sse) {
+    return sse.split("\n")
+        .filter((line) => line.startsWith("data: {"))
+        .map((line) => JSON.parse(line.slice("data: ".length)))
+        .filter((event) => typeof event.content === "string" && !event.type)
+        .map((event) => event.content)
+        .join("");
+}

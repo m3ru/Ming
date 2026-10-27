@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root } from "./backend-runtime.mjs";
+import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root, streamedText } from "./backend-runtime.mjs";
 
 const file = fileURLToPath(import.meta.url);
 
@@ -241,7 +241,9 @@ async function exerciseRuntime(withMemory) {
     assert.match(failedSse, /"retryable":true/);
     assert.doesNotMatch(failedSse, /event: done/);
     assert.doesNotMatch(failedSse, new RegExp(secret));
-    if (failure === "partial-error") assert.match(failedSse, /Partial reply/);
+    // Complete words reach the client; the censor's held-back last word could be half a swear
+    // word, so a reply that fails mid-stream drops it rather than sending it uncensored.
+    if (failure === "partial-error") assert.equal(streamedText(failedSse), "Partial ");
 
     // Leave time for detached promise rejections before attempting recovery.
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -266,7 +268,8 @@ async function exerciseRuntime(withMemory) {
     const healthy = await request();
     assert.equal(healthy.status, 200);
     const healthySse = await healthy.text();
-    assert.match(healthySse, new RegExp(reply));
+    // The censor holds back each trailing word; every held word still reaches the client.
+    assert.equal(streamedText(healthySse), reply);
     assert.match(healthySse, /event: done/);
     assert.doesNotMatch(healthySse, /"type":"error"/);
     if (memory) {

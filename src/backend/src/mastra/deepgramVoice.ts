@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createDeepgramVoiceService } from "../lib/deepgramVoice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery, censorBartSpeech } from "../lib/prompts";
 import { geminiThinking, resolveGeminiKey, resolveTextProvider } from "../lib/providers";
 import { reserveGeneration } from "../lib/security";
 import { chatType } from "../lib/voice";
@@ -10,7 +10,7 @@ import { isTextConfigured, textModel } from "./models";
 const voiceResponder = new Agent({
   name: "deepgram-voice-responder",
   model: textModel,
-  instructions: "Respond naturally to the supplied conversation. Speak English, keep replies under 100 words, and do not use markdown.",
+  instructions: "Respond naturally to the supplied conversation. Speak English, keep ordinary replies concise and allow angry character replies up to 80 words, and do not use markdown.",
 });
 
 export const deepgramVoice = createDeepgramVoiceService({
@@ -41,7 +41,7 @@ export const deepgramVoice = createDeepgramVoiceService({
       modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 2048 },
       ...geminiThinking({ provider, model }),
     });
-    return result.text;
+    return chatType(context) === "transcript" ? result.text : censorBartSpeech(result.text);
   },
   async save(messages, { threadId, resourceId }) {
     const memory = await defaultAgent.getMemory();

@@ -63,6 +63,8 @@ const callAgent = createStep({
 
     // Check if we need to prepend a system prompt based on context
     let modifiedPrompt = prompt;
+    let censor = (text: string) => text;
+    let pendingText = "";
     // Look for chatType in the subscribed context data
     let chatType = null;
     if (additionalContext) {
@@ -72,7 +74,8 @@ const callAgent = createStep({
       }
     }
     if (chatType === "scenario") {
-      const { scenarioRoleplayPrompt } = await import("../../lib/prompts");
+      const { scenarioRoleplayPrompt, censorBartSpeech } = await import("../../lib/prompts");
+      censor = censorBartSpeech;
       modifiedPrompt = `${scenarioRoleplayPrompt(additionalContext)}\n\nUser: ${prompt}`;
     } else if (chatType === "transcript") {
       const { feedbackReplyPrompt } = await import("../../lib/prompts");
@@ -161,13 +164,22 @@ const callAgent = createStep({
           throw new ChatStreamError("PROVIDER_UNAVAILABLE");
         }
         if (chunk.type === "text-delta") {
-          await handleTextStream(chunk.payload.text, streamController);
-          responseText += chunk.payload.text;
+          // Hold the trailing word so a swear split across provider tokens is
+          // censored before any part reaches the client.
+          pendingText += chunk.payload.text;
+          const boundary = pendingText.search(/\S*$/);
+          const ready = censor(pendingText.slice(0, boundary));
+          pendingText = pendingText.slice(boundary);
+          if (ready) await handleTextStream(ready, streamController);
+          responseText += ready;
         } else if (chunk.type === "tool-result" || chunk.type === "tool-call") {
           streamJSONEvent(streamController, chunk.type, chunk);
         }
       }
 
+      const tail = censor(pendingText);
+      if (tail) await handleTextStream(tail, streamController);
+      responseText += tail;
       if (!responseText.trim()) throw new ChatStreamError("EMPTY_RESPONSE");
       const usage = await streamResult.usage;
       return { content: responseText, usage };

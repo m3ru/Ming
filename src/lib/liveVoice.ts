@@ -40,6 +40,9 @@ type ActiveSession = {
   audio: HTMLAudioElement;
   analyser?: AudioContext;
   frame?: number;
+  censorTail?: string;
+  censorTone?: OscillatorNode;
+  censorTimer?: ReturnType<typeof setTimeout>;
   syncTimer?: ReturnType<typeof setTimeout>;
   readyTimer?: ReturnType<typeof setTimeout>;
   leaseTimer?: ReturnType<typeof setTimeout>;
@@ -135,6 +138,37 @@ export class LiveVoiceController {
       );
     return result;
   }
+  private censorBeep(active: ActiveSession) {
+    if (this.active !== active || active.cleaned) return;
+    try {
+      const context = active.analyser ?? (active.analyser = new AudioContext());
+      void context.resume().catch(() => {});
+      clearTimeout(active.censorTimer);
+      if (!active.censorTone) {
+        const tone = context.createOscillator();
+        const gain = context.createGain();
+        tone.frequency.value = 1000;
+        gain.gain.value = 0.12;
+        tone.connect(gain);
+        gain.connect(context.destination);
+        tone.onended = () => gain.disconnect();
+        active.censorTone = tone;
+        active.audio.muted = true;
+        tone.start();
+      }
+      active.censorTimer = setTimeout(() => {
+        active.censorTone?.stop();
+        active.censorTone?.disconnect();
+        active.censorTone = undefined;
+        if (this.active === active && !active.cleaned) active.audio.muted = false;
+      }, 300);
+    } catch {
+      active.audio.muted = false;
+      active.censorTone?.disconnect();
+      active.censorTone = undefined;
+      this.update({ error: "The censor beep could not play. Reconnect voice to try again." });
+    }
+  }
   private cleanup(active: ActiveSession) {
     if (active.cleaned) return;
     active.cleaned = true;
@@ -143,6 +177,10 @@ export class LiveVoiceController {
       this.active = undefined;
       this.talkRequested = false;
     }
+    clearTimeout(active.censorTimer);
+    active.censorTone?.stop();
+    active.censorTone?.disconnect();
+    active.censorTone = undefined;
     clearTimeout(active.syncTimer);
     clearTimeout(active.readyTimer);
     clearTimeout(active.leaseTimer);
@@ -309,7 +347,7 @@ export class LiveVoiceController {
           if (this.active !== active) return;
           analyser.getByteTimeDomainData(samples);
           const loud = samples.some((sample) => Math.abs(sample - 128) > 3);
-          const playing = !active.audio.paused && !active.audio.muted;
+          const playing = !active.audio.paused && (!active.audio.muted || Boolean(active.censorTone));
           const now = performance.now();
           if (!playing) lastAudibleAt = -Infinity;
           else if (loud) lastAudibleAt = now;
@@ -499,6 +537,14 @@ export class LiveVoiceController {
       )
         return;
       if (role === "user") active.revision++;
+      else {
+        // Live transcripts can split a marker across deltas ("BE" + "EP").
+        const tail = active.censorTail ?? "";
+        const text = tail + event.delta;
+        if ([...text.matchAll(/\bBEEP\b/gi)].some((match) => match.index! + match[0].length > tail.length))
+          this.censorBeep(active);
+        active.censorTail = text.slice(-32);
+      }
       this.dependencies.transcript(
         active.threadId,
         active.sessionId!,
@@ -794,7 +840,7 @@ export class LiveVoiceController {
       type: "session.instructions.append",
       delegation_id: null,
       content:
-        "The scenario or selected document context has changed. Earlier details may be outdated. Delegate questions about the current scenario, documents, or feedback to the backend before answering them.",
+        "The scenario or selected document context has changed. Earlier details may be outdated. Delegate only factual questions requiring current scenario, document, or feedback evidence to the backend. Respond directly to insults, feelings, and ordinary conversation. Never announce a lookup, checking notes, or pulling up details; retrieve required facts silently.",
     });
   }
   dispose = () => {

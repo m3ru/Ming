@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root } from "./backend-runtime.mjs";
+import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root, streamedText } from "./backend-runtime.mjs";
 import { scenarioFixture } from "./scenario-fixture.mjs";
 
 async function exerciseRouter() {
@@ -361,7 +361,7 @@ async function exerciseRouter() {
 
   const accepted = await request("/chat/stream", chatBody);
   assert.equal(accepted.status, 200);
-  assert.match(await accepted.text(), /Synthetic reply/);
+  assert.equal(streamedText(await accepted.text()), "Synthetic reply");
   assert.equal(
     (await memory.getThreadById({ threadId: "owned-thread" })).resourceId,
     "owner-a",

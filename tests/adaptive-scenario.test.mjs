@@ -209,7 +209,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
   const context = { chatType: { data: "scenario" }, scenarioDetails: { data: scenarioFixture } };
   const captures = [];
   const agentMock = { Agent: class {
-    async generateVNext(messages) { captures.push(messages[0].content); return { text: "Let's clarify the acceptance rule." }; }
+    async generateVNext(messages) { captures.push(messages[0].content); return { text: "That is fucking bullshit!" }; }
   } };
   const voice = loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": prompts });
   const deepgram = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
@@ -230,24 +230,31 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "./agents/defaultAgent": {},
     "./models": { textModel: {} },
   });
-  await deepgram.deepgramVoice.generate([], context, new AbortController().signal);
-  await live.liveVoice.generate([], context);
+  assert.equal(await deepgram.deepgramVoice.generate([], context, new AbortController().signal), "That is really nonsense!");
+  assert.equal(await live.liveVoice.generate([], context), "That is really nonsense!");
   const stages = [];
+  const emitted = [];
   const workflow = { then(step) { stages.push(step); return this; }, commit() { return this; } };
   loadBackendSource("src/backend/src/mastra/workflows/chatWorkflow.ts", {
     "@mastra/core/workflows": { createStep: (step) => step, createWorkflow: () => workflow },
     "@mastra/core/di": { RuntimeContext: Map },
-    "../../utils/streamUtils": { handleTextStream: async () => {} },
+    "../../utils/streamUtils": { handleTextStream: async (text) => emitted.push(text) },
     "./chatWorkflowTypes": { ActionSchema: backendRequire("zod").z.object({}) },
     "../../lib/prompts": prompts,
     "../../lib/providers": providers,
     "../agents/defaultAgent": { defaultAgent: { async streamVNext(_messages, options) {
       captures.push(options.instructions);
       chatCaps.push(options.modelSettings.maxOutputTokens);
-      return { fullStream: (async function* () { yield { type: "text-delta", payload: { text: "Agreed." } }; })(), usage: Promise.resolve({}) };
+      return { fullStream: (async function* () { for (const text of ["That is fu", "ck", "ing bull", "shit!"]) yield { type: "text-delta", payload: { text } }; })(), usage: Promise.resolve({}) };
     } } },
   });
   const chatCaps = [];
+  // A swear split across stream pieces is censored before any piece reaches the client.
+  const result = await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
+  assert.equal(result.content, "That is really nonsense!");
+  assert.equal(emitted.join(""), "That is really nonsense!");
+  assert.ok(emitted.every((part) => !/fuck|shit/i.test(part)));
+  chatCaps.length = 0;
   const originalProvider = process.env.MING_TEXT_PROVIDER;
   try {
     // GPT-6 Luna's medium-effort reasoning needs headroom on top of the reply budget.
@@ -260,10 +267,12 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     else process.env.MING_TEXT_PROVIDER = originalProvider;
   }
   assert.deepEqual(chatCaps, [768 + 4096, 768]);
-  captures.pop();
+  // Keep one chat prompt alongside the two voice prompts for the checks below.
+  captures.splice(-2);
   assert.equal(captures.length, 3);
   for (const prompt of captures) {
     assert.ok(prompt.includes(scenarioFixture.userRole));
+    assert.ok(prompt.includes(prompts.bartTemperPrompt), "Every text and voice adapter must receive the same temper instructions");
     assert.ok(prompt.includes(scenarioFixture.npcs[0].scenarioSpecificInfo));
     assert.doesNotMatch(prompt, /recently your performance has declined due to personal family issues/);
   }
@@ -283,6 +292,7 @@ test("OpenAI voice startup receives the selected NPC and learner roles before de
   });
   const session = await service.create({ sdp: "offer", threadId: "adaptive-session", resourceId: "owner", messages: [], context: { chatType: { data: "scenario" }, scenarioDetails: { data: scenarioFixture } } }, "owner");
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.userRole));
+  assert.ok(sessionRequest.session.instructions.includes(prompts.bartTemperPrompt));
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.npcs[0].personality));
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.npcs[0].scenarioSpecificInfo));
   assert.doesNotMatch(sessionRequest.session.instructions, /Be humble and apologetic about your recent performance/);
