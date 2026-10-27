@@ -7,6 +7,13 @@
       "runtimeArgs": ["-u", "PORT", "npm", "run", "dev"],
       "port": 3000,
       "url": "http://127.0.0.1:3000"
+    },
+    {
+      "name": "ming-board",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["PROJECT_MANAGER_PORT=4180", "node", ".github/extensions/project-manager/bin.mjs"],
+      "port": 4180,
+      "url": "http://127.0.0.1:4180"
     }
   ]
 }

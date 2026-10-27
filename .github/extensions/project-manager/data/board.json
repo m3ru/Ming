@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "title": "Ming · Road to GitHub Universe",
+  "components": [
+    {
+      "id": "contract",
+      "name": "Backend contract",
+      "description": "Request and response shapes every route and screen agrees on.",
+      "tasks": [
+        { "id": "contract-api", "title": "Freeze the /api/backend route contract", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
+        { "id": "contract-voice", "title": "Voice turn stream and speech contract", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
+        { "id": "contract-report", "title": "Structured report schema (summary + annotation segments)", "done": true, "owner": "renato", "agent": "renato-codex", "dependsOn": [] }
+      ]
+    },
+    {
+      "id": "routing",
+      "name": "Backend routing",
+      "description": "Gateway, routes, quotas and caching behind the contract.",
+      "tasks": [
+        { "id": "route-gateway", "title": "Route new endpoints through the gateway allowlist", "done": false, "owner": "ian", "agent": "ian-copilot", "dependsOn": ["contract-api"] },
+        { "id": "route-quota", "title": "Per-presenter quota buckets for the stage", "done": false, "owner": "ian", "agent": "ian-codex", "dependsOn": ["route-gateway"] },
+        { "id": "route-report-cache", "title": "Serve the next practice from the report cache", "done": false, "owner": "ian", "agent": "ian-codex", "dependsOn": ["contract-report", "route-gateway"] }
+      ]
+    },
+    {
+      "id": "voice",
+      "name": "Voice",
+      "description": "Hold-to-talk and OpenAI Live voices for Bart.",
+      "tasks": [
+        { "id": "voice-gemini-tts", "title": "Optional Gemini voice with Deepgram fallback", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": ["contract-voice"] },
+        { "id": "voice-openai-tts", "title": "OpenAI TTS option with Deepgram fallback", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": ["contract-voice"] },
+        { "id": "voice-live-natural", "title": "Natural accent and emphasis for OpenAI Live", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
+        { "id": "voice-realtime", "title": "Move OpenAI speech to Realtime before the 2027-01-06 shutdown", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["voice-openai-tts"] }
+      ]
+    },
+    {
+      "id": "report",
+      "name": "Debrief & report",
+      "description": "Summary, transcript notes and the coach.",
+      "tasks": [
+        { "id": "report-speedup", "title": "Parallel summary and annotation debrief", "done": true, "owner": "renato", "agent": "renato-codex", "dependsOn": ["contract-report"] },
+        { "id": "report-fence", "title": "Read Gemini's fenced annotation JSON", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": ["report-speedup"] },
+        { "id": "report-align", "title": "Align structured notes with their highlighted lines", "done": false, "owner": "renato", "agent": "renato-claude", "dependsOn": ["report-speedup"] },
+        { "id": "report-print", "title": "Decide whether printouts include the transcript", "done": false, "owner": "ian", "agent": "ian-copilot", "dependsOn": ["report-align"] }
+      ]
+    },
+    {
+      "id": "frontend",
+      "name": "Frontend ↔ backend",
+      "description": "Screens wired to the merged backend.",
+      "tasks": [
+        { "id": "fe-merge", "title": "Wire the frontend to the merged backend", "done": false, "owner": "renato", "agent": "renato-codex", "dependsOn": ["contract-api", "route-gateway"] },
+        { "id": "fe-errors", "title": "Tell \"no reply\" apart from \"service unavailable\"", "done": false, "owner": "renato", "agent": "renato-claude", "dependsOn": ["fe-merge"] },
+        { "id": "fe-space", "title": "Turn off Space-to-talk behind the debrief overlay", "done": false, "owner": "meru", "agent": "meru-copilot", "dependsOn": [] }
+      ]
+    },
+    {
+      "id": "design",
+      "name": "Design",
+      "description": "Director's notes look, motion and team tooling.",
+      "tasks": [
+        { "id": "design-revamp", "title": "Director's notes design revamp", "done": true, "owner": "sin", "agent": "sin-codex", "dependsOn": [] },
+        { "id": "design-bart", "title": "Bart cut-out walk animation", "done": true, "owner": "sin", "agent": "sin-codex", "dependsOn": ["design-revamp"] },
+        { "id": "design-board", "title": "Ming-themed Kanban with a dependency graph", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": ["design-revamp"] }
+      ]
+    },
+    {
+      "id": "demo",
+      "name": "Demo & talk",
+      "description": "The GitHub Universe 2026 stage run.",
+      "tasks": [
+        { "id": "demo-voice-choice", "title": "Choose OpenAI Live or hold-to-talk for the stage", "done": false, "owner": "unassigned", "dependsOn": ["voice-live-natural", "voice-openai-tts"] },
+        { "id": "demo-script", "title": "GitHub Universe demo script", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["fe-merge", "report-align", "demo-voice-choice"] },
+        { "id": "demo-rehearsal", "title": "Dress rehearsal on stage hardware", "done": false, "owner": "meru", "agent": "meru-copilot", "dependsOn": ["demo-script", "route-quota"] },
+        { "id": "demo-backup", "title": "Recorded backup run of the demo", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["demo-script"] }
+      ]
+    }
+  ]
+}
