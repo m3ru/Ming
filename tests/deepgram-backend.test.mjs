@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { backendRequire, loadBackendSource } from "./backend-runtime.mjs";
 
 const voice = loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": loadBackendSource("src/backend/src/lib/prompts.ts") });
-const { createDeepgramVoiceService, DEEPGRAM_AUDIO_BYTE_LIMIT, GEMINI_PCM_BYTE_LIMIT } = loadBackendSource(
+const { createDeepgramVoiceService, DEEPGRAM_AUDIO_BYTE_LIMIT, PCM_BYTE_LIMIT } = loadBackendSource(
   "src/backend/src/lib/deepgramVoice.ts", { "./voice": voice },
 );
 const secret = "synthetic-key-and-private-provider-diagnostics";
@@ -19,6 +19,9 @@ const transcript = (text = "I would like to help you improve.") => Response.json
 const speech = (body = Buffer.from("MP3 output")) => new Response(body, { headers: { "Content-Type": "audio/mpeg" } });
 const geminiKey = "synthetic-gemini-key";
 const geminiHost = "generativelanguage.googleapis.com";
+const openaiKey = "synthetic-openai-key";
+const openaiHost = "api.openai.com";
+const openaiPcm = (body = pcm) => new Response(body, { headers: { "Content-Type": "audio/pcm" } });
 // Gemini's SSE shape: one data line per event, CRLF separators, base64 L16 PCM parts.
 const pcmEvent = (...chunks) => ({ candidates: [{ content: { role: "model", parts: chunks.map((bytes) => ({
   inlineData: { mimeType: "audio/l16; rate=24000; channels=1", data: Buffer.from(bytes).toString("base64") },
@@ -41,13 +44,14 @@ function chunked(text, { split = 4096, onCancel, fail } = {}) {
 const pcm = Buffer.from([1, 2, 3, 4, 250, 251, 252, 253]);
 function fixture(overrides = {}) {
   const requests = [], saves = [], generations = [];
-  const { gemini = () => sse([pcmEvent(pcm)]), ...rest } = overrides;
+  const { gemini = () => sse([pcmEvent(pcm)]), openai = () => openaiPcm(), ...rest } = overrides;
   const dependencies = {
     apiKey: () => secret,
     request: async (url, options) => {
       requests.push({ url: new URL(url), options });
       const { hostname, pathname } = new URL(url);
-      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini(options) : speech();
+      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini(options)
+        : hostname === openaiHost ? openai(options) : speech();
     },
     generate: async (...args) => { generations.push(args); return "Thank you. I appreciate your support."; },
     save: async (messages, scope) => saves.push({ messages, scope }),
@@ -411,7 +415,7 @@ const gemini = (overrides = {}) => fixture({ ttsProvider: () => "gemini", gemini
 const hosts = (f) => f.requests.slice(1).map((r) => r.url.hostname);
 
 test("Gemini speech is opt-in: an unset, deepgram or unknown TTS provider calls only Deepgram", async () => {
-  for (const provider of [undefined, "deepgram", "", "openai", "geminii"]) {
+  for (const provider of [undefined, "deepgram", "", "openai-tts", "geminii"]) {
     const f = fixture({ ttsProvider: () => provider, geminiApiKey: () => geminiKey });
     const input = recording();
     await f.service.turn(input, "owner");
@@ -459,18 +463,22 @@ test("Gemini speech sends the model, voice, key header and only the reply text, 
   assert.equal(coachBody.contents[0].parts[0].text, "Thank you. I appreciate your support.");
 });
 
-test("Gemini that has sent no audio by the deadline falls back to Deepgram instead of stalling", async (t) => {
-  const { GEMINI_FIRST_AUDIO_MS } = loadBackendSource("src/backend/src/lib/deepgramVoice.ts", { "./voice": voice });
+test("Gemini or OpenAI that has sent no audio by the deadline falls back to Deepgram instead of stalling", async (t) => {
+  const { FIRST_AUDIO_MS } = loadBackendSource("src/backend/src/lib/deepgramVoice.ts", { "./voice": voice });
+  const silent = (type) => ({ signal }) => new Response(new ReadableStream({
+    start: (controller) => signal.addEventListener("abort", () => controller.error(signal.reason), { once: true }),
+  }), { headers: { "Content-Type": type } });
+  // No response headers at all.
+  const noResponse = ({ signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true }));
   const stalls = {
-    // No response headers at all.
-    "no response": ({ signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true })),
-    // Headers arrive, but no audio event follows.
-    "no audio": ({ signal }) => new Response(new ReadableStream({
-      start: (controller) => signal.addEventListener("abort", () => controller.error(signal.reason), { once: true }),
-    }), { headers: { "Content-Type": "text/event-stream" } }),
+    "Gemini no response": [geminiHost, () => gemini({ gemini: noResponse })],
+    // Headers arrive, but no audio follows.
+    "Gemini no audio": [geminiHost, () => gemini({ gemini: silent("text/event-stream") })],
+    "OpenAI no response": [openaiHost, () => openai({ openai: noResponse })],
+    "OpenAI no audio": [openaiHost, () => openai({ openai: silent("audio/pcm") })],
   };
-  for (const [name, stall] of Object.entries(stalls)) {
-    const f = gemini({ gemini: stall });
+  for (const [name, [host, make]] of Object.entries(stalls)) {
+    const f = make();
     const input = recording();
     await f.service.turn(input, "owner");
     t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -480,12 +488,12 @@ test("Gemini that has sent no audio by the deadline falls back to Deepgram inste
       const pending = f.service.speech(speechOf(input), "owner");
       // Let the Gemini request start, then pass the first-audio deadline.
       for (let i = 0; i < 5; i++) await Promise.resolve();
-      t.mock.timers.tick(GEMINI_FIRST_AUDIO_MS);
+      t.mock.timers.tick(FIRST_AUDIO_MS);
       const audio = await pending;
       assert.ok(Date.now() - started < 2000, name + ": fell back only after " + (Date.now() - started) + " ms");
       assert.equal(audio.mimeType, "audio/mpeg", name);
       assert.equal((await read(audio.body)).toString(), "MP3 output", name);
-      assert.deepEqual(hosts(f), [geminiHost, "api.deepgram.com"], name);
+      assert.deepEqual(hosts(f), [host, "api.deepgram.com"], name);
     } finally {
       t.mock.timers.reset();
     }
@@ -585,14 +593,14 @@ test("a Gemini failure after audio has started errors the stream instead of swit
 test("Gemini PCM is capped separately: the exact limit streams, one byte more errors the stream", async () => {
   const head = Buffer.alloc(1024, 1);
   for (const [extra, ok] of [[0, true], [1, false]]) {
-    const f = gemini({ gemini: () => sse([pcmEvent(head), pcmEvent(Buffer.alloc(GEMINI_PCM_BYTE_LIMIT - head.length + extra, 2))]) });
+    const f = gemini({ gemini: () => sse([pcmEvent(head), pcmEvent(Buffer.alloc(PCM_BYTE_LIMIT - head.length + extra, 2))]) });
     const input = recording();
     await f.service.turn(input, "owner");
     const audio = await f.service.speech(speechOf(input), "owner");
-    if (ok) assert.equal((await read(audio.body)).length, GEMINI_PCM_BYTE_LIMIT);
+    if (ok) assert.equal((await read(audio.body)).length, PCM_BYTE_LIMIT);
     else await assert.rejects(read(audio.body));
   }
-  assert.equal(GEMINI_PCM_BYTE_LIMIT, 4 * 1024 * 1024);
+  assert.equal(PCM_BYTE_LIMIT, 4 * 1024 * 1024);
 });
 
 test("Gemini speech keeps ownership, readiness and the three-request limit", async () => {
@@ -614,10 +622,111 @@ test("Gemini speech keeps ownership, readiness and the three-request limit", asy
   assert.deepEqual(hosts(f), [geminiHost, geminiHost, geminiHost]);
 });
 
-test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and the Gemini model and voice from env", async () => {
+const openai = (overrides = {}) => fixture({ ttsProvider: () => "openai", openaiApiKey: () => openaiKey, ...overrides });
+
+test("OpenAI speech sends the model, voice, delivery instructions, PCM format, Bearer key and only the reply text, and streams raw PCM", async () => {
+  let reserves = 0;
+  const f = openai({ ttsProvider: () => " OpenAI ", reserve: () => { reserves++; return () => {}; } });
+  const input = recording();
+  const result = await f.service.turn(input, "owner");
+  const audio = await f.service.speech(speechOf(input), "owner");
+  assert.equal(audio.mimeType, "audio/L16; rate=24000; channels=1");
+  assert.deepEqual(await read(audio.body), pcm);
+  assert.equal(reserves, 1, "speech reserves no extra quota");
+  assert.deepEqual(hosts(f), [openaiHost], "Deepgram is not called when OpenAI speaks");
+  const [, call] = f.requests;
+  assert.equal(call.url.href, "https://api.openai.com/v1/audio/speech");
+  assert.equal(call.options.method, "POST");
+  assert.deepEqual(call.options.headers, { Authorization: "Bearer " + openaiKey, "Content-Type": "application/json" });
+  assert.doesNotMatch(JSON.stringify(call.options), new RegExp(secret), "the Deepgram key never goes to OpenAI");
+  assert.equal(call.options.redirect, "error");
+  assert.ok(call.options.signal instanceof AbortSignal);
+  const body = JSON.parse(call.options.body);
+  assert.deepEqual(Object.keys(body).sort(), ["input", "instructions", "model", "response_format", "voice"]);
+  assert.equal(body.model, "gpt-4o-mini-tts");
+  assert.equal(body.voice, "cedar");
+  assert.equal(body.response_format, "pcm");
+  // Delivery direction travels in its own field; the spoken text is exactly the saved reply.
+  assert.equal(body.input, result.messages[1].content);
+  assert.ok(body.instructions.trim() && !body.input.includes(body.instructions));
+
+  const custom = openai({ openaiTtsModel: () => " gpt-4o-mini-tts-2025-12-15 ", openaiTtsVoice: () => " marin " });
+  const review = recording({ context: { chatType: { data: "transcript" } } });
+  await custom.service.turn(review, "owner");
+  await read((await custom.service.speech(speechOf(review), "owner")).body);
+  const customBody = JSON.parse(custom.requests[1].options.body);
+  assert.equal(customBody.model, "gpt-4o-mini-tts-2025-12-15");
+  assert.equal(customBody.voice, "marin");
+});
+
+test("OpenAI failures before any audio fall back to Deepgram within the same counted request and never relay OpenAI bodies", async () => {
+  let cancelled = 0;
+  const failures = {
+    "429 quota": () => new Response(new ReadableStream({
+      start: (c) => { c.enqueue(new TextEncoder().encode(secret)); c.close(); },
+      cancel: () => { cancelled++; },
+    }), { status: 429 }),
+    "500": () => Response.json({ error: { message: secret } }, { status: 500 }),
+    "network error": async () => { throw new Error(secret); },
+    "wrong format": () => Response.json({ error: secret }),
+    "mp3 instead of pcm": () => speech(),
+    "empty body": () => openaiPcm(""),
+    "stream error before audio": () => new Response(new ReadableStream({ start: (c) => c.error(new Error(secret)) }), { headers: { "Content-Type": "audio/pcm" } }),
+  };
+  for (const [name, failure] of Object.entries(failures)) {
+    const f = openai({ openai: failure });
+    const input = recording();
+    await f.service.turn(input, "owner");
+    for (let i = 0; i < 3; i++) {
+      const audio = await f.service.speech(speechOf(input), "owner");
+      assert.equal(audio.mimeType, "audio/mpeg", name);
+      assert.equal((await read(audio.body)).toString(), "MP3 output", name);
+    }
+    assert.deepEqual(hosts(f), Array(3).fill([openaiHost, "api.deepgram.com"]).flat(), name);
+    // The fallback is part of the same request: a fourth play is still refused.
+    await assert.rejects(f.service.speech(speechOf(input), "owner"), (e) => e.status === 429, name);
+  }
+  assert.equal(cancelled, 3, "the 429 body is cancelled, never read");
+  for (const key of [undefined, " "]) {
+    const keyless = openai({ openaiApiKey: () => key });
+    const input = recording();
+    await keyless.service.turn(input, "owner");
+    assert.equal((await keyless.service.speech(speechOf(input), "owner")).mimeType, "audio/mpeg");
+    assert.deepEqual(hosts(keyless), ["api.deepgram.com"], "no request is made without an OpenAI key");
+  }
+});
+
+test("an OpenAI failure after audio has started errors the stream, and its PCM is capped at the shared limit", async () => {
+  // One chunk per read, so a later error arrives only after earlier audio was consumed.
+  const stream = (...chunks) => new ReadableStream({ pull(controller) {
+    const chunk = chunks.shift();
+    if (chunk === undefined) controller.close();
+    else if (chunk instanceof Error) controller.error(chunk);
+    else controller.enqueue(chunk);
+  } });
+  const broken = openai({ openai: () => new Response(stream(pcm, new Error(secret)), { headers: { "Content-Type": "audio/pcm" } }) });
+  const input = recording();
+  await broken.service.turn(input, "owner");
+  const audio = await broken.service.speech(speechOf(input), "owner");
+  assert.equal(audio.mimeType, "audio/L16; rate=24000; channels=1");
+  // An errored stream aborts the HTTP response; no error text reaches the browser.
+  await assert.rejects(read(audio.body));
+  assert.deepEqual(hosts(broken), [openaiHost]);
+  const head = Buffer.alloc(1024, 1);
+  for (const [extra, ok] of [[0, true], [1, false]]) {
+    const f = openai({ openai: () => new Response(stream(head, Buffer.alloc(PCM_BYTE_LIMIT - head.length + extra, 2)), { headers: { "Content-Type": "audio/pcm" } }) });
+    const capped = recording();
+    await f.service.turn(capped, "owner");
+    const speech = await f.service.speech(speechOf(capped), "owner");
+    if (ok) assert.equal((await read(speech.body)).length, PCM_BYTE_LIMIT);
+    else await assert.rejects(read(speech.body));
+  }
+});
+
+test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and the Gemini and OpenAI models and voices from env", async () => {
   const providers = loadBackendSource("src/backend/src/lib/providers.ts");
   const prompts = loadBackendSource("src/backend/src/lib/prompts.ts");
-  const envNames = ["MING_TTS_PROVIDER", "GEMINI_TTS_MODEL", "GEMINI_TTS_VOICE", "GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY", "MING_TEXT_PROVIDER"];
+  const envNames = ["MING_TTS_PROVIDER", "GEMINI_TTS_MODEL", "GEMINI_TTS_VOICE", "GEMINI_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "GOOGLE_API_KEY", "MING_TEXT_PROVIDER", "OPENAI_API_KEY", "OPENAI_TTS_MODEL", "OPENAI_TTS_VOICE"];
   const original = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
   const requests = [];
   const { deepgramVoice } = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
@@ -628,7 +737,8 @@ test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and t
       request: async (url, options) => {
         requests.push({ url: new URL(url), options });
         const { hostname, pathname } = new URL(url);
-        return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? sse([pcmEvent(pcm)]) : speech();
+        return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? sse([pcmEvent(pcm)])
+          : hostname === openaiHost ? openaiPcm() : speech();
       },
     }) },
     "../lib/prompts": prompts,
@@ -672,6 +782,25 @@ test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and t
     delete process.env.GOOGLE_API_KEY;
     spoken = await speak();
     assert.equal(spoken.mimeType, "audio/mpeg", "gemini without a key falls back to Deepgram");
+    assert.equal(spoken.request.url.hostname, "api.deepgram.com");
+
+    process.env.MING_TTS_PROVIDER = "openai";
+    process.env.OPENAI_API_KEY = "openai-env-key";
+    spoken = await speak();
+    assert.equal(spoken.mimeType, "audio/L16; rate=24000; channels=1");
+    assert.equal(spoken.request.url.href, "https://api.openai.com/v1/audio/speech");
+    assert.equal(spoken.request.options.headers.Authorization, "Bearer openai-env-key");
+    let openaiBody = JSON.parse(spoken.request.options.body);
+    assert.equal(openaiBody.model, "gpt-4o-mini-tts");
+    assert.equal(openaiBody.voice, "cedar");
+    process.env.OPENAI_TTS_MODEL = "gpt-4o-mini-tts-2025-12-15";
+    process.env.OPENAI_TTS_VOICE = "ash";
+    openaiBody = JSON.parse((await speak()).request.options.body);
+    assert.equal(openaiBody.model, "gpt-4o-mini-tts-2025-12-15");
+    assert.equal(openaiBody.voice, "ash");
+    delete process.env.OPENAI_API_KEY;
+    spoken = await speak();
+    assert.equal(spoken.mimeType, "audio/mpeg", "openai without a key falls back to Deepgram");
     assert.equal(spoken.request.url.hostname, "api.deepgram.com");
   } finally {
     for (const [name, value] of Object.entries(original)) {

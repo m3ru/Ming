@@ -73,7 +73,7 @@ const initial: VoiceSnapshot = {
 const MAX_AUDIO_BYTES = 512 * 1024;
 // Matches the server's DEEPGRAM_AUDIO_BYTE_LIMIT for one spoken reply.
 const MAX_REPLY_AUDIO_BYTES = 1024 * 1024;
-// Matches the server's GEMINI_PCM_BYTE_LIMIT for raw PCM speech.
+// Matches the server's PCM_BYTE_LIMIT for raw PCM speech (Gemini or OpenAI).
 const MAX_REPLY_PCM_BYTES = 4 * 1024 * 1024;
 // Lead before a buffer that starts from silence, so its start is not clipped.
 const PCM_LEAD_SECONDS = 0.05;

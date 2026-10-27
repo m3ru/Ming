@@ -134,6 +134,10 @@ key as text, `GEMINI_TTS_MODEL` (default `gemini-3.8-flash-lite-tts`) and
 `GEMINI_TTS_VOICE` (default `Puck`), and streams raw 24 kHz PCM to the browser.
 If Gemini fails before any audio (quota, network, no key, empty output), that
 same reply is spoken by Deepgram instead; Deepgram STT and its key stay required.
+`MING_TTS_PROVIDER=openai` does the same with OpenAI text-to-speech, using
+`OPENAI_API_KEY`, `OPENAI_TTS_MODEL` (default `gpt-4o-mini-tts`) and
+`OPENAI_TTS_VOICE` (default `cedar`, the voice Bart uses in OpenAI Live mode).
+OpenAI shuts down this endpoint on 2027-01-06; after that, Deepgram answers.
 
 The Google Veo video-generation helpers remain in `src/lib/videoUtil.ts` and
 `src/backend/src/lib/videoUtil.ts`. Their existing scenario-to-video behavior is

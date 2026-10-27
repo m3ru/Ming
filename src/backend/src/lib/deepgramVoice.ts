@@ -3,13 +3,17 @@ import { z } from "zod";
 import { voiceSessionSchema, type VoiceMessage } from "./voice";
 
 export const DEEPGRAM_AUDIO_BYTE_LIMIT = 1024 * 1024;
-// Raw 16-bit mono PCM at 24 kHz is 48,000 bytes a second: 4 MiB is about 87 s of speech.
-export const GEMINI_PCM_BYTE_LIMIT = 4 * 1024 * 1024;
-export const GEMINI_PCM_MIME_TYPE = "audio/L16; rate=24000; channels=1";
+// Gemini and OpenAI both speak raw 16-bit little-endian mono PCM at 24 kHz: 48,000 bytes a
+// second, so 4 MiB is about 87 s of speech.
+export const PCM_BYTE_LIMIT = 4 * 1024 * 1024;
+export const PCM_MIME_TYPE = "audio/L16; rate=24000; channels=1";
 // Gemini 3.8 TTS reads any style direction aloud (verified by transcribing its output), so it
 // gets only the line; delivery comes from how the reply is written.
-// First audio arrived in ~0.7 s direct, ~1 s through the gateway; after this, Deepgram answers.
-export const GEMINI_FIRST_AUDIO_MS = 3000;
+// First audio arrived in ~0.7 s from Gemini and ~1.7 s from OpenAI; after this, Deepgram answers.
+export const FIRST_AUDIO_MS = 3000;
+// OpenAI takes delivery direction in its own field; transcribing its output showed none of it spoken.
+const OPENAI_DELIVERY =
+  "Speak naturally and conversationally, like a real person in a workplace conversation. Let the feeling in the words come through.";
 const geminiEventSchema = z.object({
   error: z.unknown().optional(),
   candidates: z.array(z.object({
@@ -64,11 +68,14 @@ type Dependencies = {
   apiKey: () => string | undefined;
   sttModel?: () => string | undefined;
   ttsModel?: () => string | undefined;
-  // "gemini" speaks with Gemini and falls back to Deepgram; any other value is Deepgram only.
+  // "gemini" or "openai" speaks with that provider and falls back to Deepgram; any other value is Deepgram only.
   ttsProvider?: () => string | undefined;
   geminiApiKey?: () => string | undefined;
   geminiTtsModel?: () => string | undefined;
   geminiTtsVoice?: () => string | undefined;
+  openaiApiKey?: () => string | undefined;
+  openaiTtsModel?: () => string | undefined;
+  openaiTtsVoice?: () => string | undefined;
   request?: typeof fetch;
   generate: (
     messages: VoiceMessage[],
@@ -141,7 +148,7 @@ function geminiPcm() {
         throw new Error("Unexpected speech format.");
       const bytes = Buffer.from(inlineData.data, "base64");
       size += bytes.byteLength;
-      if (size > GEMINI_PCM_BYTE_LIMIT) throw new Error("Speech output exceeded limit.");
+      if (size > PCM_BYTE_LIMIT) throw new Error("Speech output exceeded limit.");
       if (bytes.byteLength) controller.enqueue(bytes);
     }
   };
@@ -152,11 +159,26 @@ function geminiPcm() {
       const end = buffered.endsWith("\r") ? buffered.length - 1 : buffered.length;
       const events = buffered.slice(0, end).replace(/\r\n?/g, "\n").split("\n\n");
       buffered = events.pop()! + buffered.slice(end);
-      if (buffered.length > 2 * GEMINI_PCM_BYTE_LIMIT) throw new Error("Speech event exceeded limit.");
+      if (buffered.length > 2 * PCM_BYTE_LIMIT) throw new Error("Speech event exceeded limit.");
       for (const event of events) parse(event, controller);
     },
     flush(controller) {
       parse((buffered + decoder.decode()).replace(/\r\n?/g, "\n"), controller);
+    },
+  });
+}
+
+/** Passes audio through, erroring the stream (and so the provider download) past the limit. */
+function byteLimit(limit: number) {
+  let size = 0;
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      size += chunk.byteLength;
+      if (size > limit) controller.error(new Error("Speech output exceeded limit."));
+      else controller.enqueue(chunk);
+    },
+    flush(controller) {
+      if (!size) controller.error(new Error("Empty speech output."));
     },
   });
 }
@@ -198,39 +220,23 @@ function partial(turn: CachedTurn, error: string): DeepgramTurnResult {
 export function createDeepgramVoiceService(dependencies: Dependencies) {
   const request = dependencies.request ?? fetch;
   const turns = new Map<string, CachedTurn>();
-  // A PCM stream, or undefined when Gemini fails before its first audio byte so Deepgram can answer.
-  async function geminiSpeech(text: string) {
-    const apiKey = dependencies.geminiApiKey?.()?.trim();
-    if (!apiKey) return;
-    const model = dependencies.geminiTtsModel?.()?.trim() || "gemini-3.8-flash-lite-tts";
-    // A slow start falls back to Deepgram instead of leaving Bart silent until the full timeout.
-    const firstAudio = new AbortController();
-    const deadline = setTimeout(() => firstAudio.abort(), GEMINI_FIRST_AUDIO_MS);
+  // A provider's PCM stream, or undefined when it fails before its first audio byte so Deepgram
+  // can answer. A slow start falls back too, instead of leaving Bart silent until the full timeout.
+  async function firstAudio(
+    send: (signal: AbortSignal) => Promise<Response>,
+    pcm: (response: Response & { body: ReadableStream<Uint8Array> }) => ReadableStream<Uint8Array> | undefined,
+  ) {
+    const started = new AbortController();
+    const deadline = setTimeout(() => started.abort(), FIRST_AUDIO_MS);
     try {
-      const response = await request(
-        new URL("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse"),
-        {
-          method: "POST",
-          headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text }] }],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: { voiceConfig: { prebuiltVoiceConfig: {
-                voiceName: dependencies.geminiTtsVoice?.()?.trim() || "Puck",
-              } } },
-            },
-          }),
-          signal: AbortSignal.any([AbortSignal.timeout(PROVIDER_TIMEOUT_MS), firstAudio.signal]),
-          redirect: "error",
-        },
-      );
-      if (!response.ok || !response.body) {
+      const response = await send(AbortSignal.any([AbortSignal.timeout(PROVIDER_TIMEOUT_MS), started.signal]));
+      const audio = response.ok && response.body ? pcm(response as Response & { body: ReadableStream<Uint8Array> }) : undefined;
+      if (!audio) {
         // The error body is never read or relayed.
         void response.body?.cancel().catch(() => {});
         return;
       }
-      const reader = response.body.pipeThrough(geminiPcm()).getReader();
+      const reader = audio.getReader();
       const first = await reader.read();
       if (first.done) return;
       // After the first byte there is no fallback: a later failure errors the stream.
@@ -248,6 +254,57 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
     } finally {
       clearTimeout(deadline);
     }
+  }
+  async function geminiSpeech(text: string) {
+    const apiKey = dependencies.geminiApiKey?.()?.trim();
+    if (!apiKey) return;
+    const model = dependencies.geminiTtsModel?.()?.trim() || "gemini-3.8-flash-lite-tts";
+    return firstAudio(
+      (signal) => request(
+        new URL("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":streamGenerateContent?alt=sse"),
+        {
+          method: "POST",
+          headers: { "x-goog-api-key": apiKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: {
+                voiceName: dependencies.geminiTtsVoice?.()?.trim() || "Puck",
+              } } },
+            },
+          }),
+          signal,
+          redirect: "error",
+        },
+      ),
+      (response) => response.body.pipeThrough(geminiPcm()),
+    );
+  }
+  // shortcut: OpenAI shuts /v1/audio/speech down on 2027-01-06 (its successor is Realtime-only);
+  // after that this always falls back to Deepgram. Move to the Realtime API to keep OpenAI's voice.
+  async function openaiSpeech(text: string) {
+    const apiKey = dependencies.openaiApiKey?.()?.trim();
+    if (!apiKey) return;
+    return firstAudio(
+      (signal) => request(new URL("https://api.openai.com/v1/audio/speech"), {
+        method: "POST",
+        headers: { Authorization: "Bearer " + apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: dependencies.openaiTtsModel?.()?.trim() || "gpt-4o-mini-tts",
+          voice: dependencies.openaiTtsVoice?.()?.trim() || "cedar",
+          input: text,
+          instructions: OPENAI_DELIVERY,
+          response_format: "pcm",
+        }),
+        signal,
+        redirect: "error",
+      }),
+      (response) =>
+        /^audio\/pcm(?:;|$)/i.test(response.headers.get("Content-Type") ?? "")
+          ? response.body.pipeThrough(byteLimit(PCM_BYTE_LIMIT))
+          : undefined,
+    );
   }
   async function processTurn(input: Turn, turn: CachedTurn, apiKey: string, bytes: Buffer) {
     if (!turn.user) {
@@ -390,10 +447,12 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
       if (++turn.speechRequests > SPEECH_LIMIT)
         throw new DeepgramVoiceError("This reply's audio was requested too many times. Its text is saved.", 429);
       // The fallback below is part of this same counted request.
-      if (dependencies.ttsProvider?.()?.trim().toLowerCase() === "gemini") {
-        const body = await geminiSpeech(turn.assistant.content);
-        if (body) return { body, mimeType: GEMINI_PCM_MIME_TYPE };
-      }
+      const provider = dependencies.ttsProvider?.()?.trim().toLowerCase();
+      const pcm =
+        provider === "gemini" ? await geminiSpeech(turn.assistant.content)
+        : provider === "openai" ? await openaiSpeech(turn.assistant.content)
+        : undefined;
+      if (pcm) return { body: pcm, mimeType: PCM_MIME_TYPE };
       let response: Response;
       try {
         const url = new URL("https://api.deepgram.com/v1/speak");
@@ -413,19 +472,8 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
         void response.body?.cancel().catch(() => {});
         throw new DeepgramVoiceError("The audio reply could not be generated. Its text is saved.");
       }
-      let size = 0;
       return {
-        // Erroring the stream also cancels the provider download.
-        body: response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
-          transform(chunk, controller) {
-            size += chunk.byteLength;
-            if (size > DEEPGRAM_AUDIO_BYTE_LIMIT) controller.error(new Error("Speech output exceeded limit."));
-            else controller.enqueue(chunk);
-          },
-          flush(controller) {
-            if (!size) controller.error(new Error("Empty speech output."));
-          },
-        })),
+        body: response.body.pipeThrough(byteLimit(DEEPGRAM_AUDIO_BYTE_LIMIT)),
         mimeType: "audio/mpeg" as const,
       };
     },

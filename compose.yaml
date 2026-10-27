@@ -53,6 +53,8 @@ services:
       MING_TTS_PROVIDER: ${MING_TTS_PROVIDER:-deepgram}
       GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}
       GEMINI_TTS_VOICE: ${GEMINI_TTS_VOICE:-Puck}
+      OPENAI_TTS_MODEL: ${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      OPENAI_TTS_VOICE: ${OPENAI_TTS_VOICE:-cedar}
     volumes:
       - ming-data:/data
     healthcheck:

@@ -21,6 +21,9 @@ export const deepgramVoice = createDeepgramVoiceService({
   geminiApiKey: () => resolveGeminiKey(),
   geminiTtsModel: () => process.env.GEMINI_TTS_MODEL,
   geminiTtsVoice: () => process.env.GEMINI_TTS_VOICE,
+  openaiApiKey: () => process.env.OPENAI_API_KEY,
+  openaiTtsModel: () => process.env.OPENAI_TTS_MODEL,
+  openaiTtsVoice: () => process.env.OPENAI_TTS_VOICE,
   reserve: (identity) => reserveGeneration(identity, 3),
   async generate(messages, context, signal) {
     if (!isTextConfigured()) throw new Error("Text AI is not configured.");
