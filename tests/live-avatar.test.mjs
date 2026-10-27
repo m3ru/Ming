@@ -350,6 +350,7 @@ const {
   AVATAR_STALL_MS,
   AVATAR_DROP_MS,
   AVATAR_START_TIMEOUT_MS,
+  AVATAR_OUTPUT_DELAY_MS,
 } = controllerModule;
 const grant = {
   provider: "simli",
@@ -435,6 +436,7 @@ function avatarFixture(t, respond = () => Response.json(grant)) {
   controller.attach(video, audio);
   const routes = [];
   let pushTrack;
+  let censorListener;
   const track = { id: "bart-voice" };
   const unbind = controller.bindVoice({
     subscribeRemoteAudio(listener) {
@@ -445,6 +447,12 @@ function avatarFixture(t, respond = () => Response.json(grant)) {
       };
     },
     routeOutput: (routed) => routes.push(routed),
+    subscribeCensor(listener) {
+      censorListener = listener;
+      return () => {
+        censorListener = undefined;
+      };
+    },
   });
   t.after(() => {
     unbind();
@@ -461,6 +469,8 @@ function avatarFixture(t, respond = () => Response.json(grant)) {
     phase: () => controller.getSnapshot().phase,
     failure: () => controller.getSnapshot().failure,
     pushTrack: (value) => pushTrack(value),
+    censor: () => censorListener?.(),
+    censorBound: () => Boolean(censorListener),
     frame: () => frameCallback?.(),
     advance(ms) {
       time += ms;
@@ -574,6 +584,94 @@ test("the speaking cue measures the synced output while Bart plays from it", asy
   f.controller.disconnect();
   assert.equal(audible(), null);
   assert.equal(closed.length, 1);
+});
+
+test("censored words are covered when the synced output plays them, at its measured delay", async (t) => {
+  const f = avatarFixture(t);
+  let loud = false;
+  let frame;
+  const tones = [];
+  class FakeStream {
+    getAudioTracks() {
+      return [{}];
+    }
+  }
+  class FakeContext {
+    state = "running";
+    destination = {};
+    async resume() {}
+    async close() {}
+    createAnalyser() {
+      return { fftSize: 256, getByteTimeDomainData: (samples) => samples.fill(loud ? 140 : 128) };
+    }
+    createMediaStreamSource() {
+      return { connect() {} };
+    }
+    createGain() {
+      return { gain: { value: 0 }, connect() {}, disconnect() {} };
+    }
+    createOscillator() {
+      const tone = { frequency: { value: 0 }, playing: false, connect() {}, disconnect() {},
+        start() { tone.playing = true; }, stop() { tone.playing = false; } };
+      tones.push(tone);
+      return tone;
+    }
+  }
+  for (const [key, value] of Object.entries({
+    MediaStream: FakeStream,
+    AudioContext: FakeContext,
+    requestAnimationFrame: (callback) => {
+      frame = callback;
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  })) {
+    const prior = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { value, configurable: true, writable: true });
+    t.after(() =>
+      prior ? Object.defineProperty(globalThis, key, prior) : Reflect.deleteProperty(globalThis, key),
+    );
+  }
+  assert.equal(f.censorBound(), true);
+  // Not playing Bart yet: direct playback beeps for itself.
+  f.censor();
+  f.advance(AVATAR_OUTPUT_DELAY_MS);
+  assert.equal(tones.length, 0);
+  await goLive(f);
+  assert.equal(f.controller.outputRouted, true);
+  f.audio.srcObject = new FakeStream();
+  f.audio.dispatchEvent(new Event("loadedmetadata"));
+  // Before any measurement, the word is covered at the default delay.
+  f.censor();
+  f.advance(AVATAR_OUTPUT_DELAY_MS - 1);
+  assert.equal(tones.length, 0);
+  assert.equal(f.audio.muted, false);
+  f.advance(1);
+  assert.equal(tones.length, 1);
+  assert.equal(tones[0].playing, true);
+  assert.equal(f.audio.muted, true, "the spoken placeholder is muted under the tone");
+  f.advance(300);
+  assert.equal(tones[0].playing, false);
+  assert.equal(f.audio.muted, false);
+  f.frame();
+  // An utterance that reaches the output 600 ms after the voice track updates the delay.
+  f.controller.setSpeaking(true);
+  f.advance(600);
+  loud = true;
+  frame();
+  f.controller.setSpeaking(false);
+  f.frame();
+  f.censor();
+  f.advance((AVATAR_OUTPUT_DELAY_MS + 600) / 2 - 1);
+  assert.equal(tones.length, 1);
+  f.advance(1);
+  assert.equal(tones.length, 2);
+  // Ending the call stops a pending or sounding tone.
+  f.censor();
+  f.controller.disconnect();
+  f.advance(AVATAR_OUTPUT_DELAY_MS);
+  assert.equal(tones.length, 2);
+  assert.equal(tones[1].playing, false);
 });
 
 test("synced playback waits for the avatar's audio to actually play", async (t) => {

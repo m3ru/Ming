@@ -405,6 +405,55 @@ test("split censor markers play one tone, mute the live placeholder, and stop on
   assert.equal(stops, 2, "disconnect stops an active censor tone");
 });
 
+test("censor markers go to a synced renderer while it plays Bart, and a direct beep never unmutes it", async (t) => {
+  const fixture = controller(t);
+  let starts = 0;
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "AudioContext");
+  Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: class {
+    destination = {};
+    async resume() {}
+    async close() {}
+    createGain() { return { gain: { value: 0 }, connect() {}, disconnect() {} }; }
+    createOscillator() {
+      return { frequency: { value: 0 }, connect() {}, disconnect() {}, start() { starts++; }, stop() {} };
+    }
+  } });
+  t.after(() => {
+    if (prior) Object.defineProperty(globalThis, "AudioContext", prior);
+    else Reflect.deleteProperty(globalThis, "AudioContext");
+  });
+  let handed = 0;
+  const unsubscribe = fixture.voice.subscribeCensor(() => handed++);
+  await fixture.voice.start();
+  const playback = FakeAudio.latest;
+  const channel = FakePeer.latest.channel;
+  const emit = (event_id: string, delta: string) => channel.emit({
+    type: "session.output_transcript.delta", event_id, delta, start_ms: 100, end_ms: 200,
+  });
+  fixture.voice.routeOutput(true);
+  emit("routed", "Oh, BEEP that!");
+  assert.equal(handed, 1, "the renderer covers the word when it plays it");
+  assert.equal(starts, 0, "no early tone over direct playback");
+  assert.equal(playback.muted, true);
+  // Direct playback beeps itself; routing mid-beep keeps the element muted after.
+  fixture.voice.routeOutput(false);
+  emit("direct", " Absolute BEEP!");
+  assert.equal(starts, 1);
+  assert.equal(handed, 1);
+  assert.equal(playback.muted, true);
+  fixture.voice.routeOutput(true);
+  await new Promise((resolve) => setTimeout(resolve, 320));
+  assert.equal(playback.muted, true, "Bart is not heard twice after a beep");
+  fixture.voice.routeOutput(false);
+  assert.equal(playback.muted, false);
+  // Without a renderer listening, routed markers still beep directly.
+  unsubscribe();
+  fixture.voice.routeOutput(true);
+  emit("unheard", " BEEP.");
+  assert.equal(starts, 2);
+  await fixture.voice.stop();
+});
+
 test("speaking stays visible through short pauses and clears after silence or stopped playback", async (t) => {
   const fixture = controller(t);
   let now = 0;

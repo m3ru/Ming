@@ -27,7 +27,7 @@ Two hours of rehearsal plus the demo is about 150 session minutes, which is
 a session only while a call is connected, and every session is capped at
 `MING_AVATAR_MAX_MINUTES` (default 20).
 
-## Tonight, step by step
+## Setup, step by step
 
 Start step 3 early: face generation is queued, and Simli's docs say it "can take
 a couple of hours". Rehearse on a stock face while it builds.
@@ -48,21 +48,17 @@ ID as `SIMLI_FACE_ID` for now. For example, Daniel is
 
 ### 3. Create Bart's face from our image
 
-Two prepared, upload-ready images are in `docs/live-avatar/`:
+Two upload-ready images of the Cast-photo Bart are in `docs/live-avatar/`:
 
-- `bart-face-video.jpg` (768x768) is the photoreal Bart from the old call
-  video (`public/BillyLoop.mp4` at 4.75 s), facing the camera, and the same man
-  as the Cast photo. **Try this first.** It is soft, because his face is only
-  about 100 px wide in that clip, and his lips are slightly parted.
-- `bart-face-photo.jpg` (512x512) is the Cast photo `public/bart.jpg`, upscaled
-  from 256 px. It is the same man, but softer and mid-word.
-- `bart-face-stylized.jpg` (720x720) is from `public/BillLoopUncropped.mp4`, an
-  older 3D cartoon "Bill". It is a different character, and his head is turned
-  away from the camera. Use it only as a last resort.
+- `bart-face-photo.jpg` (512x512) is `public/bart.jpg`, upscaled from 256 px.
+  **Use this one.** Simli's reframe step enhances it into a crisp, frontal,
+  closed-mouth portrait, which is what lip-sync needs.
+- `bart-face-video.jpg` (768x768) is a frame of the old call video
+  (`public/BillyLoop.mp4` at 4.75 s). It reframes well too, but his lips are
+  slightly parted.
 
-Reframing is free, so compare the `framed.png` results before spending the face.
-On a big screen a crisp stock face reads better than a blurry Bart; if all three
-come back soft, keep the stock face for the demo.
+Reframing is free, so look at `framed.png` before spending the face. If the
+result is soft, a crisp stock face reads better on a big screen than a blurry Bart.
 
 Simli requires JPEG, PNG or WEBP, at least 512x512 and under 5 MB, with one face
 toward the camera. Run these commands in **bash** (type `bash` first if your
@@ -74,7 +70,7 @@ export SIMLI_API_KEY='paste-your-key'
 # a) Reframe (about 25 s). This does not use your face allowance, so retry freely.
 curl -sS -X POST "https://api.simli.ai/faces/trinity/preprocess?gsVersion=GSA_2.0" \
   -H "x-simli-api-key: $SIMLI_API_KEY" \
-  -F "image=@docs/live-avatar/bart-face-video.jpg" \
+  -F "image=@docs/live-avatar/bart-face-photo.jpg" \
   -D headers.txt -o framed.png
 grep -i '^warnings:' headers.txt   # advice only; an empty list is ideal
 xdg-open framed.png                # check the framing before spending the face
@@ -100,7 +96,7 @@ If something goes wrong:
 - **Generation returns 403.** You have no face allowance left for that
   generation type. Try the other `gsVersion`, or upgrade to Pro.
 - **Preprocess rejects the image (no face found).** Repeat with
-  `bart-face-photo.jpg`.
+  `bart-face-video.jpg`.
 - **Generation hasn't finished an hour before you need it.** Keep the stock
   face for the demo.
 
@@ -116,6 +112,7 @@ When the status is `completed`, set `SIMLI_FACE_ID` to the new `face_id` and res
 Add to the root `.env`, next to your existing keys:
 
 ```bash
+MING_TEXT_PROVIDER=openai        # optional: one OPENAI_API_KEY then covers chat too
 MING_VOICE_PROVIDER=openai       # the avatar needs the default streaming voice
 MING_AVATAR_PROVIDER=simli
 SIMLI_API_KEY=...
@@ -149,7 +146,9 @@ Then restart with `npm run dev`. The provider is read at startup.
 2. **In Chrome**, open http://127.0.0.1:3000, start a scenario and allow the
    microphone. Within a few seconds the looping video turns into the live face.
 3. Hold **Space**, say something, and release. Bart's lips should move with his
-   voice, and you should hear him **once**, not doubled or echoed.
+   voice, and you should hear him **once**, not doubled or echoed. Expect his
+   reply about 0.8 s later than without the avatar; that is the renderer's
+   latency (measured on 2026-10-27, LiveKit transport; `p2p` was not faster).
 4. **Fallback drill.** In DevTools, open Network request blocking, block
    `api.simli.ai`, and reload the call. The standard video stays, with the note
    "Live video didn't start, but Bart's voice continues." and a **Retry video**
@@ -163,7 +162,9 @@ Then restart with `npm run dev`. The provider is read at startup.
   today's call screen exactly. Decide beforehand who flips it and when.
 - **Browser.** Use desktop **Chrome**, which is the tested path. Click once on
   the page before the call (any normal navigation counts), so the browser allows
-  audio.
+  audio. In a Firefox-based browser (tested: Zen on Firefox 158) the video works
+  but the avatar's audio did not start, so Bart's voice stays on direct playback,
+  about 0.8 s ahead of his lips, and the speaking cue does not show.
 - **Network.** Use wired Ethernet or a phone hotspot rather than venue Wi-Fi.
   Keep `livekit` transport: it relays over TURN/TCP when UDP is blocked. `p2p`
   is slightly faster but more fragile behind firewalls.
@@ -187,9 +188,18 @@ Then restart with `npm run dev`. The provider is read at startup.
   voice moves to the synced output, using `LiveVoiceController.routeOutput`, and
   watches for video stalls. `src/components/LiveAvatar.tsx` layers the live
   video over the unchanged `ScenarioVideo`.
-- **Speaking indicator.** The `speaking` flag still comes from the direct
-  track's level meter. While the voice is routed through the avatar, it leads
-  the audible voice by the avatar's latency (a few hundred ms).
+- **Framing.** The 16:9 frame is shown whole and bottom-aligned, like a webcam
+  shot, with its top edge faded into the backdrop colour sampled from the frame.
+  Cropping it to fill tall tiles made Bart much too large.
+- **Speaking cue.** While Bart plays from the avatar, "Bart is speaking" follows
+  a level meter on the avatar's own output (`audible` in the controller's
+  snapshot), so it appears when he is heard, not when the voice track starts.
+  Otherwise it uses the voice's `speaking` flag.
+- **Censor beeps.** While Bart plays from the avatar, `LiveVoiceController`
+  hands each BEEP marker to it (`subscribeCensor`). The avatar plays the tone
+  and mutes its output when the word reaches it, after the voice-to-output
+  delay it measures at each utterance (800 ms until measured). Direct playback
+  keeps its own immediate beep.
 - **Tests.** `npm run test:avatar` (offline), plus routing tests in
   `tests/live-voice.test.ts` and gateway checks in
   `tests/backend-security.test.mjs`.

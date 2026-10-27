@@ -44,6 +44,8 @@ export type VoiceOutput = {
     listener: (track: MediaStreamTrack | null) => void,
   ) => () => void;
   routeOutput: (routed: boolean) => void;
+  /** Censor markers to cover while the synced output plays Bart. */
+  subscribeCensor?: (listener: () => void) => () => void;
 };
 type Dependencies = {
   baseURL: () => string;
@@ -58,6 +60,10 @@ export const AVATAR_START_TIMEOUT_MS = 20_000;
 // playback. A stall that lasts DROP_MS ends the session and shows the note.
 export const AVATAR_STALL_MS = 2_000;
 export const AVATAR_DROP_MS = 8_000;
+// The synced output trails the voice track by about this much until measured.
+export const AVATAR_OUTPUT_DELAY_MS = 800;
+// Same tone as direct playback's censor beep.
+const CENSOR_TONE_MS = 300;
 const WATCH_INTERVAL_MS = 250;
 
 const initial: AvatarSnapshot = { phase: "idle", failure: null, audible: null };
@@ -164,6 +170,7 @@ export class LiveAvatarController {
   private listened: MediaStreamTrack | null = null;
   private output?: VoiceOutput;
   private unsubscribeVoice?: () => void;
+  private unsubscribeCensor?: () => void;
   private routed = false;
   private speaking = false;
   private lastFrameAt = 0;
@@ -172,6 +179,12 @@ export class LiveAvatarController {
   private stopFrames?: () => void;
   private meter?: { stream: MediaStream; context: AudioContext; frame: number };
   private heardAt = -Infinity;
+  private speechStartedAt = -Infinity;
+  private outputDelay = AVATAR_OUTPUT_DELAY_MS;
+  private censorStarts = new Set<ReturnType<typeof setTimeout>>();
+  private censorEnd?: ReturnType<typeof setTimeout>;
+  private censorTone?: OscillatorNode;
+  private censorContext?: AudioContext;
   private now: () => number;
   constructor(private dependencies: Dependencies) {
     this.now = dependencies.now ?? (() => performance.now());
@@ -227,6 +240,8 @@ export class LiveAvatarController {
   /** Follows the voice call's remote track and lends it the playback switch. */
   bindVoice(output: VoiceOutput | undefined) {
     this.unsubscribeVoice?.();
+    this.unsubscribeCensor?.();
+    this.unsubscribeCensor = output?.subscribeCensor?.(() => this.censor());
     if (this.routed) this.output?.routeOutput(false);
     this.routed = false;
     this.applyAudioGate();
@@ -238,6 +253,8 @@ export class LiveAvatarController {
     return () => {
       this.unsubscribeVoice?.();
       this.unsubscribeVoice = undefined;
+      this.unsubscribeCensor?.();
+      this.unsubscribeCensor = undefined;
       if (this.output === output) {
         if (this.routed) output?.routeOutput(false);
         this.routed = false;
@@ -247,6 +264,7 @@ export class LiveAvatarController {
     };
   }
   setSpeaking(speaking: boolean) {
+    if (speaking && !this.speaking) this.speechStartedAt = this.now();
     this.speaking = speaking;
     this.evaluateRouting();
   }
@@ -394,6 +412,11 @@ export class LiveAvatarController {
     this.routed = false;
     this.applyAudioGate();
     this.stopMeter();
+    this.censorStarts.forEach(clearTimeout);
+    this.censorStarts.clear();
+    this.endCensor();
+    void this.censorContext?.close().catch(() => {});
+    this.censorContext = undefined;
     if (client) void client.stop().catch(() => {});
     // Clear the last frame so the standard tile shows through again.
     for (const element of [this.video, this.audio])
@@ -421,8 +444,14 @@ export class LiveAvatarController {
         if (this.meter !== meter) return;
         analyser.getByteTimeDomainData(samples);
         const now = this.now();
-        if (samples.some((sample) => Math.abs(sample - 128) > 3))
+        if (samples.some((sample) => Math.abs(sample - 128) > 3)) {
+          // Each utterance's first sound measures how far the output trails.
+          const lag = now - this.speechStartedAt;
+          if (this.routed && now - this.heardAt >= 800 && lag > 100 && lag < 3000)
+            this.outputDelay = Math.round((this.outputDelay + lag) / 2);
+          this.speechStartedAt = -Infinity;
           this.heardAt = now;
+        }
         // Same hold as the voice's own flag, so word gaps do not flicker.
         this.update({
           audible:
@@ -450,10 +479,54 @@ export class LiveAvatarController {
   private audioPlaying() {
     return Boolean(this.audio && this.audio.srcObject && !this.audio.paused);
   }
+  /** Covers a censored word when the synced output plays it. */
+  private censor() {
+    if (!this.routed) return;
+    const timer = setTimeout(() => {
+      this.censorStarts.delete(timer);
+      // Handed back to direct playback meanwhile: that word has already passed.
+      if (!this.routed) return;
+      try {
+        const context = (this.censorContext ??= new AudioContext());
+        void context.resume().catch(() => {});
+        clearTimeout(this.censorEnd);
+        if (!this.censorTone) {
+          const tone = context.createOscillator();
+          const gain = context.createGain();
+          tone.frequency.value = 1000;
+          gain.gain.value = 0.12;
+          tone.connect(gain);
+          gain.connect(context.destination);
+          tone.onended = () => gain.disconnect();
+          this.censorTone = tone;
+          tone.start();
+          this.applyAudioGate();
+        }
+        this.censorEnd = setTimeout(() => this.endCensor(), CENSOR_TONE_MS);
+      } catch {
+        this.endCensor();
+      }
+    }, this.outputDelay);
+    this.censorStarts.add(timer);
+  }
+  private endCensor() {
+    clearTimeout(this.censorEnd);
+    this.censorEnd = undefined;
+    const tone = this.censorTone;
+    this.censorTone = undefined;
+    try {
+      tone?.stop();
+    } catch {
+      /* Already stopped. */
+    }
+    tone?.disconnect();
+    this.applyAudioGate();
+  }
   private applyAudioGate() {
     const audio = this.audio;
     if (!audio) return;
-    if (audio.muted !== !this.routed) audio.muted = !this.routed;
+    const muted = !this.routed || Boolean(this.censorTone);
+    if (audio.muted !== muted) audio.muted = muted;
     const volume = this.routed ? 1 : 0;
     if (audio.volume !== volume) audio.volume = volume;
   }

@@ -86,6 +86,7 @@ export class LiveVoiceController {
     (track: MediaStreamTrack | null) => void
   >();
   private outputRouted = false;
+  private censorListeners = new Set<() => void>();
   constructor(private dependencies: Dependencies) {}
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
@@ -126,7 +127,18 @@ export class LiveVoiceController {
   routeOutput = (routed: boolean) => {
     this.outputRouted = routed;
     const active = this.active;
-    if (active && !active.stopPromise) active.audio.muted = routed;
+    if (active && !active.stopPromise)
+      active.audio.muted = routed || Boolean(active.censorTone);
+  };
+  /**
+   * Censor markers while a synced renderer plays Bart. It hears each word
+   * later than the voice track, so it covers the word itself.
+   */
+  subscribeCensor = (listener: () => void) => {
+    this.censorListeners.add(listener);
+    return () => {
+      this.censorListeners.delete(listener);
+    };
   };
   private send(active: ActiveSession, event: Record<string, unknown>) {
     if (this.active !== active || active.channel.readyState !== "open") return;
@@ -168,6 +180,10 @@ export class LiveVoiceController {
   }
   private censorBeep(active: ActiveSession) {
     if (this.active !== active || active.cleaned) return;
+    if (this.outputRouted && this.censorListeners.size) {
+      this.censorListeners.forEach((listener) => listener());
+      return;
+    }
     try {
       const context = active.analyser ?? (active.analyser = new AudioContext());
       void context.resume().catch(() => {});
@@ -188,10 +204,11 @@ export class LiveVoiceController {
         active.censorTone?.stop();
         active.censorTone?.disconnect();
         active.censorTone = undefined;
-        if (this.active === active && !active.cleaned) active.audio.muted = false;
+        if (this.active === active && !active.cleaned)
+          active.audio.muted = this.outputRouted;
       }, 300);
     } catch {
-      active.audio.muted = false;
+      active.audio.muted = this.outputRouted;
       active.censorTone?.disconnect();
       active.censorTone = undefined;
       this.update({ error: "The censor beep could not play. Reconnect voice to try again." });

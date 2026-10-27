@@ -33,6 +33,7 @@ type VoiceSessionController = Pick<
   // Streaming voice only: lets a synced video renderer play Bart's voice.
   subscribeRemoteAudio?: LiveVoiceController["subscribeRemoteAudio"];
   routeOutput?: LiveVoiceController["routeOutput"];
+  subscribeCensor?: LiveVoiceController["subscribeCensor"];
 };
 type VoiceProvider = "openai" | "deepgram";
 const VoiceContext = createContext<{
@@ -183,5 +184,6 @@ export function useVoiceSession() {
     continueByText: controller.continueByText,
     subscribeRemoteAudio: controller.subscribeRemoteAudio,
     routeOutput: controller.routeOutput,
+    subscribeCensor: controller.subscribeCensor,
   };
 }

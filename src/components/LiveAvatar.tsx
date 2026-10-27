@@ -34,7 +34,8 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
     avatar.getSnapshot,
   );
   const name = scenario.npcs[0]?.name ?? "Bart";
-  const { subscribeRemoteAudio, routeOutput, speaking, status } = voice;
+  const { subscribeRemoteAudio, routeOutput, subscribeCensor, speaking, status } =
+    voice;
   const inCall = status !== "idle";
   // The synced output trails the voice track; cue Bart when you can hear him.
   const bartSpeaking = audible ?? speaking;
@@ -56,10 +57,10 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
     () =>
       avatar.bindVoice(
         subscribeRemoteAudio && routeOutput
-          ? { subscribeRemoteAudio, routeOutput }
+          ? { subscribeRemoteAudio, routeOutput, subscribeCensor }
           : undefined,
       ),
-    [avatar, subscribeRemoteAudio, routeOutput],
+    [avatar, subscribeRemoteAudio, routeOutput, subscribeCensor],
   );
 
   useEffect(() => avatar.setSpeaking(speaking), [avatar, speaking]);
