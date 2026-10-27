@@ -10,7 +10,7 @@ import { isTextConfigured, textModel } from "./models";
 const voiceResponder = new Agent({
   name: "deepgram-voice-responder",
   model: textModel,
-  instructions: "Respond naturally to the supplied conversation. Speak English, keep ordinary replies concise and allow angry character outbursts up to 140 words, and do not use markdown.",
+  instructions: "Respond naturally to the supplied conversation. Speak English, keep ordinary replies concise and allow angry character replies up to 80 words, and do not use markdown.",
 });
 
 export const deepgramVoice = createDeepgramVoiceService({

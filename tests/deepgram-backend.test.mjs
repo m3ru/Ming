@@ -283,7 +283,7 @@ test("server adapter persists both real transcript texts in Mastra memory and se
       const { deepgramVoice } = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
         "@mastra/core/agent": { Agent: class {
           constructor(options) {
-            assert.match(options.instructions, /allow angry character outbursts up to 140 words/);
+            assert.match(options.instructions, /allow angry character replies up to 80 words/);
           }
           async generateVNext(messages, options) { generations.push({ messages, options }); return { text: "A saved spoken reply." }; }
         } },

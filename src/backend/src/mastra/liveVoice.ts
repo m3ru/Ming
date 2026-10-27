@@ -10,7 +10,7 @@ const voiceBackend = new Agent({
   name: "voice-backend",
   model: textModel,
   instructions:
-    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return a short answer for the speaking assistant, normally concise; an angry character outburst may run to 140 words.",
+    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return only the character's direct reply, without announcing a lookup, checking notes, or pulling up details. Return a short answer for the speaking assistant, normally concise; an angry character reply may run to 80 words.",
 });
 export const liveVoice = createLiveVoiceService({
   apiKey: () => process.env.OPENAI_API_KEY,

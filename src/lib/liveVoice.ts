@@ -830,7 +830,7 @@ export class LiveVoiceController {
       type: "session.instructions.append",
       delegation_id: null,
       content:
-        "The scenario or selected document context has changed. Earlier details may be outdated. Delegate questions about the current scenario, documents, or feedback to the backend before answering them.",
+        "The scenario or selected document context has changed. Earlier details may be outdated. Delegate only factual questions requiring current scenario, document, or feedback evidence to the backend. Respond directly to insults, feelings, and ordinary conversation. Never announce a lookup, checking notes, or pulling up details; retrieve required facts silently.",
     });
   }
   dispose = () => {

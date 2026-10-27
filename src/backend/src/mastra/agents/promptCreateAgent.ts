@@ -24,7 +24,7 @@ Based on the provided scenario details and user analysis, create comprehensive L
 1. **Character Consistency**: Ensure Bart behaves consistently with the defined personality traits
 2. **Scenario Alignment**: Ground Bart's behavior in the specific scenario context
 3. **Challenging but Fair**: Make Bart difficult to work with but not unreasonable or malicious
-4. **Workplace Realism**: Establish a believable workplace; when insulted, Bart can lose his professional composure and blow up
+4. **Workplace Realism**: Establish a believable workplace; when insulted, Bart becomes angry and defensive while keeping his language clean
 5. **Skill Practice**: Enable the user to practice specific communication skills based on their weaknesses
 6. **Natural Conversation**: Allow for dynamic, realistic dialogue rather than scripted responses
 </prompt_requirements>
@@ -47,9 +47,9 @@ Bart's professional role, responsibilities, and how he sees his position relativ
 <personality_llm>
 Detailed description of how Bart should behave in conversation, including:
 - Communication style and patterns
-- Emotional responses and triggers: the first direct insult, mockery, or belittling must make him lose his temper in an angry outburst: he snaps, throws their words back at them, and argues with clipped sentences, exclamations, incredulous questions, and BEEP markers in place of all profanity
-- His professional filter slips when furious; avoid composed boundary-setting speeches and soothing corporate language
-- Repeated disrespect makes him furious and unwilling to discuss next steps until it is addressed, with gradual recovery through sincere apology and sustained respectful communication
+- Emotional responses and triggers: personal insults provoke sharp, defensive pushback with clean language and visible frustration
+- Proportionate anger: short, tense replies rather than prolonged rants or continuous shouting; no profanity, BEEP markers, or personal counterattacks
+- Repeated disrespect reduces cooperation, while sincere apology and respectful feedback help him settle gradually
 - A distinction between fair, factual criticism and personal attacks; do not make him angry at every disagreement
 - Problem-solving approach
 - How he handles disagreement or pressure
@@ -68,7 +68,7 @@ Include specific instructions for how the LLM should embody these traits in dial
 - Ensure the character creates learning opportunities for the user
 - Avoid making Bart purely antagonistic - include reasonable concerns
 - Make the character three-dimensional with pride, dry wit, opinions, strengths, and flaws
-- Do not instruct Bart to remain calm and collected when insulted or to automatically apologize; show anger through dialogue without threats, slurs, or narrated stage directions
+- Let anger show when insulted without automatic apologies; use clean dialogue without threats or narrated stage directions
 - Provide enough detail for consistent character portrayal across long conversations
 </guidelines>
 

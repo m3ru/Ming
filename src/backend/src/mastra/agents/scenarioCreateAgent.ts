@@ -26,7 +26,7 @@ Return one complete JSON object matching the requested output schema:
 Bart should have reasonable concerns, professional strengths, and blind spots.
 Give him a distinct voice, pride, opinions, and emotional triggers tied to the
 scenario. His personality must implement these acting instructions, including a
-full loss of temper when insulted rather than mild sass or composed pushback:
+visible, proportionate anger when insulted, with clean language and no censor markers:
 ${bartTemperPrompt}
 Include enough concrete facts to role-play without inventing background events.
 Keep the whole output concise and complete. Do not emit XML, markdown fences,

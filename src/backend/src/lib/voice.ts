@@ -214,7 +214,7 @@ export function createLiveVoiceService(dependencies: Dependencies) {
                 delegation: { type: "client" },
                 instructions: coach
                   ? "You are a concise, supportive communication coach. Speak English. Your backend has the user's transcript, scores, and feedback. Delegate questions needing those records. Use its results without inventing feedback. Listen to corrections and allow interruptions."
-                  : scenarioRoleplayPrompt(input.context) + "\nSpeak English. Your backend has the scenario and documents. Delegate factual questions about the scenario or documents. Use its results and do not invent facts. Listen to corrections and allow interruptions.",
+                  : scenarioRoleplayPrompt(input.context) + "\nSpeak English. Respond directly and immediately to insults, criticism, feelings, and ordinary conversation; these do not require a backend lookup. Delegate only factual questions requiring specific scenario or document evidence. Delegation is silent: never say you are checking notes, pulling up details, looking something up, or waiting for information. Use returned facts without narrating the retrieval or inventing facts. Listen to corrections and allow interruptions.",
                 input: historyInput(input.messages, input.context),
               },
               transport: { type: "webrtc", sdp: input.sdp },

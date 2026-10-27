@@ -230,8 +230,8 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "./agents/defaultAgent": {},
     "./models": { textModel: {} },
   });
-  assert.equal(await deepgram.deepgramVoice.generate([], context, new AbortController().signal), "That is BEEP BEEP!");
-  assert.equal(await live.liveVoice.generate([], context), "That is BEEP BEEP!");
+  assert.equal(await deepgram.deepgramVoice.generate([], context, new AbortController().signal), "That is really nonsense!");
+  assert.equal(await live.liveVoice.generate([], context), "That is really nonsense!");
   const stages = [];
   const emitted = [];
   const workflow = { then(step) { stages.push(step); return this; }, commit() { return this; } };
@@ -247,8 +247,8 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     } } },
   });
   const result = await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
-  assert.equal(result.content, "That is BEEP BEEP!");
-  assert.equal(emitted.join(""), "That is BEEP BEEP!");
+  assert.equal(result.content, "That is really nonsense!");
+  assert.equal(emitted.join(""), "That is really nonsense!");
   assert.ok(emitted.every((part) => !/fuck|shit/i.test(part)));
   assert.equal(captures.length, 3);
   for (const prompt of captures) {
