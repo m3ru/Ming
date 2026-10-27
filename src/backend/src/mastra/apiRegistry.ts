@@ -11,6 +11,7 @@ import { liveVoice } from "./liveVoice";
 import { deepgramVoice } from "./deepgramVoice";
 import { deepgramTurnSchema, DeepgramVoiceError } from "../lib/deepgramVoice";
 import { isTextConfigured } from "./models";
+import { AvatarError, createAvatarService } from "../lib/avatar";
 import { scoreSentiment } from "./sentiment";
 import { sentimentRequestSchema } from "../lib/sentiment";
 import {
@@ -44,7 +45,7 @@ const scenarioRequestSchema = ScenarioPipelineInputSchema.pick({
 });
 const chatSchema = ChatInputSchema.extend({ threadId: threadIdSchema });
 function errorResponse(c: Context, error: unknown) {
-  if (error instanceof AccessError || error instanceof VoiceError || error instanceof DeepgramVoiceError)
+  if (error instanceof AccessError || error instanceof VoiceError || error instanceof DeepgramVoiceError || error instanceof AvatarError)
     return c.json({ error: error.message }, error.status);
   if (error instanceof z.ZodError || error instanceof SyntaxError)
     return c.json({ error: "Invalid request." }, 400);
@@ -59,6 +60,7 @@ function configured() {
   if (!isTextConfigured())
     throw new AccessError(503, "AI is not configured on the server.");
 }
+const liveAvatar = createAvatarService({ env: () => process.env });
 function openaiVoiceConfigured() {
   if (!process.env.OPENAI_API_KEY?.trim())
     throw new AccessError(503, "OpenAI voice is not configured on the server.");
@@ -220,6 +222,18 @@ export const apiRoutes = [
           throw new AccessError(503, "Deepgram voice is not configured on the server.");
         await claimThread(input.threadId, identity);
         return c.json(await deepgramVoice.turn(input, identity));
+      } catch (error) {
+        return errorResponse(c, error);
+      }
+    },
+  }),
+  registerApiRoute("/avatar/session", {
+    method: "POST",
+    handler: async (c) => {
+      try {
+        z.object({}).strict().parse(await c.req.json());
+        trustedIdentity(c);
+        return c.json(await liveAvatar.session());
       } catch (error) {
         return errorResponse(c, error);
       }

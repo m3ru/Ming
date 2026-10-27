@@ -2,6 +2,8 @@
 
 import ScenarioOverview from "@/components/ScenarioOverview";
 import ScenarioVideo from "@/components/ScenarioVideo";
+import LiveAvatar from "@/components/LiveAvatar";
+import { useLiveAvatarProvider } from "@/hooks/useLiveAvatar";
 import { Scenarios } from "@/backend/src/lib/scenarios";
 import { SidePanelCedarChat } from "@/cedar/components/chatComponents/SidePanelCedarChat";
 import { useState, useEffect, Suspense } from "react";
@@ -30,6 +32,7 @@ function ScenarioPageContent() {
   }, []);
 
   const [userSentiment, setUserSentiment] = useState<Sentiment>();
+  const liveAvatar = useLiveAvatarProvider();
 
   // Do not mount chat or voice with the default context while saved context is loading.
   if (!loaded)
@@ -71,7 +74,11 @@ function ScenarioPageContent() {
     <div className="flex flex-col gap-4 p-4 lg:grid lg:h-[calc(100dvh-3.5rem)] lg:grid-cols-[18rem_minmax(0,1fr)_22rem] lg:grid-rows-[minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_25rem]">
       <ScenarioOverview scenario={currentScenario} />
       <div className="flex min-h-0 flex-col gap-4">
-        <ScenarioVideo scenario={currentScenario} />
+        {liveAvatar ? (
+          <LiveAvatar scenario={currentScenario} />
+        ) : (
+          <ScenarioVideo scenario={currentScenario} />
+        )}
         <SentimentBar sentiment={userSentiment ? userSentiment.score : 0} />
       </div>
       <SidePanelCedarChat

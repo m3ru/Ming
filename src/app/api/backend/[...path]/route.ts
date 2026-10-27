@@ -2,7 +2,7 @@ import { boundedBody, errorResponse, RequestError, requireSameOrigin, securityCo
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
-const paths = new Set(["chat/stream", "sentiment", "feedback", "scenario-next", "voice/session", "voice/delegate", "voice/sync", "voice/end", "voice/heartbeat", "voice/deepgram/turn"]);
+const paths = new Set(["chat/stream", "sentiment", "feedback", "scenario-next", "voice/session", "voice/delegate", "voice/sync", "voice/end", "voice/heartbeat", "voice/deepgram/turn", "avatar/session"]);
 
 export async function POST(request: Request, context: { params: Promise<{ path: string[] }> }) {
   try {
