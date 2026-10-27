@@ -86,11 +86,11 @@
           "title": "Transcript summary analyzer agent",
           "done": true,
           "owner": "sin",
-          "agent": "sin-claude",
           "dependsOn": [
             "bill-agent",
             "scn-data"
-          ]
+          ],
+          "agent": "sin-copilot"
         },
         {
           "id": "fb-orchestrator",

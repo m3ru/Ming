@@ -218,6 +218,13 @@ test('HTTP serves owners with agents, statuses, and dependency edits', async (t)
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agent: 'ian-codex' }),
     });
     assert.equal((await agent.json()).agent, 'ian-codex');
+    // Every page edit goes through the page's own post() helper: it must carry the JSON body.
+    const start = html.indexOf('function post(');
+    const post = new Function(html.slice(start, html.indexOf('\n}', start) + 2) + '\nreturn post;')();
+    const picked = await fetch(new URL('api/task/routing/agent', url), post({ agent: 'ian-copilot' }));
+    assert.equal((await picked.json()).agent, 'ian-copilot');
+    const moved = await fetch(new URL('api/task/merge/owner', url), post({ owner: 'meru' }));
+    assert.equal((await moved.json()).owner, 'meru');
     assert.equal(await call('close'), 0);
 });
 

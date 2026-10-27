@@ -398,7 +398,7 @@ async function api(path, opts) {
   }
   return res.json();
 }
-function post(path, body) {
+function post(body) {
   return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 async function action(path, opts, onSaved) {
