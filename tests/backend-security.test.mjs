@@ -121,6 +121,20 @@ async function exerciseRouter() {
     },
     save: async (messages, scope) => saved.push({ messages, scope }),
   });
+  // The avatar route runs the real service; only its provider HTTP call is faked.
+  const avatarLib = loadBackendSource("src/backend/src/lib/avatar.ts");
+  const avatarRequests = [];
+  const avatarModule = {
+    ...avatarLib,
+    createAvatarService: (dependencies) =>
+      avatarLib.createAvatarService({
+        ...dependencies,
+        request: async (url, init) => {
+          avatarRequests.push({ url: String(url), init });
+          return Response.json({ session_token: "synthetic-avatar-session" });
+        },
+      }),
+  };
   const chat = loadBackendSource(
     "src/backend/src/mastra/workflows/chatWorkflow.ts",
     {
@@ -150,6 +164,7 @@ async function exerciseRouter() {
       return { status: "success", persisted: true, messages: [] };
     } } },
     "../lib/deepgramVoice": deepgram,
+    "../lib/avatar": avatarModule,
     "./models": providers,
     "./sentiment": { scoreSentiment: async () => ({ score: 0, magnitude: 0 }) },
     "../lib/sentiment": loadBackendSource("src/backend/src/lib/sentiment.ts"),
@@ -323,6 +338,32 @@ async function exerciseRouter() {
   assert.equal((await request("/voice/deepgram/turn", deepgramBody, "owner-a", { "Content-Type": "audio/webm" })).status, 400);
   assert.equal((await request("/voice/sync", { extra: deepgramBody.audioBase64 })).status, 413);
   delete process.env.MING_VOICE_PROVIDER;
+
+  // Live avatar: gateway-protected, off unless selected, key and face stay server-side.
+  delete process.env.MING_AVATAR_PROVIDER;
+  assert.equal((await app.request("/avatar/session", { method: "POST", body: "{}" })).status, 401);
+  assert.equal((await request("/avatar/session", {}, "owner-a", { "x-ming-gateway-token": "wrong" })).status, 401);
+  assert.equal((await request("/avatar/session", {})).status, 404);
+  process.env.MING_AVATAR_PROVIDER = "simli";
+  delete process.env.SIMLI_API_KEY;
+  delete process.env.SIMLI_FACE_ID;
+  assert.equal((await request("/avatar/session", {})).status, 503);
+  process.env.SIMLI_API_KEY = "synthetic-simli-key";
+  process.env.SIMLI_FACE_ID = "synthetic-face";
+  assert.equal((await request("/avatar/session", { faceId: "attacker-face" })).status, 400);
+  assert.equal(avatarRequests.length, 0);
+  const avatar = await request("/avatar/session", {});
+  assert.equal(avatar.status, 200);
+  const avatarText = await avatar.text();
+  assert.equal(JSON.parse(avatarText).sessionToken, "synthetic-avatar-session");
+  assert.doesNotMatch(avatarText, /synthetic-simli-key|synthetic-face/);
+  assert.equal(avatarRequests.length, 1);
+  assert.equal(avatarRequests[0].url, "https://api.simli.ai/compose/token");
+  assert.equal(avatarRequests[0].init.headers["x-simli-api-key"], "synthetic-simli-key");
+  assert.equal(JSON.parse(avatarRequests[0].init.body).faceId, "synthetic-face");
+  delete process.env.MING_AVATAR_PROVIDER;
+  delete process.env.SIMLI_API_KEY;
+  delete process.env.SIMLI_FACE_ID;
 
   const accepted = await request("/chat/stream", chatBody);
   assert.equal(accepted.status, 200);

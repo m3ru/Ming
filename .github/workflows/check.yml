@@ -42,6 +42,8 @@ jobs:
         run: npm run test:demo
       - name: Test adaptive follow-up and fresh sessions without provider calls
         run: npm run test:adaptive
+      - name: Test live avatar sessions and fallback without provider calls
+        run: npm run test:avatar
       - name: Test backend security without provider calls
         run: node --test tests/backend-security.test.mjs
       - name: Test frontend build safeguards

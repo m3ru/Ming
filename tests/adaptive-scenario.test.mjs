@@ -178,6 +178,7 @@ function routerFixture(result) {
     "./models": { isTextConfigured: () => true },
     "./sentiment": {}, "../lib/sentiment": {},
     "../lib/voice": { VoiceError: class extends Error {} },
+    "../lib/avatar": { AvatarError: class extends Error {}, createAvatarService: () => ({}) },
     "../lib/security": { AccessError, threadIdSchema: z.string().min(1), trustedIdentity: () => "owner", reserveGeneration: () => () => {}, claimThread: async () => { claimed++; }, analysisThread: (id) => "analysis-" + id },
   });
   const route = registry.apiRoutes.find((item) => item.path === "/scenario-next");

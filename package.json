@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit --incremental false",
     "test:providers": "node --test tests/text-providers.test.mjs",
     "test:deepgram": "node --test tests/deepgram-backend.test.mjs tests/deepgram-voice.test.mjs",
-    "test:adaptive": "node --test tests/adaptive-scenario.test.mjs tests/practice-session.test.mjs src/lib/tests/follow-up.test.mjs"
+    "test:adaptive": "node --test tests/adaptive-scenario.test.mjs tests/practice-session.test.mjs src/lib/tests/follow-up.test.mjs",
+    "test:avatar": "node --test tests/live-avatar.test.mjs"
   },
   "dependencies": {
     "@google/genai": "2.31.0",
@@ -45,6 +46,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "0.0.1",
+    "simli-client": "3.1.0",
     "tailwind-merge": "^3.3.1",
     "uuid": "^11.1.0",
     "zod": "^3.25.76"
