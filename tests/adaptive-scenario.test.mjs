@@ -244,7 +244,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     "../../lib/providers": providers,
     "../agents/defaultAgent": { defaultAgent: { async streamVNext(_messages, options) {
       captures.push(options.instructions);
-      chatCaps.push(options.modelSettings.maxOutputTokens);
+      chatCaps.push([options.modelSettings.maxOutputTokens, options.providerOptions?.openai?.reasoningEffort]);
       return { fullStream: (async function* () { for (const text of ["That is fu", "ck", "ing bull", "shit!"]) yield { type: "text-delta", payload: { text } }; })(), usage: Promise.resolve({}) };
     } } },
   });
@@ -257,7 +257,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
   chatCaps.length = 0;
   const originalProvider = process.env.MING_TEXT_PROVIDER;
   try {
-    // GPT-6 Luna's medium-effort reasoning needs headroom on top of the reply budget.
+    // Chat carries working memory's tool, which GPT-6 Luna only accepts with reasoning off.
     process.env.MING_TEXT_PROVIDER = "openai";
     await stages[0].execute({ inputData: { prompt: "What concerns you?", additionalContext: context, streamController: {}, maxTokens: 768 } });
     process.env.MING_TEXT_PROVIDER = "gemini";
@@ -266,7 +266,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
     if (originalProvider === undefined) delete process.env.MING_TEXT_PROVIDER;
     else process.env.MING_TEXT_PROVIDER = originalProvider;
   }
-  assert.deepEqual(chatCaps, [768 + 4096, 768]);
+  assert.deepEqual(chatCaps, [[768, "none"], [768, undefined]]);
   // Keep one chat prompt alongside the two voice prompts for the checks below.
   captures.splice(-2);
   assert.equal(captures.length, 3);

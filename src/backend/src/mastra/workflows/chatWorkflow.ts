@@ -136,12 +136,12 @@ const callAgent = createStep({
           modifiedPrompt +
           "\n\nAdditional context (for background knowledge): " +
           JSON.stringify(additionalContext),
-        modelSettings: {
-          temperature,
-          // GPT-6 Luna's medium-effort reasoning counts against this cap; keep the reply budget.
-          maxOutputTokens:
-            resolveTextProvider().provider === "openai" ? maxTokens + 4096 : maxTokens,
-        },
+        modelSettings: { temperature, maxOutputTokens: maxTokens },
+        // Working memory gives this agent a tool, and GPT-6 Luna on chat completions
+        // rejects tools unless reasoning is off ("Function tools with reasoning_effort").
+        ...(resolveTextProvider().provider === "openai"
+          ? { providerOptions: { openai: { reasoningEffort: "none" as const } } }
+          : {}),
         runtimeContext,
         ...(threadId && resourceId
           ? {
