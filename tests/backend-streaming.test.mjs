@@ -155,6 +155,7 @@ async function exerciseRuntime(withMemory) {
     },
     "../lib/sentiment": loadBackendSource("src/backend/src/lib/sentiment.ts"),
     "../lib/voice": loadBackendSource("src/backend/src/lib/voice.ts", { "./prompts": loadBackendSource("src/backend/src/lib/prompts.ts") }),
+    "../lib/avatar": loadBackendSource("src/backend/src/lib/avatar.ts"),
   });
   const { mastra } = loadBackendSource("src/backend/src/mastra/index.ts", {
     ...Object.fromEntries(
