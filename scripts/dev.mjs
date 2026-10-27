@@ -7,6 +7,8 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+// `start` runs the production builds; run `npm run build` first.
+const start = process.argv[2] === "start";
 const require = createRequire(import.meta.url);
 const concurrentPackage = require.resolve("concurrently/package.json");
 const concurrentCli = join(dirname(concurrentPackage), require(concurrentPackage).bin.concurrently);
@@ -28,12 +30,18 @@ const child = spawn(process.execPath, [
   "--kill-others",
   "-n", "NEXT,MASTRA",
   "-c", "blue.bold,magenta.bold",
-  "npm run dev:next",
-  "npm run dev:mastra -- --env " + shellQuote(inheritedEnvFile),
+  start ? "npm run start:next" : "npm run dev:next",
+  start ? "npm run start:mastra" : "npm run dev:mastra -- --env " + shellQuote(inheritedEnvFile),
 ], {
   cwd: root,
   stdio: "inherit",
-  env: { ...process.env, MING_BACKEND_TOKEN: token },
+  env: {
+    ...process.env,
+    MING_BACKEND_TOKEN: token,
+    // The built backend is a production bundle, which requires MING_DATABASE_URL.
+    // Locally it defaults to the development database file in src/backend.
+    ...(start && !process.env.MING_DATABASE_URL?.trim() && { MING_DATABASE_URL: "file:./storage.db" }),
+  },
 });
 
 const cleanup = () => rmSync(temporaryDirectory, { recursive: true, force: true });
