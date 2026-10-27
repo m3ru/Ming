@@ -249,6 +249,7 @@ test("typed chat and both voice text adapters use the selected scenario instead 
   assert.equal(captures.length, 3);
   for (const prompt of captures) {
     assert.ok(prompt.includes(scenarioFixture.userRole));
+    assert.ok(prompt.includes(prompts.bartTemperPrompt), "Every text and voice adapter must receive the same temper instructions");
     assert.ok(prompt.includes(scenarioFixture.npcs[0].scenarioSpecificInfo));
     assert.doesNotMatch(prompt, /recently your performance has declined due to personal family issues/);
   }
@@ -268,6 +269,7 @@ test("OpenAI voice startup receives the selected NPC and learner roles before de
   });
   const session = await service.create({ sdp: "offer", threadId: "adaptive-session", resourceId: "owner", messages: [], context: { chatType: { data: "scenario" }, scenarioDetails: { data: scenarioFixture } } }, "owner");
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.userRole));
+  assert.ok(sessionRequest.session.instructions.includes(prompts.bartTemperPrompt));
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.npcs[0].personality));
   assert.ok(sessionRequest.session.instructions.includes(scenarioFixture.npcs[0].scenarioSpecificInfo));
   assert.doesNotMatch(sessionRequest.session.instructions, /Be humble and apologetic about your recent performance/);

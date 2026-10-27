@@ -10,7 +10,7 @@ import { isTextConfigured, textModel } from "./models";
 const voiceResponder = new Agent({
   name: "deepgram-voice-responder",
   model: textModel,
-  instructions: "Respond naturally to the supplied conversation. Speak English, keep replies under 100 words, and do not use markdown.",
+  instructions: "Respond naturally to the supplied conversation. Speak English, keep ordinary replies concise and allow angry character outbursts up to 140 words, and do not use markdown.",
 });
 
 export const deepgramVoice = createDeepgramVoiceService({
@@ -29,7 +29,7 @@ export const deepgramVoice = createDeepgramVoiceService({
     ], {
       abortSignal: signal,
       // Gemini's output cap includes thinking; leave room for a spoken answer.
-      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 250 },
+      modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 400 },
       ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
         ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
         : {}),

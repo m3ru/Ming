@@ -10,7 +10,7 @@ const voiceBackend = new Agent({
   name: "voice-backend",
   model: textModel,
   instructions:
-    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return a short answer for the speaking assistant, at most 100 words.",
+    "Help a live voice conversation using the supplied records. Transcripts may be unfinished or contain corrections. Use the latest intent. Return a short answer for the speaking assistant, normally concise; an angry character outburst may run to 140 words.",
 });
 export const liveVoice = createLiveVoiceService({
   apiKey: () => process.env.OPENAI_API_KEY,
@@ -37,7 +37,7 @@ export const liveVoice = createLiveVoiceService({
         // A stalled provider must not hold a generation slot indefinitely.
         abortSignal: AbortSignal.timeout(30_000),
         // Gemini's output cap includes thinking; leave room for a spoken answer.
-        modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 250 },
+        modelSettings: { maxOutputTokens: provider === "gemini" ? 1024 : 400 },
         ...(provider === "gemini" && /^gemini-3(?:\.\d+)?-/.test(model)
           ? { providerOptions: { google: { thinkingConfig: { thinkingLevel: "low" } } } }
           : {}),
