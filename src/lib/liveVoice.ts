@@ -79,6 +79,14 @@ export class LiveVoiceController {
   private active?: ActiveSession;
   private interruptedSaves = new Map<string, ActiveSession>();
   private talkRequested = false;
+  // A synced video renderer may take over playback of Bart's voice. Direct
+  // playback stays attached but muted, so analysis and recovery still work.
+  private remoteTrack: MediaStreamTrack | null = null;
+  private remoteAudioListeners = new Set<
+    (track: MediaStreamTrack | null) => void
+  >();
+  private outputRouted = false;
+  private censorListeners = new Set<() => void>();
   constructor(private dependencies: Dependencies) {}
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => {
@@ -97,6 +105,41 @@ export class LiveVoiceController {
     this.snapshot = { ...this.snapshot, ...patch };
     this.listeners.forEach((listener) => listener());
   }
+  private setRemoteTrack(track: MediaStreamTrack | null) {
+    if (this.remoteTrack === track) return;
+    this.remoteTrack = track;
+    this.remoteAudioListeners.forEach((listener) => listener(track));
+  }
+  /** Bart's remote voice track, now and whenever a new call replaces it. */
+  subscribeRemoteAudio = (
+    listener: (track: MediaStreamTrack | null) => void,
+  ) => {
+    this.remoteAudioListeners.add(listener);
+    listener(this.remoteTrack);
+    return () => {
+      this.remoteAudioListeners.delete(listener);
+    };
+  };
+  /**
+   * Route Bart's voice to an external synced renderer (true) or back to direct
+   * playback (false). Routing never unmutes a call that is closing.
+   */
+  routeOutput = (routed: boolean) => {
+    this.outputRouted = routed;
+    const active = this.active;
+    if (active && !active.stopPromise)
+      active.audio.muted = routed || Boolean(active.censorTone);
+  };
+  /**
+   * Censor markers while a synced renderer plays Bart. It hears each word
+   * later than the voice track, so it covers the word itself.
+   */
+  subscribeCensor = (listener: () => void) => {
+    this.censorListeners.add(listener);
+    return () => {
+      this.censorListeners.delete(listener);
+    };
+  };
   private send(active: ActiveSession, event: Record<string, unknown>) {
     if (this.active !== active || active.channel.readyState !== "open") return;
     active.channel.send(
@@ -140,6 +183,10 @@ export class LiveVoiceController {
   }
   private censorBeep(active: ActiveSession) {
     if (this.active !== active || active.cleaned) return;
+    if (this.outputRouted && this.censorListeners.size) {
+      this.censorListeners.forEach((listener) => listener());
+      return;
+    }
     try {
       const context = active.analyser ?? (active.analyser = new AudioContext());
       void context.resume().catch(() => {});
@@ -160,10 +207,11 @@ export class LiveVoiceController {
         active.censorTone?.stop();
         active.censorTone?.disconnect();
         active.censorTone = undefined;
-        if (this.active === active && !active.cleaned) active.audio.muted = false;
+        if (this.active === active && !active.cleaned)
+          active.audio.muted = this.outputRouted;
       }, 300);
     } catch {
-      active.audio.muted = false;
+      active.audio.muted = this.outputRouted;
       active.censorTone?.disconnect();
       active.censorTone = undefined;
       this.update({ error: "The censor beep could not play. Reconnect voice to try again." });
@@ -190,6 +238,7 @@ export class LiveVoiceController {
     active.microphone?.getTracks().forEach((track) => track.stop());
     active.audio.pause();
     active.audio.srcObject = null;
+    if (current) this.setRemoteTrack(null);
     if (active.frame !== undefined) cancelAnimationFrame(active.frame);
     void active.analyser?.close().catch(() => {});
     active.channel.close();
@@ -329,6 +378,10 @@ export class LiveVoiceController {
         return;
       }
       active.audio.srcObject = new MediaStream([track]);
+      // Keep the element playing even when routed: Chrome only feeds a remote
+      // WebRTC track to Web Audio while a media element is consuming it.
+      active.audio.muted = this.outputRouted;
+      this.setRemoteTrack(track);
       void active.audio.play().catch(() => {
         if (this.active === active) this.update({ playbackBlocked: true });
       });
@@ -347,7 +400,12 @@ export class LiveVoiceController {
           if (this.active !== active) return;
           analyser.getByteTimeDomainData(samples);
           const loud = samples.some((sample) => Math.abs(sample - 128) > 3);
-          const playing = !active.audio.paused && (!active.audio.muted || Boolean(active.censorTone));
+          // The direct element is muted on purpose while a synced renderer plays
+          // Bart (until the call starts closing) and while a censor tone covers him.
+          const audible = this.outputRouted
+            ? !active.stopPromise
+            : !active.audio.muted || Boolean(active.censorTone);
+          const playing = !active.audio.paused && audible;
           const now = performance.now();
           if (!playing) lastAudibleAt = -Infinity;
           else if (loud) lastAudibleAt = now;

@@ -478,6 +478,55 @@ test("split censor markers play one tone, mute the live placeholder, and stop on
   assert.equal(stops, 2, "disconnect stops an active censor tone");
 });
 
+test("censor markers go to a synced renderer while it plays Bart, and a direct beep never unmutes it", async (t) => {
+  const fixture = controller(t);
+  let starts = 0;
+  const prior = Object.getOwnPropertyDescriptor(globalThis, "AudioContext");
+  Object.defineProperty(globalThis, "AudioContext", { configurable: true, value: class {
+    destination = {};
+    async resume() {}
+    async close() {}
+    createGain() { return { gain: { value: 0 }, connect() {}, disconnect() {} }; }
+    createOscillator() {
+      return { frequency: { value: 0 }, connect() {}, disconnect() {}, start() { starts++; }, stop() {} };
+    }
+  } });
+  t.after(() => {
+    if (prior) Object.defineProperty(globalThis, "AudioContext", prior);
+    else Reflect.deleteProperty(globalThis, "AudioContext");
+  });
+  let handed = 0;
+  const unsubscribe = fixture.voice.subscribeCensor(() => handed++);
+  await fixture.voice.start();
+  const playback = FakeAudio.latest;
+  const channel = FakePeer.latest.channel;
+  const emit = (event_id: string, delta: string) => channel.emit({
+    type: "session.output_transcript.delta", event_id, delta, start_ms: 100, end_ms: 200,
+  });
+  fixture.voice.routeOutput(true);
+  emit("routed", "Oh, BEEP that!");
+  assert.equal(handed, 1, "the renderer covers the word when it plays it");
+  assert.equal(starts, 0, "no early tone over direct playback");
+  assert.equal(playback.muted, true);
+  // Direct playback beeps itself; routing mid-beep keeps the element muted after.
+  fixture.voice.routeOutput(false);
+  emit("direct", " Absolute BEEP!");
+  assert.equal(starts, 1);
+  assert.equal(handed, 1);
+  assert.equal(playback.muted, true);
+  fixture.voice.routeOutput(true);
+  await new Promise((resolve) => setTimeout(resolve, 320));
+  assert.equal(playback.muted, true, "Bart is not heard twice after a beep");
+  fixture.voice.routeOutput(false);
+  assert.equal(playback.muted, false);
+  // Without a renderer listening, routed markers still beep directly.
+  unsubscribe();
+  fixture.voice.routeOutput(true);
+  emit("unheard", " BEEP.");
+  assert.equal(starts, 2);
+  await fixture.voice.stop();
+});
+
 test("speaking stays visible through short pauses and clears after silence or stopped playback", async (t) => {
   const fixture = controller(t);
   let now = 0;
@@ -1163,4 +1212,92 @@ test("heartbeats continue while connected and stop after dispose", async (t) => 
       .length,
     3,
   );
+});
+
+test("a synced video renderer can take over Bart's voice without breaking speaking", async (t) => {
+  const fixture = controller(t);
+  let now = 0;
+  let loud = false;
+  let frame!: FrameRequestCallback;
+  t.mock.method(performance, "now", () => now);
+  const prior = new Map<string, PropertyDescriptor | undefined>();
+  for (const [key, value] of Object.entries({
+    MediaStream: class {},
+    AudioContext: class {
+      createMediaStreamSource() {
+        return { connect() {} };
+      }
+      createAnalyser() {
+        return {
+          fftSize: 256,
+          getByteTimeDomainData(samples: Uint8Array) {
+            samples.fill(loud ? 140 : 128);
+          },
+        };
+      }
+      async close() {}
+    },
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    },
+    cancelAnimationFrame: () => {},
+  })) {
+    prior.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+    Object.defineProperty(globalThis, key, {
+      value,
+      configurable: true,
+      writable: true,
+    });
+  }
+  t.after(() => {
+    for (const [key, descriptor] of prior) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  });
+  const sample = (time: number, audible: boolean) => {
+    now = time;
+    loud = audible;
+    frame(now);
+    return fixture.voice.getSnapshot().speaking;
+  };
+  const tracks: unknown[] = [];
+  const unsubscribe = fixture.voice.subscribeRemoteAudio((track) =>
+    tracks.push(track),
+  );
+  assert.deepEqual(tracks, [null]);
+
+  // Routing chosen before the track arrives applies to the new track.
+  fixture.voice.routeOutput(true);
+  await fixture.voice.start();
+  const playback = FakeAudio.latest;
+  const remote = { stop() {} };
+  FakePeer.latest.ontrack?.({ track: remote });
+  assert.equal(tracks.at(-1), remote);
+  assert.equal(playback.muted, true);
+  // Direct playback keeps consuming the track (Web Audio needs it), silently.
+  assert.equal(playback.paused, false);
+  assert.equal(sample(100, true), true);
+  assert.equal(sample(1500, false), false);
+
+  // Handing back unmutes direct playback; speaking keeps working.
+  fixture.voice.routeOutput(false);
+  assert.equal(playback.muted, false);
+  assert.equal(sample(1600, true), true);
+  fixture.voice.routeOutput(true);
+  assert.equal(playback.muted, true);
+  assert.equal(sample(1700, true), true);
+
+  await fixture.voice.stop();
+  // Closing never unmutes, even if the renderer hands back afterwards.
+  fixture.voice.routeOutput(false);
+  assert.equal(playback.muted, true);
+  assert.equal(fixture.voice.getSnapshot().speaking, false);
+  assert.equal(tracks.at(-1), null);
+  unsubscribe();
+  const count = tracks.length;
+  await fixture.voice.start();
+  FakePeer.latest.ontrack?.({ track: { stop() {} } });
+  assert.equal(tracks.length, count);
 });

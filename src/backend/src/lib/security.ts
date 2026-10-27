@@ -31,6 +31,7 @@ const customRoutes = new Set([
   "/voice/heartbeat",
   "/voice/deepgram/turn",
   "/voice/deepgram/speech",
+  "/avatar/session",
 ]);
 
 export class AccessError extends Error {
