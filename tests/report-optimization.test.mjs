@@ -197,6 +197,23 @@ test("invalid final JSON and provider failures produce safe errors and failed ti
   } finally { console.info = info; }
 });
 
+test("Gemini's fenced JSON plan is read, but only when the fence closes", async () => {
+  const annotate = (text) =>
+    loadReportWorkflow({
+      "../agents/transcriptSummaryAnalyzerAgent": { transcriptSummaryAnalyzerAgent: {} },
+      "../agents/reportAnnotationAgent": { reportAnnotationAgent: { generateVNext: async () => ({ text, finishReason: "stop" }) } },
+    }, { resolveTextProvider: () => ({ provider: "gemini", model: "gemini-3.5-flash-lite" }) })
+      .generateReportAnnotations({ transcript });
+  const info = console.info;
+  console.info = () => {};
+  try {
+    // The shape Gemini 3.5 Flash Lite returned for this call in the running app.
+    const segments = await annotate("```json\n" + JSON.stringify(plan, null, 2) + "\n```");
+    assert.equal(segments.map((segment) => segment.content).join("\n"), transcript);
+    // A fence that never closes is cut-off output, not a plan.
+    await assert.rejects(annotate("```json\n" + JSON.stringify(plan)), /could not be generated/);
+  } finally { console.info = info; }
+});
 
 test("Bart's highlights are discarded while valid user notes survive, and unique misnumbered quotes recover", () => {
   const source = "user: What happened?\nbart: I missed the deadline.\nuser: Thanks for explaining.";

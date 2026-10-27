@@ -133,9 +133,12 @@ export async function generateReportAnnotations(input: Input) {
       ),
     (result) => {
       // Strict final JSON avoids treating SDK-repaired partial output as complete.
+      // Gemini wraps this plan in a ```json fence; strip it only when it closes.
       let plan: unknown;
       try {
-        plan = JSON.parse(result.text);
+        plan = JSON.parse(
+          result.text.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1"),
+        );
       } catch {
         throw new Error("Invalid annotation JSON.");
       }
