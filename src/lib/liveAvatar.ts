@@ -5,6 +5,19 @@
 // for long: any start failure, stall or drop hands playback straight back.
 
 export type AvatarPhase = "idle" | "connecting" | "live" | "stalled" | "failed";
+/**
+ * What the call tile shows: the live video, a loading screen while it connects
+ * (the call starts first, then the avatar joins it), or the standard looping
+ * Bart only once the avatar cannot load: it failed, or the call itself did.
+ */
+export function avatarTile(
+  phase: AvatarPhase,
+  voice: { status: string; error: string | null },
+): "video" | "loading" | "fallback" {
+  if (phase === "live" || phase === "stalled") return "video";
+  if (phase === "failed") return "fallback";
+  return phase === "idle" && voice.status === "idle" && voice.error ? "fallback" : "loading";
+}
 export type AvatarSnapshot = {
   phase: AvatarPhase;
   /** Why the last attempt ended, for the recovery note; null when healthy. */

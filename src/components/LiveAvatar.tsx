@@ -5,7 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { CircleAlert } from "lucide-react";
 import ScenarioVideo from "@/components/ScenarioVideo";
 import { useVoiceSession } from "@/hooks/useVoiceSession";
-import { LiveAvatarController } from "@/lib/liveAvatar";
+import { LiveAvatarController, avatarTile } from "@/lib/liveAvatar";
 import { Scenario } from "@/lib/types";
 
 // Same speaking treatment as the standard tile, so the call screen reads the same.
@@ -16,9 +16,10 @@ const NOTE_ACTION =
   "-my-2 min-h-11 shrink-0 cursor-pointer self-center rounded-lg px-2.5 font-semibold text-pencil transition-colors hover:bg-pencil/10";
 
 /**
- * Bart as a live, lip-synced video driven by the call's own voice. The standard
- * tile stays underneath: it shows while video connects, and again after any
- * failure, with a short note and a retry. Voice never depends on the video.
+ * Bart as a live, lip-synced video driven by the call's own voice. A loading
+ * screen shows while the call and video connect; the standard tile appears only
+ * if the video cannot load, with a short note and a retry. Voice never depends
+ * on the video.
  */
 export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
   const voice = useVoiceSession();
@@ -34,7 +35,7 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
     avatar.getSnapshot,
   );
   const name = scenario.npcs[0]?.name ?? "Bart";
-  const { subscribeRemoteAudio, routeOutput, subscribeCensor, speaking, status } =
+  const { subscribeRemoteAudio, routeOutput, subscribeCensor, speaking, status, error } =
     voice;
   const inCall = status !== "idle";
   // The synced output trails the voice track; cue Bart when you can hear him.
@@ -77,7 +78,8 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
   }, [avatar, inCall]);
 
   const live = phase === "live";
-  const shown = live || phase === "stalled";
+  const tile = avatarTile(phase, { status, error });
+  const shown = tile === "video";
 
   // The frame is shown whole, so extend its plain backdrop (sampled along the
   // top edge) into the rest of the tile instead of cropping Bart larger.
@@ -109,12 +111,11 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
   }, [shown]);
   return (
     <div className="relative aspect-video shrink-0 overflow-hidden rounded-2xl bg-muted shadow-lg shadow-ink/10 lg:aspect-auto lg:min-h-0 lg:flex-1">
-      <div
-        aria-hidden={shown || undefined}
-        className="absolute inset-0 flex flex-col"
-      >
-        <ScenarioVideo scenario={scenario} />
-      </div>
+      {tile === "fallback" && (
+        <div className="absolute inset-0 flex flex-col">
+          <ScenarioVideo scenario={scenario} />
+        </div>
+      )}
       {shown && (
         <div
           aria-hidden="true"
@@ -140,6 +141,47 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
         }}
       />
       <audio ref={audioRef} autoPlay className="hidden" />
+      <AnimatePresence>
+        {tile === "loading" && (
+          <motion.div
+            key="loading"
+            role="status"
+            className="absolute inset-0 flex flex-col items-center justify-center bg-paper"
+            initial={false}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
+            <div
+              aria-hidden="true"
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 58%, color-mix(in srgb, var(--pencil) 14%, transparent), transparent 62%)",
+              }}
+            />
+            {/* The same cut-out walk as the debrief screen: Bart is on his way in. */}
+            <div aria-hidden="true" className="bart-rig relative">
+              <span className="bart-rig-leg bart-rig-leg-back" />
+              <span className="bart-rig-leg bart-rig-leg-front" />
+              <span className="bart-rig-body" />
+              <span className="bart-rig-ground" />
+            </div>
+            <p className="hand relative mt-2 -rotate-2 text-[28px] text-ink-soft">
+              {name} is joining the call…
+            </p>
+            <span
+              aria-hidden="true"
+              className="relative mt-3 h-1 w-32 overflow-hidden rounded-full bg-rule"
+            >
+              <motion.span
+                className="block h-full w-1/3 rounded-full bg-pencil"
+                animate={reduceMotion ? undefined : { x: ["-100%", "300%"] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AnimatePresence>
         {live && (
           <motion.div

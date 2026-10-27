@@ -347,11 +347,27 @@ test("the call screen renders the live avatar only when configured, else the sta
 const controllerModule = load("src/lib/liveAvatar.ts");
 const {
   LiveAvatarController,
+  avatarTile,
   AVATAR_STALL_MS,
   AVATAR_DROP_MS,
   AVATAR_START_TIMEOUT_MS,
   AVATAR_OUTPUT_DELAY_MS,
 } = controllerModule;
+test("the call tile loads instead of showing the old Bart, and falls back to him only when video cannot load", () => {
+  const call = (status, error = null) => ({ status, error });
+  // Page start, the call connecting, the call up and the avatar connecting: a loading screen.
+  assert.equal(avatarTile("idle", call("idle")), "loading");
+  assert.equal(avatarTile("idle", call("connecting")), "loading");
+  assert.equal(avatarTile("connecting", call("connected")), "loading");
+  // A hiccup in an otherwise healthy call is not a reason to swap Bart out.
+  assert.equal(avatarTile("idle", call("connected", "Could not save voice history")), "loading");
+  assert.equal(avatarTile("live", call("connected")), "video");
+  assert.equal(avatarTile("stalled", call("connected")), "video");
+  // The avatar failed, or the call failed so it has nothing to join: the standard Bart.
+  assert.equal(avatarTile("failed", call("connected")), "fallback");
+  assert.equal(avatarTile("idle", call("idle", "Permission denied")), "fallback");
+});
+
 const grant = {
   provider: "simli",
   transport: "livekit",
@@ -851,7 +867,7 @@ function renderTile({ phase, failure = null, speaking = false, audible = null, s
         routeOutput: () => {},
       }),
     },
-    "@/lib/liveAvatar": { LiveAvatarController: FakeController },
+    "@/lib/liveAvatar": { LiveAvatarController: FakeController, avatarTile: load("src/lib/liveAvatar.ts").avatarTile },
   });
   const scenario = { title: "Review", npcs: [{ name: "Bart" }] };
   const tree = LiveAvatar({ scenario });
@@ -883,13 +899,16 @@ function renderTile({ phase, failure = null, speaking = false, audible = null, s
   return { tree, elements, strings, text, ScenarioVideo, retry, scenario };
 }
 
-test("the call tile keeps the standard view underneath and falls back with a short note", () => {
+test("the call tile shows a loading screen while video connects and falls back to the standard view with a short note", () => {
   for (const phase of ["idle", "connecting", "live", "stalled", "failed"]) {
     for (const failure of phase === "failed" ? ["start", "drop"] : [null]) {
       const view = renderTile({ phase, failure, speaking: true });
+      // The old looping Bart appears only once video cannot load.
       const standard = view.elements.filter((e) => e.type === view.ScenarioVideo);
-      assert.equal(standard.length, 1, phase);
-      assert.equal(standard[0].props.scenario, view.scenario);
+      assert.equal(standard.length, phase === "failed" ? 1 : 0, phase);
+      if (standard.length) assert.equal(standard[0].props.scenario, view.scenario);
+      const loading = view.strings.some((s) => s.includes("is joining the call"));
+      assert.equal(loading, phase === "idle" || phase === "connecting", phase);
       // The SDK detects the first frame with frame callbacks; never hide the video.
       const video = view.elements.find((e) => e.type === "video" && e.props["aria-label"]);
       assert.equal(video.props.muted, true);
