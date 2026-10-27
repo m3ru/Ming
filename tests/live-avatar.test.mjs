@@ -92,6 +92,19 @@ test("avatar config is off by default and validates operator settings", () => {
     assert.throws(() =>
       avatar.avatarConfig({ ...env, MING_AVATAR_MAX_MINUTES: minutes }),
     );
+  for (const zoom of ["0", "5", "wide"])
+    assert.throws(
+      () => avatar.avatarConfig({ ...env, MING_AVATAR_ZOOM: zoom }),
+      /MING_AVATAR_ZOOM/,
+    );
+  assert.throws(
+    () => avatar.avatarConfig({ ...env, MING_AVATAR_SHIFT_X: "3" }),
+    /MING_AVATAR_SHIFT_X/,
+  );
+  assert.deepEqual(
+    avatar.avatarConfig({ ...env, MING_AVATAR_ZOOM: " 0.65 ", MING_AVATAR_SHIFT_X: "0.25" }).camera,
+    { zoom: 0.65, pos_x_off: 0.25 },
+  );
   assert.deepEqual(
     avatar.avatarConfig({
       ...env,
@@ -104,6 +117,7 @@ test("avatar config is off by default and validates operator settings", () => {
       faceId: "face-123",
       transport: "livekit",
       maxSessionSeconds: 1200,
+      camera: null,
     },
   );
   assert.equal(
@@ -140,6 +154,17 @@ test("token route mints a capped single-session token and keeps key and face ser
   assert.ok(body.streaming_width >= 512 && body.streaming_height >= 512);
   assert.equal(body.streaming_width * 9, body.streaming_height * 16);
   assert.equal(Object.hasOwn(body, "apiKey"), false);
+  // No framing settings: the face keeps its own camera.
+  assert.equal(Object.hasOwn(body, "camera"), false);
+});
+
+test("framing settings set the session's starting camera", async () => {
+  const { instance, requests } = service(
+    { ...env, MING_AVATAR_ZOOM: "0.65", MING_AVATAR_SHIFT_X: "-0.2" },
+    minted,
+  );
+  await instance.session();
+  assert.deepEqual(JSON.parse(requests[0].init.body).camera, { zoom: 0.65, pos_x_off: -0.2 });
 });
 
 test("unconfigured, misconfigured and refused sessions fail without provider details", async (t) => {

@@ -10,6 +10,8 @@ export type AvatarConfig = {
   faceId: string;
   transport: AvatarTransport;
   maxSessionSeconds: number;
+  /** Starting camera for Trinity-2 faces; null keeps the face's own framing. */
+  camera: { zoom: number; pos_x_off: number } | null;
 };
 export type AvatarSession = {
   provider: AvatarProvider;
@@ -90,12 +92,25 @@ export function avatarConfig(env: Env): AvatarConfig | null {
       "MING_AVATAR_MAX_MINUTES must be a whole number from 1 to 60.",
       503,
     );
+  // Faces are framed differently: zoom out to show the shoulders, and shift
+  // sideways (in half canvas widths) to centre a face framed off-centre.
+  const setting = (name: string, fallback: number, min: number, max: number) => {
+    const raw = env[name]?.trim();
+    if (!raw) return fallback;
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < min || value > max)
+      throw new AvatarError(`${name} must be a number from ${min} to ${max}.`, 503);
+    return value;
+  };
+  const zoom = setting("MING_AVATAR_ZOOM", 1, 0.2, 4);
+  const shift = setting("MING_AVATAR_SHIFT_X", 0, -2, 2);
   return {
     provider,
     apiKey,
     faceId,
     transport,
     maxSessionSeconds: minutes * 60,
+    camera: zoom === 1 && shift === 0 ? null : { zoom, pos_x_off: shift },
   };
 }
 
@@ -171,6 +186,7 @@ export function createAvatarService(dependencies: {
             maxIdleTime: AVATAR_IDLE_SECONDS,
             streaming_width: AVATAR_VIDEO.width,
             streaming_height: AVATAR_VIDEO.height,
+            ...(config.camera && { camera: config.camera }),
           }),
           signal: AbortSignal.timeout(15_000),
           redirect: "error",

@@ -120,7 +120,18 @@ SIMLI_FACE_ID=...                # stock face now, Bart's face_id when ready
 # Optional:
 # MING_AVATAR_TRANSPORT=livekit  # default; relayed WebRTC, best on venue Wi-Fi
 # MING_AVATAR_MAX_MINUTES=20     # hard cap per session, 1-60
+# MING_AVATAR_ZOOM=0.65          # framing, see below
+# MING_AVATAR_SHIFT_X=0.25
 ```
+
+**Framing.** Each face comes with its own framing, which can be tight or
+off-centre. For Trinity-2 faces (all current stock faces, and faces made with
+`gsVersion=GSA_2.0`), `MING_AVATAR_ZOOM` below 1 zooms out to show the
+shoulders, and `MING_AVATAR_SHIFT_X` moves the avatar right (negative: left),
+in half video widths. Daniel, the stock face above, is centred with shoulders at
+`0.65` and `0.25`. Tune a new face without a live call by rendering a short clip
+with `POST https://api.simli.ai/static/audio`, which takes the same `camera`
+field (https://docs.simli.com/api-reference/trinity-2/camera).
 
 Then restart with `npm run dev`. The provider is read at startup.
 
