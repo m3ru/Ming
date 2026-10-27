@@ -20,8 +20,12 @@ project manager and styled with Ming's "Director's notes" look.
   pin it and mark it done.
 - **Owner focus:** select an owner chip to fade everyone else's work in both views.
 
-The sample data is a proof of concept. Edit owners and agents in `OWNERS` in
-`board.mjs`, and the plan in `data/board.json` or in the board itself.
+The sample data is the team's HackGT 12 build (26–28 September 2025) as it
+stood on Saturday at 9 pm, reconstructed from the commit history: who built
+what, the AI tools they used, and whose work each piece waited on. Each owner picks from
+the same agents (Copilot, Claude and Codex); about three quarters of the cards
+ran through Copilot. Edit owners and agents in
+`OWNERS` in `board.mjs`, and the plan in `data/board.json` or in the board itself.
 
 ## Open it
 

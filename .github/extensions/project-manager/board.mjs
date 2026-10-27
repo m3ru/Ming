@@ -21,23 +21,28 @@ const DATA_DIR = path.dirname(BOARD_PATH);
 const LOCK_PATH = `${BOARD_PATH}.lock`;
 
 // Colours come from Ming's "Director's notes" palette (src/app/globals.css).
+// Everyone picks from the same three agents; most of the HackGT work ran through Copilot.
 export const OWNERS = [
     { id: "unassigned", label: "Unassigned", color: "#6b7076", tint: "#ecedea", agents: [] },
     { id: "sin", label: "Sin", color: "#3557c8", tint: "#e6ebfa", agents: [
-        { id: "sin-claude", label: "Claude Code · Opus 5.5" },
+        { id: "sin-copilot", label: "Copilot" },
+        { id: "sin-claude", label: "Claude" },
         { id: "sin-codex", label: "Codex" },
     ] },
     { id: "meru", label: "Meru", color: "#2e7d69", tint: "#e2f0eb", agents: [
-        { id: "meru-copilot", label: "Copilot coding agent" },
-        { id: "meru-claude", label: "Claude Code · Sonnet 5.5" },
+        { id: "meru-copilot", label: "Copilot" },
+        { id: "meru-claude", label: "Claude" },
+        { id: "meru-codex", label: "Codex" },
     ] },
     { id: "ian", label: "Ian", color: "#a8620a", tint: "#fbefdc", agents: [
-        { id: "ian-copilot", label: "Copilot CLI" },
+        { id: "ian-copilot", label: "Copilot" },
+        { id: "ian-claude", label: "Claude" },
         { id: "ian-codex", label: "Codex" },
     ] },
     { id: "renato", label: "Renato", color: "#8a3fa0", tint: "#f3e7f7", agents: [
+        { id: "renato-copilot", label: "Copilot" },
+        { id: "renato-claude", label: "Claude" },
         { id: "renato-codex", label: "Codex" },
-        { id: "renato-claude", label: "Claude Code · Opus 5.5" },
     ] },
 ];
 

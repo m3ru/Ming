@@ -1,78 +1,366 @@
 {
   "schemaVersion": 1,
-  "title": "Ming · Road to GitHub Universe",
+  "title": "Ming · HackGT 12 · Saturday 9 pm",
   "components": [
     {
-      "id": "contract",
-      "name": "Backend contract",
-      "description": "Request and response shapes every route and screen agrees on.",
+      "id": "setup",
+      "name": "Setup & deploy",
+      "description": "Friday's starter, then Sunday morning's deploy.",
       "tasks": [
-        { "id": "contract-api", "title": "Freeze the /api/backend route contract", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
-        { "id": "contract-voice", "title": "Voice turn stream and speech contract", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
-        { "id": "contract-report", "title": "Structured report schema (summary + annotation segments)", "done": true, "owner": "renato", "agent": "renato-codex", "dependsOn": [] }
+        {
+          "id": "setup-starter",
+          "title": "Cedar-OS + Mastra starter with shadcn",
+          "done": true,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": []
+        },
+        {
+          "id": "deploy-cloudflare",
+          "title": "Cloudflare deploy config for frontend and Mastra (PR #1)",
+          "done": false,
+          "owner": "sin",
+          "agent": "sin-copilot",
+          "dependsOn": [
+            "fb-pipeline",
+            "chat-cedar"
+          ]
+        },
+        {
+          "id": "deploy-url",
+          "title": "Point the app at the hosted backend (ming.m3ru.org)",
+          "done": false,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "deploy-cloudflare"
+          ]
+        }
       ]
     },
     {
-      "id": "routing",
-      "name": "Backend routing",
-      "description": "Gateway, routes, quotas and caching behind the contract.",
+      "id": "bill",
+      "name": "Bill, the AI employee",
+      "description": "The agent the manager talks to, and keeping him in character.",
       "tasks": [
-        { "id": "route-gateway", "title": "Route new endpoints through the gateway allowlist", "done": false, "owner": "ian", "agent": "ian-copilot", "dependsOn": ["contract-api"] },
-        { "id": "route-quota", "title": "Per-presenter quota buckets for the stage", "done": false, "owner": "ian", "agent": "ian-codex", "dependsOn": ["route-gateway"] },
-        { "id": "route-report-cache", "title": "Serve the next practice from the report cache", "done": false, "owner": "ian", "agent": "ian-codex", "dependsOn": ["contract-report", "route-gateway"] }
+        {
+          "id": "bill-agent",
+          "title": "Mastra backend and the Bill agent with memory, on Gemini",
+          "done": true,
+          "owner": "sin",
+          "agent": "sin-claude",
+          "dependsOn": [
+            "setup-starter"
+          ]
+        },
+        {
+          "id": "bill-in-character",
+          "title": "Keep Bill in character and stop him jailbreaking himself",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "bill-agent",
+            "scn-data"
+          ]
+        },
+        {
+          "id": "bill-default-agent",
+          "title": "Turn billAgent into a defaultAgent any scenario can use",
+          "done": false,
+          "owner": "sin",
+          "agent": "sin-copilot",
+          "dependsOn": [
+            "fb-pipeline"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "debrief-agents",
+      "name": "Debrief agents",
+      "description": "Gemini agents that read the transcript and write the feedback.",
+      "tasks": [
+        {
+          "id": "fb-summary",
+          "title": "Transcript summary analyzer agent",
+          "done": true,
+          "owner": "sin",
+          "agent": "sin-claude",
+          "dependsOn": [
+            "bill-agent",
+            "scn-data"
+          ]
+        },
+        {
+          "id": "fb-orchestrator",
+          "title": "Feedback orchestrator: summary and detail agents in one workflow",
+          "done": true,
+          "owner": "sin",
+          "agent": "sin-claude",
+          "dependsOn": [
+            "fb-summary"
+          ]
+        },
+        {
+          "id": "fb-annotations",
+          "title": "Colour-coded transcript notes, eight words at most",
+          "done": true,
+          "owner": "sin",
+          "agent": "sin-copilot",
+          "dependsOn": [
+            "fb-orchestrator"
+          ]
+        },
+        {
+          "id": "fb-pipeline",
+          "title": "Scenario pipeline: next scenario, prompts and report in one run",
+          "done": true,
+          "owner": "sin",
+          "agent": "sin-claude",
+          "dependsOn": [
+            "fb-orchestrator"
+          ]
+        },
+        {
+          "id": "fb-reply-agent",
+          "title": "Feedback reply agent that explains the debrief",
+          "done": false,
+          "owner": "sin",
+          "agent": "sin-claude",
+          "dependsOn": [
+            "fb-annotations"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "call",
+      "name": "The call",
+      "description": "Scenario page, Bill on video and the chat the manager types into.",
+      "tasks": [
+        {
+          "id": "scn-page",
+          "title": "Scenario page: overview, documents, Zoom layout and Bill's video",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "setup-starter"
+          ]
+        },
+        {
+          "id": "scn-data",
+          "title": "Scenario data model and contextForAnalysis",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "scn-page"
+          ]
+        },
+        {
+          "id": "chat-panel",
+          "title": "Chat panel calling the Bill agent API",
+          "done": true,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "bill-agent",
+            "scn-page"
+          ]
+        },
+        {
+          "id": "chat-transcript",
+          "title": "Send the transcript to the analyzer and save it for the report",
+          "done": true,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "chat-panel",
+            "fb-summary"
+          ]
+        },
+        {
+          "id": "chat-cedar",
+          "title": "Cedar side-panel chat with the scenario documents in context",
+          "done": true,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "chat-panel",
+            "fb-orchestrator"
+          ]
+        },
+        {
+          "id": "sentiment-bar",
+          "title": "Live sentiment bar above the call",
+          "done": false,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "chat-cedar"
+          ]
+        }
       ]
     },
     {
       "id": "voice",
       "name": "Voice",
-      "description": "Hold-to-talk and OpenAI Live voices for Bart.",
+      "description": "Talking to Bill out loud, and Bill talking back.",
       "tasks": [
-        { "id": "voice-gemini-tts", "title": "Optional Gemini voice with Deepgram fallback", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": ["contract-voice"] },
-        { "id": "voice-openai-tts", "title": "OpenAI TTS option with Deepgram fallback", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": ["contract-voice"] },
-        { "id": "voice-live-natural", "title": "Natural accent and emphasis for OpenAI Live", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": [] },
-        { "id": "voice-realtime", "title": "Move OpenAI speech to Realtime before the 2027-01-06 shutdown", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["voice-openai-tts"] }
+        {
+          "id": "voice-io",
+          "title": "Speech-to-text route with fallback audio, and Bill's spoken replies",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-codex",
+          "dependsOn": [
+            "bill-agent"
+          ]
+        },
+        {
+          "id": "voice-ptt",
+          "title": "Push to talk in the Cedar chat input, with voice memory",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "voice-io",
+            "chat-cedar"
+          ]
+        },
+        {
+          "id": "voice-scenario",
+          "title": "Voice chat that follows the generated scenario",
+          "done": false,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "voice-ptt",
+            "bill-default-agent"
+          ]
+        }
       ]
     },
     {
       "id": "report",
       "name": "Debrief & report",
-      "description": "Summary, transcript notes and the coach.",
+      "description": "Scores, the annotated transcript and what to practise next.",
       "tasks": [
-        { "id": "report-speedup", "title": "Parallel summary and annotation debrief", "done": true, "owner": "renato", "agent": "renato-codex", "dependsOn": ["contract-report"] },
-        { "id": "report-fence", "title": "Read Gemini's fenced annotation JSON", "done": true, "owner": "sin", "agent": "sin-claude", "dependsOn": ["report-speedup"] },
-        { "id": "report-align", "title": "Align structured notes with their highlighted lines", "done": false, "owner": "renato", "agent": "renato-claude", "dependsOn": ["report-speedup"] },
-        { "id": "report-print", "title": "Decide whether printouts include the transcript", "done": false, "owner": "ian", "agent": "ian-copilot", "dependsOn": ["report-align"] }
+        {
+          "id": "rpt-page",
+          "title": "Report page with summary and feedback",
+          "done": true,
+          "owner": "ian",
+          "agent": "ian-copilot",
+          "dependsOn": [
+            "setup-starter"
+          ]
+        },
+        {
+          "id": "rpt-scores",
+          "title": "Score bars filled from the analyzer's output",
+          "done": true,
+          "owner": "ian",
+          "agent": "ian-copilot",
+          "dependsOn": [
+            "rpt-page",
+            "chat-transcript"
+          ]
+        },
+        {
+          "id": "rpt-transcript",
+          "title": "Annotated transcript with a robust parser",
+          "done": true,
+          "owner": "ian",
+          "agent": "ian-codex",
+          "dependsOn": [
+            "rpt-scores",
+            "fb-annotations"
+          ]
+        },
+        {
+          "id": "rpt-print",
+          "title": "Print button for the report",
+          "done": true,
+          "owner": "ian",
+          "agent": "ian-copilot",
+          "dependsOn": [
+            "rpt-page"
+          ]
+        },
+        {
+          "id": "rpt-next-scenario",
+          "title": "Next scenario from the pipeline on the report and call pages",
+          "done": true,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "fb-pipeline",
+            "scn-data"
+          ]
+        },
+        {
+          "id": "transcript-chat",
+          "title": "Ask-the-coach chat beside the annotated transcript",
+          "done": false,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "fb-reply-agent",
+            "rpt-transcript"
+          ]
+        }
       ]
     },
     {
-      "id": "frontend",
-      "name": "Frontend ↔ backend",
-      "description": "Screens wired to the merged backend.",
+      "id": "home",
+      "name": "Home & progress",
+      "description": "Scenario cards, levels and the progress a manager has made.",
       "tasks": [
-        { "id": "fe-merge", "title": "Wire the frontend to the merged backend", "done": false, "owner": "renato", "agent": "renato-codex", "dependsOn": ["contract-api", "route-gateway"] },
-        { "id": "fe-errors", "title": "Tell \"no reply\" apart from \"service unavailable\"", "done": false, "owner": "renato", "agent": "renato-claude", "dependsOn": ["fe-merge"] },
-        { "id": "fe-space", "title": "Turn off Space-to-talk behind the debrief overlay", "done": false, "owner": "meru", "agent": "meru-copilot", "dependsOn": [] }
-      ]
-    },
-    {
-      "id": "design",
-      "name": "Design",
-      "description": "Director's notes look, motion and team tooling.",
-      "tasks": [
-        { "id": "design-revamp", "title": "Director's notes design revamp", "done": true, "owner": "sin", "agent": "sin-codex", "dependsOn": [] },
-        { "id": "design-bart", "title": "Bart cut-out walk animation", "done": true, "owner": "sin", "agent": "sin-codex", "dependsOn": ["design-revamp"] },
-        { "id": "design-board", "title": "Ming-themed Kanban with a dependency graph", "done": false, "owner": "sin", "agent": "sin-claude", "dependsOn": ["design-revamp"] }
-      ]
-    },
-    {
-      "id": "demo",
-      "name": "Demo & talk",
-      "description": "The GitHub Universe 2026 stage run.",
-      "tasks": [
-        { "id": "demo-voice-choice", "title": "Choose OpenAI Live or hold-to-talk for the stage", "done": false, "owner": "unassigned", "dependsOn": ["voice-live-natural", "voice-openai-tts"] },
-        { "id": "demo-script", "title": "GitHub Universe demo script", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["fe-merge", "report-align", "demo-voice-choice"] },
-        { "id": "demo-rehearsal", "title": "Dress rehearsal on stage hardware", "done": false, "owner": "meru", "agent": "meru-copilot", "dependsOn": ["demo-script", "route-quota"] },
-        { "id": "demo-backup", "title": "Recorded backup run of the demo", "done": false, "owner": "meru", "agent": "meru-claude", "dependsOn": ["demo-script"] }
+        {
+          "id": "home-cards",
+          "title": "Menu bar and scenario cards",
+          "done": true,
+          "owner": "ian",
+          "agent": "ian-copilot",
+          "dependsOn": [
+            "setup-starter"
+          ]
+        },
+        {
+          "id": "home-levels",
+          "title": "Home page with levels",
+          "done": true,
+          "owner": "meru",
+          "agent": "meru-copilot",
+          "dependsOn": [
+            "home-cards"
+          ]
+        },
+        {
+          "id": "home-progress",
+          "title": "Home revamp: score, progress and achievement cards",
+          "done": false,
+          "owner": "ian",
+          "agent": "ian-copilot",
+          "dependsOn": [
+            "home-levels",
+            "rpt-scores"
+          ]
+        },
+        {
+          "id": "mobile",
+          "title": "Mobile layouts for home, call and report",
+          "done": false,
+          "owner": "renato",
+          "agent": "renato-copilot",
+          "dependsOn": [
+            "home-progress",
+            "transcript-chat"
+          ]
+        }
       ]
     }
   ]
