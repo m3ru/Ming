@@ -126,14 +126,15 @@ export default function LiveAvatar({ scenario }: { scenario: Scenario }) {
           It is never hidden: frame callbacks drive start-up and stall checks.
           Full width and bottom-aligned, like a webcam shot, so Bart is never
           zoomed past the size the renderer framed him at; the top edge fades
-          into the extended backdrop. */}
+          into the extended backdrop. In tall tiles it keeps 72% of the height
+          by trimming the frame's sides, which are backdrop once he is centred. */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
         aria-label={`${name}, live video`}
-        className="absolute inset-x-0 bottom-0 aspect-video w-full object-cover transition-[filter] duration-300 ease-out"
+        className="absolute inset-x-0 bottom-0 aspect-video min-h-[72%] w-full object-cover transition-[filter] duration-300 ease-out"
         style={{
           maskImage: "linear-gradient(to bottom, transparent, black 18%)",
           ...(phase === "stalled" && { filter: "blur(6px) saturate(0.6)" }),
