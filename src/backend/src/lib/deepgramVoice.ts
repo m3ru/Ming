@@ -11,6 +11,10 @@ export const PCM_MIME_TYPE = "audio/L16; rate=24000; channels=1";
 // gets only the line; delivery comes from how the reply is written.
 // First audio arrived in ~0.7 s from Gemini and ~1.7 s from OpenAI; after this, Deepgram answers.
 export const FIRST_AUDIO_MS = 3000;
+// OpenAI documents webm, mp4 and wav uploads, not ogg (Firefox's recorder); those go straight to Deepgram.
+const OPENAI_STT_FORMATS: Record<string, string> = { webm: "webm", mp4: "mp4", wav: "wav", "x-wav": "wav" };
+// A 6 s clip took ~1.2 s with gpt-transcribe; after this, Deepgram transcribes the turn instead.
+const OPENAI_STT_TIMEOUT_MS = 15_000;
 // OpenAI takes delivery direction in its own field; transcribing its output showed none of it spoken.
 const OPENAI_DELIVERY =
   "Speak naturally and conversationally, like a real person in a workplace conversation. Let the feeling in the words come through.";
@@ -68,6 +72,9 @@ type Dependencies = {
   apiKey: () => string | undefined;
   sttModel?: () => string | undefined;
   ttsModel?: () => string | undefined;
+  // "openai" transcribes with OpenAI and falls back to Deepgram; any other value is Deepgram only.
+  sttProvider?: () => string | undefined;
+  openaiSttModel?: () => string | undefined;
   // "gemini" or "openai" speaks with that provider and falls back to Deepgram; any other value is Deepgram only.
   ttsProvider?: () => string | undefined;
   geminiApiKey?: () => string | undefined;
@@ -306,29 +313,63 @@ export function createDeepgramVoiceService(dependencies: Dependencies) {
           : undefined,
     );
   }
+  async function deepgramTranscript(input: Turn, apiKey: string, bytes: Buffer) {
+    const url = new URL("https://api.deepgram.com/v1/listen");
+    url.searchParams.set("model", dependencies.sttModel?.()?.trim() || "nova-3");
+    url.searchParams.set("smart_format", "true");
+    const response = await request(url, {
+      method: "POST",
+      headers: { Authorization: "Token " + apiKey, "Content-Type": input.mimeType },
+      body: new Uint8Array(bytes).buffer,
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
+      redirect: "error",
+    });
+    if (!response.ok) {
+      void response.body?.cancel().catch(() => {});
+      throw new Error("Transcription request failed.");
+    }
+    const result = z.object({
+      results: z.object({ channels: z.array(z.object({
+        alternatives: z.array(z.object({ transcript: z.string().max(32000) })),
+      })).min(1) }),
+    }).parse(JSON.parse((await boundedBody(response, PROVIDER_JSON_BYTE_LIMIT)).toString("utf8")));
+    return result.results.channels[0].alternatives[0]?.transcript ?? "";
+  }
+  // OpenAI's transcript, or undefined on any failure so Deepgram transcribes instead.
+  // An empty transcript is an answer (silence), not a failure.
+  async function openaiTranscript(input: Turn, bytes: Buffer) {
+    const apiKey = dependencies.openaiApiKey?.()?.trim();
+    const format = OPENAI_STT_FORMATS[input.mimeType.split(";")[0].trim().toLowerCase().slice("audio/".length)];
+    if (!apiKey || !format) return;
+    try {
+      const form = new FormData();
+      form.append("file", new Blob([new Uint8Array(bytes)], { type: input.mimeType }), "turn." + format);
+      form.append("model", dependencies.openaiSttModel?.()?.trim() || "gpt-transcribe");
+      const response = await request(new URL("https://api.openai.com/v1/audio/transcriptions"), {
+        method: "POST",
+        headers: { Authorization: "Bearer " + apiKey },
+        body: form,
+        signal: AbortSignal.timeout(OPENAI_STT_TIMEOUT_MS),
+        redirect: "error",
+      });
+      if (!response.ok) {
+        // The error body is never read or relayed.
+        void response.body?.cancel().catch(() => {});
+        return;
+      }
+      return z.object({ text: z.string().max(32000) })
+        .parse(JSON.parse((await boundedBody(response, PROVIDER_JSON_BYTE_LIMIT)).toString("utf8"))).text;
+    } catch {
+      return;
+    }
+  }
   async function processTurn(input: Turn, turn: CachedTurn, apiKey: string, bytes: Buffer) {
     if (!turn.user) {
       try {
-        const url = new URL("https://api.deepgram.com/v1/listen");
-        url.searchParams.set("model", dependencies.sttModel?.()?.trim() || "nova-3");
-        url.searchParams.set("smart_format", "true");
-        const response = await request(url, {
-          method: "POST",
-          headers: { Authorization: "Token " + apiKey, "Content-Type": input.mimeType },
-          body: new Uint8Array(bytes).buffer,
-          signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
-          redirect: "error",
-        });
-        if (!response.ok) {
-          void response.body?.cancel().catch(() => {});
-          throw new Error("Transcription request failed.");
-        }
-        const result = z.object({
-          results: z.object({ channels: z.array(z.object({
-            alternatives: z.array(z.object({ transcript: z.string().max(32000) })),
-          })).min(1) }),
-        }).parse(JSON.parse((await boundedBody(response, PROVIDER_JSON_BYTE_LIMIT)).toString("utf8")));
-        const text = result.results.channels[0].alternatives[0]?.transcript.trim();
+        const openai = dependencies.sttProvider?.()?.trim().toLowerCase() === "openai"
+          ? await openaiTranscript(input, bytes)
+          : undefined;
+        const text = (openai ?? await deepgramTranscript(input, apiKey, bytes)).trim();
         if (!text)
           throw new DeepgramVoiceError("No speech was detected. Record another turn.", 400);
         turn.user = message(turn, "user", text);

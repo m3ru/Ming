@@ -44,14 +44,19 @@ function chunked(text, { split = 4096, onCancel, fail } = {}) {
 const pcm = Buffer.from([1, 2, 3, 4, 250, 251, 252, 253]);
 function fixture(overrides = {}) {
   const requests = [], saves = [], generations = [];
-  const { gemini = () => sse([pcmEvent(pcm)]), openai = () => openaiPcm(), ...rest } = overrides;
+  const {
+    gemini = () => sse([pcmEvent(pcm)]),
+    openai = () => openaiPcm(),
+    openaiStt = () => Response.json({ text: "Words heard by OpenAI." }),
+    ...rest
+  } = overrides;
   const dependencies = {
     apiKey: () => secret,
     request: async (url, options) => {
       requests.push({ url: new URL(url), options });
       const { hostname, pathname } = new URL(url);
-      return pathname.endsWith("listen") ? transcript() : hostname === geminiHost ? gemini(options)
-        : hostname === openaiHost ? openai(options) : speech();
+      return pathname.endsWith("listen") ? transcript() : pathname.endsWith("/audio/transcriptions") ? openaiStt(options)
+        : hostname === geminiHost ? gemini(options) : hostname === openaiHost ? openai(options) : speech();
     },
     generate: async (...args) => { generations.push(args); return "Thank you. I appreciate your support."; },
     save: async (messages, scope) => saves.push({ messages, scope }),
@@ -802,6 +807,130 @@ test("server adapter reads MING_TTS_PROVIDER, the shared Gemini key order, and t
     spoken = await speak();
     assert.equal(spoken.mimeType, "audio/mpeg", "openai without a key falls back to Deepgram");
     assert.equal(spoken.request.url.hostname, "api.deepgram.com");
+  } finally {
+    for (const [name, value] of Object.entries(original)) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+});
+
+const heard = (f) => f.requests.filter((r) => /listen|transcriptions/.test(r.url.pathname)).map((r) => r.url.hostname);
+const openaiStt = (overrides = {}) => fixture({ sttProvider: () => "openai", openaiApiKey: () => openaiKey, ...overrides });
+
+test("OpenAI STT is opt-in: an unset, deepgram or unknown provider, or no OpenAI key, transcribes with Deepgram only", async () => {
+  for (const [provider, key] of [[undefined, openaiKey], ["deepgram", openaiKey], ["openai-stt", openaiKey], ["openai", undefined], ["openai", " "]]) {
+    const f = fixture({ sttProvider: () => provider, openaiApiKey: () => key });
+    const result = await f.service.turn(recording(), "owner");
+    assert.equal(result.messages[0].content, "I would like to help you improve.", String(provider));
+    assert.deepEqual(heard(f), ["api.deepgram.com"], String(provider) + " / " + String(key));
+  }
+});
+
+test("OpenAI STT uploads the recording as a named file with the model and Bearer key, and its words become the user message", async () => {
+  const f = openaiStt({ sttProvider: () => " OpenAI " });
+  const input = recording();
+  const result = await f.service.turn(input, "owner");
+  assert.equal(result.messages[0].content, "Words heard by OpenAI.");
+  assert.deepEqual(heard(f), [openaiHost], "Deepgram is not asked to transcribe when OpenAI answers");
+  const [call] = f.requests;
+  assert.equal(call.url.href, "https://api.openai.com/v1/audio/transcriptions");
+  assert.deepEqual(call.options.headers, { Authorization: "Bearer " + openaiKey });
+  assert.doesNotMatch(JSON.stringify(call.options.headers), new RegExp(secret), "the Deepgram key never goes to OpenAI");
+  assert.equal(call.options.redirect, "error");
+  assert.ok(call.options.signal instanceof AbortSignal);
+  const file = call.options.body.get("file");
+  assert.equal(file.name, "turn.webm");
+  assert.equal(file.type, "audio/webm;codecs=opus");
+  assert.deepEqual(Buffer.from(await file.arrayBuffer()), Buffer.from(input.audioBase64, "base64"));
+  assert.equal(call.options.body.get("model"), "gpt-transcribe");
+
+  for (const [mimeType, name] of [["audio/mp4", "turn.mp4"], ["audio/wav", "turn.wav"], ["audio/x-wav", "turn.wav"]]) {
+    const g = openaiStt({ openaiSttModel: () => " gpt-transcribe-2026 " });
+    await g.service.turn(recording({ mimeType }), "owner");
+    assert.equal(g.requests[0].options.body.get("file").name, name, mimeType);
+    assert.equal(g.requests[0].options.body.get("model"), "gpt-transcribe-2026");
+  }
+});
+
+test("OpenAI STT failures fall back to Deepgram for that same turn and never relay OpenAI bodies", async () => {
+  let cancelled = 0;
+  const failures = {
+    "429 quota": () => new Response(new ReadableStream({
+      start: (c) => { c.enqueue(new TextEncoder().encode(secret)); c.close(); },
+      cancel: () => { cancelled++; },
+    }), { status: 429 }),
+    "500": () => Response.json({ error: { message: secret } }, { status: 500 }),
+    "network error": async () => { throw new Error(secret); },
+    "malformed JSON": () => new Response("{" + secret),
+    "wrong shape": () => Response.json({ transcript: secret }),
+    "oversized body": () => Response.json({ text: "x".repeat(300 * 1024) }),
+  };
+  for (const [name, failure] of Object.entries(failures)) {
+    const f = openaiStt({ openaiStt: failure });
+    const result = await f.service.turn(recording(), "owner");
+    assert.equal(result.status, "success", name);
+    assert.equal(result.messages[0].content, "I would like to help you improve.", name);
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(secret), name);
+    assert.deepEqual(heard(f), [openaiHost, "api.deepgram.com"], name);
+  }
+  assert.equal(cancelled, 1, "the 429 body is cancelled, never read");
+});
+
+test("silence from OpenAI is an answer, not a failure, and ogg recordings skip OpenAI", async () => {
+  const quiet = openaiStt({ openaiStt: () => Response.json({ text: "  " }) });
+  await assert.rejects(quiet.service.turn(recording(), "owner"), (e) => e.status === 400 && /No speech/.test(e.message));
+  assert.deepEqual(heard(quiet), [openaiHost], "an empty transcript is not sent to Deepgram again");
+  // OpenAI documents webm, mp4 and wav, not Firefox's ogg.
+  const firefox = openaiStt();
+  const result = await firefox.service.turn(recording({ mimeType: "audio/ogg;codecs=opus" }), "owner");
+  assert.equal(result.messages[0].content, "I would like to help you improve.");
+  assert.deepEqual(heard(firefox), ["api.deepgram.com"]);
+});
+
+test("server adapter reads MING_STT_PROVIDER, OPENAI_STT_MODEL and OPENAI_API_KEY from env", async () => {
+  const envNames = ["MING_STT_PROVIDER", "OPENAI_STT_MODEL", "OPENAI_API_KEY", "MING_TEXT_PROVIDER"];
+  const original = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const requests = [];
+  const { deepgramVoice } = loadBackendSource("src/backend/src/mastra/deepgramVoice.ts", {
+    "@mastra/core/agent": { Agent: class { async generateVNext() { return { text: "A spoken reply." }; } } },
+    "../lib/deepgramVoice": { createDeepgramVoiceService: (dependencies) => createDeepgramVoiceService({
+      ...dependencies,
+      apiKey: () => secret,
+      request: async (url, options) => {
+        requests.push({ url: new URL(url), options });
+        return new URL(url).pathname.endsWith("/audio/transcriptions") ? Response.json({ text: "Heard by OpenAI." }) : transcript();
+      },
+    }) },
+    "../lib/prompts": loadBackendSource("src/backend/src/lib/prompts.ts"),
+    "../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts"),
+    "../lib/security": { reserveGeneration: () => () => {} },
+    "../lib/voice": voice,
+    "./agents/defaultAgent": { defaultAgent: { getMemory: async () => ({
+      getThreadById: async () => ({ resourceId: "owner" }),
+      saveMessages: async () => {},
+    }) } },
+    "./models": { isTextConfigured: () => true, textModel: {} },
+  });
+  const listen = async () => {
+    requests.length = 0;
+    const result = await deepgramVoice.turn(recording(), "owner");
+    return { text: result.messages[0].content, request: requests[0] };
+  };
+  try {
+    for (const name of envNames) delete process.env[name];
+    process.env.OPENAI_API_KEY = "env-openai-key";
+    assert.equal((await listen()).request.url.hostname, "api.deepgram.com", "unset provider means Deepgram");
+    process.env.MING_STT_PROVIDER = "openai";
+    let heardBy = await listen();
+    assert.equal(heardBy.text, "Heard by OpenAI.");
+    assert.equal(heardBy.request.options.headers.Authorization, "Bearer env-openai-key");
+    assert.equal(heardBy.request.options.body.get("model"), "gpt-transcribe");
+    process.env.OPENAI_STT_MODEL = "gpt-transcribe-next";
+    assert.equal((await listen()).request.options.body.get("model"), "gpt-transcribe-next");
+    delete process.env.OPENAI_API_KEY;
+    heardBy = await listen();
+    assert.equal(heardBy.request.url.hostname, "api.deepgram.com", "openai without a key falls back to Deepgram");
   } finally {
     for (const [name, value] of Object.entries(original)) {
       if (value === undefined) delete process.env[name];

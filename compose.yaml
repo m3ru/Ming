@@ -49,6 +49,8 @@ services:
       OPENAI_TEXT_MODEL: ${OPENAI_TEXT_MODEL:-gpt-6-luna}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       DEEPGRAM_STT_MODEL: ${DEEPGRAM_STT_MODEL:-nova-3}
+      MING_STT_PROVIDER: ${MING_STT_PROVIDER:-deepgram}
+      OPENAI_STT_MODEL: ${OPENAI_STT_MODEL:-gpt-transcribe}
       DEEPGRAM_TTS_MODEL: ${DEEPGRAM_TTS_MODEL:-aura-2-orion-en}
       MING_TTS_PROVIDER: ${MING_TTS_PROVIDER:-deepgram}
       GEMINI_TTS_MODEL: ${GEMINI_TTS_MODEL:-gemini-3.8-flash-lite-tts}

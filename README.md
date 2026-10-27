@@ -128,6 +128,10 @@ seconds and preserves transcript text when speech playback fails. End Scenario
 waits for the pending turn and saved transcript before generating feedback.
 `DEEPGRAM_STT_MODEL` defaults to `nova-3`; `DEEPGRAM_TTS_MODEL` defaults to
 `aura-2-orion-en`. Audio and provider keys go through the server.
+Set `MING_STT_PROVIDER=openai` to transcribe your turns with OpenAI instead
+(`OPENAI_API_KEY`, `OPENAI_STT_MODEL`, default `gpt-transcribe`). If OpenAI fails
+or times out, Deepgram transcribes that same turn; Firefox's ogg recordings always
+go to Deepgram, which stays required.
 Set `MING_TTS_PROVIDER=gemini` to speak Bart's replies with Gemini text-to-speech
 instead (any other value keeps Deepgram, the default). It uses the same Gemini
 key as text, `GEMINI_TTS_MODEL` (default `gemini-3.8-flash-lite-tts`) and
