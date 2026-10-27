@@ -1,6 +1,6 @@
 import { Agent } from "@mastra/core/agent";
 import { createLiveVoiceService, chatType, VoiceError } from "../lib/voice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery } from "../lib/prompts";
 import { geminiThinking, resolveTextProvider } from "../lib/providers";
 import { defaultAgent } from "./agents/defaultAgent";
 import { textModel } from "./models";
@@ -16,7 +16,7 @@ export const liveVoice = createLiveVoiceService({
   apiKey: () => process.env.OPENAI_API_KEY,
   async generate(messages, context) {
     const prompt =
-      chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context);
+      chatType(context) === "transcript" ? feedbackReplyPrompt : scenarioRoleplayPrompt(context) + spokenDelivery;
     const { provider, model } = resolveTextProvider();
     const result = await voiceBackend.generateVNext(
       [

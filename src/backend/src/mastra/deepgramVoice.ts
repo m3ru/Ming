@@ -1,16 +1,11 @@
 import { Agent } from "@mastra/core/agent";
 import { createDeepgramVoiceService } from "../lib/deepgramVoice";
-import { scenarioRoleplayPrompt, feedbackReplyPrompt } from "../lib/prompts";
+import { scenarioRoleplayPrompt, feedbackReplyPrompt, spokenDelivery } from "../lib/prompts";
 import { geminiThinking, resolveGeminiKey, resolveTextProvider } from "../lib/providers";
 import { reserveGeneration } from "../lib/security";
 import { chatType } from "../lib/voice";
 import { defaultAgent } from "./agents/defaultAgent";
 import { isTextConfigured, textModel } from "./models";
-
-// Aura-2 has no emotion or SSML controls, so the role-played character's delivery comes from
-// how the line is written. Measured: more than one "..." or filler per reply drags badly.
-const spokenDelivery = `
-Your reply is spoken aloud by a text-to-speech voice, so write it the way you would actually say it: short sentences, contractions, plain words. Let your feelings show through wording and rhythm, matching how the other person is treating you. When you hesitate, you may use at most one "..." for a pause and at most one filler such as "um" or "uh" in a reply. Never write stage directions, asterisks, emojis, or descriptions of your tone.`;
 
 const voiceResponder = new Agent({
   name: "deepgram-voice-responder",

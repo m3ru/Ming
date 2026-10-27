@@ -223,6 +223,34 @@ test("provider failures and missing credentials are actionable without exposing 
   );
 });
 
+test("Live startup asks Bart and the coach to talk naturally without dropping the existing rules", async () => {
+  const instructions: string[] = [];
+  const backend = service({
+    request: async (_url, init) => {
+      const body = JSON.parse(init!.body as string);
+      assert.equal(body.session.delegation.type, "client");
+      instructions.push(body.session.instructions);
+      return Response.json({ session: { id: "live-" + instructions.length }, transport: { sdp: "answer" } });
+    },
+  });
+  await backend.create(offer, offer.resourceId);
+  await backend.create({ ...offer, context: { chatType: { data: "transcript" } } }, offer.resourceId);
+  const [bart, coach] = instructions;
+  for (const text of [bart, coach]) {
+    assert.match(text, /Speak English/);
+    assert.match(text, /allow interruptions/);
+    assert.match(text, /stress the words that carry the meaning/);
+    assert.match(text, /never say stage directions or describe your tone aloud/);
+  }
+  assert.match(bart, /do not invent facts/);
+  assert.match(bart, /natural General American English accent/);
+  assert.match(bart, /emotion follow how the other person treats you/);
+  assert.match(coach, /without inventing feedback/);
+  assert.match(coach, /warm and natural/);
+  // Accent and emotion are Bart's; the coach stays neutral.
+  assert.doesNotMatch(coach, /accent|emotion/);
+});
+
 class FakeChannel {
   readyState = "open";
   sent: { type: string; content?: string }[] = [];
