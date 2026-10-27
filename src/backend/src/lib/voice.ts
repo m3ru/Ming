@@ -1,6 +1,6 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
-import { scenarioRoleplayPrompt } from "./prompts";
+import { liveCoachDelivery, liveRoleplayDelivery, scenarioRoleplayPrompt } from "./prompts";
 
 export const voiceMessageSchema = z.object({
   id: z.string().min(1).max(256),
@@ -229,8 +229,8 @@ export function createLiveVoiceService(dependencies: Dependencies) {
                 audio: { output: { voice: "cedar" } },
                 delegation: { type: "client" },
                 instructions: coach
-                  ? "You are a concise, supportive communication coach. Speak English. Your backend has the user's transcript, scores, and feedback. Delegate questions needing those records. Use its results without inventing feedback. Listen to corrections and allow interruptions."
-                  : scenarioRoleplayPrompt(input.context) + "\nSpeak English. Your backend has the scenario and documents. Delegate factual questions about the scenario or documents. Use its results and do not invent facts. Listen to corrections and allow interruptions.",
+                  ? "You are a concise, supportive communication coach. Speak English. Your backend has the user's transcript, scores, and feedback. Delegate questions needing those records. Use its results without inventing feedback. Listen to corrections and allow interruptions. " + liveCoachDelivery
+                  : scenarioRoleplayPrompt(input.context) + "\nSpeak English. Your backend has the scenario and documents. Delegate factual questions about the scenario or documents. Use its results and do not invent facts. Listen to corrections and allow interruptions.\n" + liveRoleplayDelivery,
                 input: historyInput(input.messages, input.context),
               },
               transport: { type: "webrtc", sdp: input.sdp },

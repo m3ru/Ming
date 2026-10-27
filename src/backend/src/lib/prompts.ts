@@ -109,6 +109,25 @@ Your job is to:
 - Be concise in feedback, maximum 50 words.
 </important_guidelines>
 `;
+
+// Aura-2 has no emotion or SSML controls, so the role-played character's delivery comes from
+// how the line is written. Measured: more than one "..." or filler per reply drags badly.
+// OpenAI Live speaks the backend's drafts too, so they are written the same way.
+export const spokenDelivery = `
+Your reply is spoken aloud by a text-to-speech voice, so write it the way you would actually say it: short sentences, contractions, plain words. Let your feelings show through wording and rhythm, matching how the other person is treating you. When you hesitate, you may use at most one "..." for a pause and at most one filler such as "um" or "uh" in a reply. Never write stage directions, asterisks, emojis, or descriptions of your tone.`;
+
+// Bart's accent in OpenAI Live. Change it here.
+const ROLEPLAY_ACCENT = "General American English";
+
+const liveSpeech =
+  "Talk like a real person in conversation, not someone reading aloud: vary your pitch and pace, stress the words that carry the meaning, and pause where a person naturally would. Perform pauses and sighs; never say stage directions or describe your tone aloud.";
+
+/** How OpenAI Live voices the role-played character. */
+export const liveRoleplayDelivery = `${liveSpeech} Keep a natural ${ROLEPLAY_ACCENT} accent throughout. Let your emotion follow how the other person treats you: more guarded or hurt when they are harsh or dismissive, warmer and more open when they listen and support you. Hesitate the way a person does, briefly and at most once per reply.`;
+
+/** How OpenAI Live voices the feedback coach. */
+export const liveCoachDelivery = `Sound warm and natural. ${liveSpeech}`;
+
 /** Cedar sends values either directly or wrapped in subscription metadata. */
 function contextValue(context: Record<string, unknown>, key: string): unknown {
   let value = context[key];
