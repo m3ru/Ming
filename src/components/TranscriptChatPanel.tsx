@@ -16,7 +16,7 @@ import type { ReportScore } from "@/app/report/parser";
 import "./TranscriptChatPanel.css";
 
 interface TranscriptChatPanelProps {
-  segments: Array<{ title: string; content: string }>;
+  segments: Array<{ title: string; content: string; highlights?: { feedback: string }[] }>;
   feedback: string | null;
   suggestions: string | null;
   scores: ReportScore[];
@@ -110,9 +110,16 @@ export const TranscriptChatPanel: React.FC<TranscriptChatPanelProps> = ({
     }> = [];
 
     segments.forEach((segment, segmentIndex) => {
+      if (segment.highlights) {
+        segment.highlights.forEach((highlight, index) => feedbackItems.push({
+          id: `feedback-${segmentIndex}-${index}`, title: highlight.feedback,
+          comment: segment.title, feedback: highlight.feedback,
+        }));
+        return;
+      }
       let commentIndex = 0;
 
-      // The same reader as the report's margin notes.
+      // Older saved reports: the same tag reader as the report's margin notes.
       for (const feedbackText of commentFeedback(segment.content)) {
         if (feedbackText.trim()) {
           feedbackItems.push({

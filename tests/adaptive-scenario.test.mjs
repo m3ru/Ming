@@ -169,7 +169,7 @@ function routerFixture(result) {
   const registry = loadBackendSource("src/backend/src/mastra/apiRegistry.ts", {
     "@mastra/core/server": { registerApiRoute: (path, options) => ({ path, ...options }) },
     "./workflows/chatWorkflow": { ChatInputSchema: z.object({}), chatWorkflow: {} },
-    "./workflows/feedbackOrchestratorWorkflow": { feedbackOrchestratorWorkflow: {} },
+    "./reportService": {},
     "./workflows/scenarioPipelineWorkflow": { ...workflow, scenarioPipelineWorkflow: { createRunAsync: async () => ({ start: async () => { generated++; return result; } }) } },
     "../utils/streamUtils": {},
     "./liveVoice": { liveVoice: {} },

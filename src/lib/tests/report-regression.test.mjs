@@ -258,8 +258,7 @@ test("malformed and empty segments remain unavailable; valid content is retained
   );
 });
 
-test("segments match the backend's rule: any case, padded titles, any closing title", () => {
-  // The backend feeds these same segments to the detail agent (backend-streaming tests).
+test("older tagged reports: any case, padded titles, any closing title", () => {
   const result = parse(
     JSON.stringify({
       ...complete,
@@ -268,7 +267,7 @@ test("segments match the backend's rule: any case, padded titles, any closing ti
   );
   assert.equal(result.status, "ready");
   assert.deepEqual(result.segments.map(({ title }) => title), ["Opening", "Close"]);
-  // The slips the backend also accepts: a bare closing tag and a missing one.
+  // Common slips: a bare closing tag and a missing one.
   const slips = parse(
     JSON.stringify({ ...complete, detail: "<segment: A>user: a</segment>\n<segment: B>user: b\n<segment: C>user: c</segment: C>" }),
   );
@@ -441,6 +440,8 @@ function renderPage(state, hooks = {}) {
   const states = [
     true,
     true,
+    false,
+    0,
     state,
     hooks.followUpState || { status: "idle" },
   ];
@@ -608,4 +609,38 @@ test("the report verdict names the strongest and weakest scored skills", () => {
     { strongest: "Open-mindedness" },
   );
   assert.equal(evaluationVerdict(criteria(Array(6).fill(null))), null);
+});
+
+test("structured annotations render original speech as text and preserve literal markup safely", () => {
+  const transcript = 'user: Hello <script>alert(1)</script>\nbart: Hi';
+  const annotationSegments = [{ title: "Opening", content: transcript, highlights: [{ start: 6, end: 11, color: "green", feedback: '<img src=x onerror="alert(1)"> Great opening.' }] }];
+  const report = parse(JSON.stringify({ ...complete, transcript, annotationSegments, annotationStatus: "ready" }));
+  assert.deepEqual(report.segments, annotationSegments);
+  assert.equal(report.annotationStatus, "ready");
+  const html = renderToStaticMarkup(React.createElement(AnnotatedTranscript, { segments: report.segments }));
+  assert.match(html, /Hello/);
+  assert.match(html, /&lt;script&gt;/);
+  assert.match(html, /&lt;img/);
+  assert.doesNotMatch(html, /<script|<img/);
+  const broken = parse(JSON.stringify({ ...complete, transcript, annotationSegments: [{ ...annotationSegments[0], content: "Invented" }] }));
+  assert.equal(broken.segments.length, 0);
+  assert.match(broken.issues.join(" "), /invalid locations/);
+});
+
+test("summary-ready reports explain pending annotations while keeping scores visible", () => {
+  const transcript = "user: Hello\nbart: Hi";
+  const stored = JSON.stringify({ ...complete, transcript, annotationStatus: "pending", annotationSegments: [{ title: "Conversation", content: transcript, highlights: [] }] });
+  const report = parse(stored);
+  const html = renderPage({ status: "loaded", report, raw: stored });
+  assert.match(html, /Your summary and scores are ready/);
+  assert.match(html, /Adding transcript notes/);
+  assert.match(html, /Empathy/);
+});
+
+test("annotation enrichment does not invalidate an in-progress follow-up source", () => {
+  const { followUpSource } = load("src/lib/followUp.ts");
+  const base = { ...complete, transcript: "user: Hello\nbart: Hi", annotationSegments: [{ title: "Conversation", content: "user: Hello\nbart: Hi", highlights: [] }] };
+  const early = followUpSource(JSON.stringify({ ...base, annotationStatus: "pending" }));
+  const late = followUpSource(JSON.stringify({ ...base, annotationStatus: "ready", annotationSegments: [{ ...base.annotationSegments[0], title: "Greeting" }] }));
+  assert.deepEqual(early, late);
 });

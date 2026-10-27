@@ -38,3 +38,21 @@ export function loadBackendSource(relativePath, mocks = {}) {
   );
   return module.exports;
 }
+
+export function loadReportWorkflow(agentMocks, providers, overrides = {}) {
+  return loadBackendSource("src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts", {
+    ...agentMocks,
+    // Real helpers such as geminiThinking, with the test's provider choice on top.
+    "../../lib/providers": { ...loadBackendSource("src/backend/src/lib/providers.ts"), ...providers },
+    "../../lib/reportAnnotations": loadBackendSource("src/backend/src/lib/reportAnnotations.ts"),
+    ...overrides,
+  });
+}
+export function loadReportService(workflow, providers, security) {
+  return loadBackendSource("src/backend/src/mastra/reportService.ts", {
+    "./workflows/feedbackOrchestratorWorkflow": workflow,
+    "../lib/providers": providers,
+    "../lib/security": security,
+    "../lib/reportCache": loadBackendSource("src/backend/src/lib/reportCache.ts"),
+  });
+}

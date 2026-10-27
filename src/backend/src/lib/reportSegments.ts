@@ -1,7 +1,7 @@
 /**
- * One rule for report segments, shared by the backend (it feeds them to the detail agent)
- * and the browser (it renders them). Any letter case and any or no closing title; a segment
- * whose closing tag is missing ends where the next one starts. Empty segments are skipped.
+ * Reads tagged segments from reports saved before structured annotations (annotationSegments).
+ * Any letter case and any or no closing title; a segment whose closing tag is missing ends
+ * where the next one starts. Empty segments are skipped.
  */
 export function reportSegments(text: string) {
   const segments: { title: string; content: string }[] = [];

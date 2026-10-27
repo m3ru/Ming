@@ -224,6 +224,7 @@ export const SidePanelCedarChat: React.FC<
         body: JSON.stringify({
           threadId: currentThreadId,
           transcript: finalTranscript,
+          stage: "summary",
           additionalContext: {
             scenario: contextForAnalysis(scenario ?? Scenarios.negativeReview),
             participants: ["user", "bart"],
@@ -234,7 +235,7 @@ export const SidePanelCedarChat: React.FC<
       if (!response.ok) throw new Error("Report service unavailable");
       const result = await response.json() as {
         status: string;
-        result?: { summaryAnalysis?: string; detailedFeedback?: string; segmentedAnalysis?: string };
+        result?: { summaryAnalysis?: string; detailedFeedback?: string; segmentedAnalysis?: string; annotationSegments?: unknown; annotationStatus?: string };
       };
       if (controller.signal.aborted) return;
       if (result.status !== "success") {
@@ -245,6 +246,13 @@ export const SidePanelCedarChat: React.FC<
         summary: result.result?.summaryAnalysis,
         detail: result.result?.detailedFeedback,
         analysis: result.result?.segmentedAnalysis,
+        annotationSegments: result.result?.annotationSegments,
+        annotationStatus: result.result?.annotationStatus,
+        additionalContext: {
+          scenario: contextForAnalysis(scenario ?? Scenarios.negativeReview),
+          participants: ["user", "bart"],
+          meetingType: "project_review",
+        },
         sessionId: currentThreadId,
         transcript: finalTranscript,
         createdAt: new Date().toISOString(),

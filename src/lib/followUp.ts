@@ -23,12 +23,19 @@ export function followUpSource(rawReport: string): FollowUpSource | undefined {
   const saved: unknown = JSON.parse(rawReport);
   if (!saved || typeof saved !== "object" || Array.isArray(saved)) return;
   const record = saved as Record<string, unknown>;
+  // Annotation enrichment does not change the feedback used for a follow-up.
+  // Keep its source identity stable while transcript notes arrive in the UI.
+  const structured = Array.isArray(record.annotationSegments);
+  if (structured) rawReport = JSON.stringify({
+    sessionId: record.sessionId, summary: record.summary, transcript: record.transcript,
+    createdAt: record.createdAt, additionalContext: record.additionalContext,
+  });
   const threadId =
     typeof record.sessionId === "string" ? record.sessionId.trim() : "";
   const summary =
     typeof record.summary === "string" ? record.summary.trim() : "";
   const analysisText =
-    typeof record.analysis === "string" ? record.analysis.trim() : "";
+    !structured && typeof record.analysis === "string" ? record.analysis.trim() : "";
   if (!threadId || (!summary && !analysisText)) return;
   const analysis = [
     summary && `Completed report:\n${summary}`,

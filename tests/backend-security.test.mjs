@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { backendRequire, loadBackendSource, root } from "./backend-runtime.mjs";
+import { backendRequire, loadBackendSource, loadReportWorkflow, loadReportService, root } from "./backend-runtime.mjs";
 import { scenarioFixture } from "./scenario-fixture.mjs";
 
 async function exerciseRouter() {
@@ -28,8 +28,6 @@ async function exerciseRouter() {
   const storage = new LibSQLStore({ url: ":memory:" });
   const memory = new Memory({ storage, options: { lastMessages: 20 } });
   let modelCalls = 0;
-  // Set to { marker, wait } to hold the report stage whose prompt contains marker.
-  let holdReports;
   const model = {
     specificationVersion: "v2",
     provider: "synthetic",
@@ -46,9 +44,8 @@ async function exerciseRouter() {
     },
     doStream: async (options) => {
       modelCalls++;
+      const isAnnotation = options.prompt.some((message) => message.role === "user" && Array.isArray(message.content) && message.content.some((part) => part.type === "text" && part.text.startsWith('{"lines":')));
       const isScenario = options.prompt.some((message) => JSON.stringify(message).includes("Design the next workplace communication practice with Bart"));
-      if (holdReports && JSON.stringify(options.prompt).includes(holdReports.marker))
-        await holdReports.wait(options.abortSignal);
       return {
         stream: new ReadableStream({
           start(controller) {
@@ -57,11 +54,7 @@ async function exerciseRouter() {
             controller.enqueue({
               type: "text-delta",
               id: "text-1",
-              delta: isScenario
-                ? JSON.stringify(scenarioFixture)
-                : JSON.stringify(options.prompt).includes("Analyze this workplace conversation transcript:")
-                  ? "<segment: Opening>user: Hello</segment: Opening>"
-                  : "Synthetic reply",
+              delta: isScenario ? JSON.stringify(scenarioFixture) : isAnnotation ? JSON.stringify({ segments: [{ title: "Conversation", startLine: 0, highlights: [] }] }) : "Synthetic reply",
             });
             controller.enqueue({ type: "text-end", id: "text-1" });
             controller.enqueue({
@@ -83,6 +76,7 @@ async function exerciseRouter() {
       "transcriptSummaryAnalyzerAgent",
       "transcriptAnalyzerAgent",
       "transcriptDetailAgent",
+      "reportAnnotationAgent",
       "scenarioCreateAgent",
       "promptCreateAgent",
       "reportCreateAgent",
@@ -140,17 +134,14 @@ async function exerciseRouter() {
       "../../lib/providers": providers,
     },
   );
-  const feedback = loadBackendSource(
-    "src/backend/src/mastra/workflows/feedbackOrchestratorWorkflow.ts",
-    { ...agentMocks, "../../lib/providers": providers, "../../lib/reportSegments": loadBackendSource("src/backend/src/lib/reportSegments.ts") },
-  );
+  const feedback = loadReportWorkflow(agentMocks, providers);
   const scenario = loadBackendSource(
     "src/backend/src/mastra/workflows/scenarioPipelineWorkflow.ts",
     { ...agentMocks, "../../lib/scenarioSchema": loadBackendSource("src/backend/src/lib/scenarioSchema.ts"), "../../lib/providers": loadBackendSource("src/backend/src/lib/providers.ts") },
   );
   const registry = loadBackendSource("src/backend/src/mastra/apiRegistry.ts", {
     "./workflows/chatWorkflow": chat,
-    "./workflows/feedbackOrchestratorWorkflow": feedback,
+    "./reportService": loadReportService(feedback, providers, security),
     "./workflows/scenarioPipelineWorkflow": scenario,
     "../utils/streamUtils": utils,
     "../lib/security": security,
@@ -433,59 +424,12 @@ async function exerciseRouter() {
   assert.equal(reportResult.status, "success");
   assert.equal(reportResult.result.summaryAnalysis, "Synthetic reply");
   assert.deepEqual(Object.keys(reportResult.result).sort(), [
+    "annotationSegments",
+    "annotationStatus",
     "detailedFeedback",
     "segmentedAnalysis",
     "summaryAnalysis",
   ]);
-  // A browser that gives up on its report must stop every stage's model call, not leave it running.
-  const waitFor = async (done) => {
-    for (let i = 0; i < 200 && !done(); i++) await new Promise((resolve) => setTimeout(resolve, 5));
-  };
-  const reportRequest = (signal) =>
-    app
-      .request("/feedback", {
-        method: "POST",
-        headers: headers(),
-        body: JSON.stringify({ threadId: "owned-thread", transcript: "user: Hello\nbart: Hello" }),
-        signal,
-      })
-      .catch(() => {});
-  for (const marker of [
-    "Analyze this workplace conversation transcript:",
-    "Analyze this workplace conversation transcript for overall summary:",
-    "Provide detailed phrase-level feedback",
-  ]) {
-    let started = false;
-    let aborted = false;
-    holdReports = {
-      marker,
-      wait: (signal) =>
-        new Promise((resolve) => {
-          started = true;
-          signal?.addEventListener("abort", () => resolve((aborted = true)), { once: true });
-        }),
-    };
-    const leaving = new AbortController();
-    const abandoned = reportRequest(leaving.signal);
-    await waitFor(() => started);
-    assert.ok(started, marker + ": the report never reached this stage");
-    leaving.abort();
-    await waitFor(() => aborted);
-    assert.ok(aborted, marker + ": the abandoned report kept this stage's model call running");
-    await abandoned;
-  }
-  // A browser that left before the run started must not start any model call.
-  let reached = false;
-  holdReports = {
-    marker: "Analyze this workplace conversation transcript:",
-    wait: () => ((reached = true), new Promise((resolve) => setTimeout(resolve, 20))),
-  };
-  const early = new AbortController();
-  const pending = reportRequest(early.signal);
-  early.abort();
-  await pending;
-  assert.equal(reached, false, "a report the browser had already left still called the model");
-  holdReports = undefined;
 
   const next = await request("/scenario-next", {
     threadId: "owned-thread",

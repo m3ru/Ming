@@ -56,7 +56,7 @@ export default function EvaluationGrid({
                 {strength ? "What went well" : "Try next time"}
               </p>
               <p
-                className="hand write-in mt-1 text-[26px] text-pencil"
+                className="write-in mt-2 font-serif text-lg italic leading-relaxed text-ink"
                 style={{ animationDelay: `${650 + index * 90}ms` }}
               >
                 {criterion.note}

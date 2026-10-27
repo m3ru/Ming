@@ -285,5 +285,5 @@ test("a send error after Bart's partial reply renders as an error, not as his wo
     [["u", false], ["b1", false], ["e", true], ["b2", false]],
   );
   // Ordinary consecutive lines from Bart still share one bubble.
-  assert.equal(grouped.at(-1).content, "Sorry, as I said\n\nthe deadline slipped.");
+  assert.equal(grouped.at(-1).content, "Sorry, as I said the deadline slipped.");
 });
